@@ -1695,6 +1695,9 @@ expressions, as described in appendix \ref{sec:index_selection}.):
 \item[\is{AtomSitePotential}] Specifies an external potential at an atom. See
   p.~\pref{sec:dftbp.AtomSitePotential}.
 
+\item[\is{SpeciesPotential}] Specifies an external potential of a given species.
+  See p.~\pref{sec:dftbp.SpeciesPotential}.
+
 \item[\is{Dispersion}] Specifies which kind of dispersion correction
   to apply. See p.~\pref{sec:dftbp.Dispersion}.
 
@@ -3287,6 +3290,52 @@ Example:
     # on-site only part of potential
     Net {
       Atoms = 2
+      Vext [eV] = 0.5
+    }
+  }
+\end{verbatim}
+
+\subsection{SpeciesPotential}
+\label{sec:dftbp.SpeciesPotential}
+
+Specifies an external potential at atoms of given chemical
+type(s). This potential either couples with the gross atomic charges
+(charges printed in \verb|detailed.out| when {\is MullikenAnalysis} =
+\is{Yes}) or net atomic charge (as printed when \is{WriteNetCharges}
+is enabled). {\bf Note:} The sign convention is that the potential
+will {\em increase} the energy of states associated with the affected
+site for a {\em positive} potential.
+
+The \kw{Net} and \kw{Gross} potentials are specified as environments, both of
+which have the following options
+\begin{ptable}
+  \kw{Species} & s+ & & & \\
+  \kw{Vext} & r & & & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Species}] The chemical species for which an external
+  potential should be applied.
+\item[\is{Vext}]\modif{\modtype{energy}} Specified strength of the
+  applied potential at the atoms of the listed species.
+\end{description}
+
+Example:
+\begin{verbatim}
+  SpeciesPotential {
+    # potential coupling to Mulliken charges on C and H atoms
+    Gross {
+      Species = C H
+      Vext [eV] = 1.5
+    }
+    # potential coupling to Mulliken charges on O atoms
+    Gross {
+      Species = O
+      Vext [eV] = 1.4
+    }
+    # on-site only part of potential for N atoms
+    Net {
+      Species = N
       Vext [eV] = 0.5
     }
   }

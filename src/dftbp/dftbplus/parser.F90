@@ -45,6 +45,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_input_geoopt, only : readGeoOptInput
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
   use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData, TSlater
+  use dftbp_math_duplicate, only : isRepeated
   use dftbp_dftbplus_oldcompat, only : convertOldHSD, minVersion, parserVersion, versionMaps
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
@@ -2367,16 +2368,13 @@ contains
     type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
     type(string) :: modifier, buffer, buffer2
-    real(dp) :: rTmp, vTmp
+    real(dp) :: rTmp
     type(TFileDescr) :: file
     integer :: ind, ii, iErr, nElem
-    integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: tmpR1(:), tmpR2(:,:)
     type(TListRealR2) :: lCharges
     type(TListRealR1) :: lBlurs, lr1
-    type(TListReal) :: lr
-    type(TListInt) :: li
-    logical :: speciesPotentialPresent = .false., atomSitePotentialPresent = .false.
+    logical :: atomSitePotentialPresent
 
     call getChildValue(node, "ElectricField", value1, "", child=child, allowEmptyValue=.true.,&
         & dontMarkProcessed=.true., list=.true.)
@@ -2498,6 +2496,7 @@ contains
 
     end if
 
+    atomSitePotentialPresent = .false.
     call getChild(node, "AtomSitePotential", child, requested=.false.)
     if (associated(child)) then
       atomSitePotentialPresent = .true.
@@ -2507,43 +2506,18 @@ contains
       if (associated(child2)) then
         ! onsites
         ctrl%tNetAtomCharges = .true.
-        call init(li)
-        call init(lr)
-        call getChildValue(child2, "Atoms", li)
-        call getChildValue(child2, "Vext", lr, modifier=modifier, child=child3)
-        if (len(li) /= len(lr)) then
-          call detailedError(child2, "Mismatch in number of sites and potentials")
-        end if
-        allocate(ctrl%atomicExtPotential%iAtOnSite(len(li)))
-        call asArray(li, ctrl%atomicExtPotential%iAtOnSite)
-        allocate(ctrl%atomicExtPotential%VextOnSite(len(lr)))
-        call asArray(lr, ctrl%atomicExtPotential%VextOnSite)
-        call convertUnitHsd(char(modifier), energyUnits, child3, ctrl%atomicExtPotential%VextOnSite)
-        call destruct(li)
-        call destruct(lr)
+        call readExternalAtom_(child2, ctrl%atomicExtPotential%iAtOnSite,&
+            & ctrl%atomicExtPotential%VextOnSite)
       end if
 
       call getChild(child, "Gross", child2, requested=.false.)
       if (associated(child2)) then
         ! atomic
-        call init(li)
-        call init(lr)
-        call getChildValue(child2, "Atoms", li)
-        call getChildValue(child2, "Vext", lr, modifier=modifier, child=child3)
-        if (len(li) /= len(lr)) then
-          call detailedError(child2, "Mismatch in number of sites and potentials")
-        end if
-        allocate(ctrl%atomicExtPotential%iAt(len(li)))
-        call asArray(li, ctrl%atomicExtPotential%iAt)
-        allocate(ctrl%atomicExtPotential%Vext(len(lr)))
-        call asArray(lr, ctrl%atomicExtPotential%Vext)
-        call convertUnitHsd(char(modifier), energyUnits, child3, ctrl%atomicExtPotential%Vext)
-        call destruct(li)
-        call destruct(lr)
+        call readExternalAtom_(child2, ctrl%atomicExtPotential%iAt, ctrl%atomicExtPotential%Vext)
       end if
 
-      if (.not.allocated(ctrl%atomicExtPotential%iAt)&
-          & .and. .not.allocated(ctrl%atomicExtPotential%iAtOnSite)) then
+      if (.not.( allocated(ctrl%atomicExtPotential%iAt) .or.&
+          & allocated(ctrl%atomicExtPotential%iAtOnSite))) then
         call detailedError(child, "No atomic potentials specified")
       end if
 
@@ -2552,51 +2526,129 @@ contains
     call getChild(node, "SpeciesPotential", child, requested=.false.)
 
     if (associated(child)) then
-      speciesPotentialPresent = .true.
+
+      ! Raise an error if both are present
+      if (atomSitePotentialPresent) then
+        call detailedError(node, "Only one of AtomSitePotential or SpeciesPotential can be present&
+            & in the input file")
+      end if
 
       allocate(ctrl%atomicExtPotential)
 
-      call getChild(child, "Net", child2, requested=.false.)
-      if (associated(child2)) then
+      call getChildren(child, "Net", children)
+      if (getLength(children) > 0) then
         ! onsites
         ctrl%tNetAtomCharges = .true.
-        call getChildValue(child2, "Species", buffer, child=child3, multiple=.true.)
-        call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, tmpI1)
-        call getChildValue(child2, "Vext", vTmp, modifier=modifier, child=child3)
-        call convertUnitHsd(char(modifier), energyUnits, child3, vTmp)
-
-        allocate(ctrl%atomicExtPotential%iAtOnSite(size(tmpI1)))
-        ctrl%atomicExtPotential%iAtOnSite = tmpI1
-        allocate(ctrl%atomicExtPotential%VextOnSite(size(tmpI1)))
-        do ii = 1, size(tmpI1)
-          ctrl%atomicExtPotential%VextOnSite(ii) = vTmp
+        do ii = 1, getLength(children)
+          call getItem1(children, ii, child2)
+          call readExternalSpecies_(child2, geom, ctrl%atomicExtPotential%iAtOnSite,&
+              & ctrl%atomicExtPotential%VextOnSite)
         end do
       end if
 
-      call getChild(child, "Gross", child2, requested=.false.)
-      if (associated(child2)) then
+      call getChildren(child, "Gross", children)
+      if (getLength(children) > 0) then
         ! atomic
-        call getChildValue(child2, "Species", buffer, child=child3, multiple=.true.)
-        call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, tmpI1)
-        call getChildValue(child2, "Vext", vTmp, modifier=modifier, child=child3)
-        call convertUnitHsd(char(modifier), energyUnits, child3, vTmp)
-
-        allocate(ctrl%atomicExtPotential%iAt(size(tmpI1)))
-        ctrl%atomicExtPotential%iAt = tmpI1
-        allocate(ctrl%atomicExtPotential%Vext(size(tmpI1)))
-        do ii = 1, size(tmpI1)
-          ctrl%atomicExtPotential%Vext(ii) = vTmp
+        do ii = 1, getLength(children)
+          write(*,*)'Gross', ii
+          call getItem1(children, ii, child2)
+          call readExternalSpecies_(child2, geom, ctrl%atomicExtPotential%iAt,&
+              & ctrl%atomicExtPotential%Vext)
         end do
       end if
-    end if
 
-    ! Raise an error if both are present
-    if (atomSitePotentialPresent .and. speciesPotentialPresent) then
-      call detailedError(node, "Only one of AtomSitePotential or SpeciesPotential can be present in&
-          & the input file")
     end if
 
   end subroutine readExternal
+
+
+  !> Read pairs of affected atoms and external potentials
+  subroutine readExternalAtom_(node, iAt, Vext)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Affected atoms
+    integer, allocatable, intent(out) :: iAt(:)
+
+    !> Potential at those atoms
+    real(dp), allocatable, intent(out) :: Vext(:)
+
+    type(TListReal) :: lr
+    type(TListInt) :: li
+    type(fnode), pointer :: child, child2
+    type(string) :: modifier
+
+    call init(li)
+    call init(lr)
+    call getChildValue(node, "Atoms", li)
+    call getChildValue(node, "Vext", lr, modifier=modifier, child=child)
+    if (len(li) /= len(lr)) then
+      call detailedError(node, "Mismatch in number of sites and potentials")
+    end if
+    allocate(iAt(len(li)))
+    call asArray(li, iAt)
+    allocate(Vext(len(lr)))
+    call asArray(lr, Vext)
+    call convertUnitHsd(char(modifier), energyUnits, child, Vext)
+    call destruct(li)
+    call destruct(lr)
+
+  end subroutine readExternalAtom_
+
+
+  !> Read the affected species for an external potential
+  subroutine readExternalSpecies_(node, geom, iAt, Vext)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
+
+    !> Affected atoms
+    integer, allocatable, intent(inout) :: iAt(:)
+
+    !> Potential at those atoms
+    real(dp), allocatable, intent(inout) :: Vext(:)
+
+    type(TListReal) :: lr
+    type(TListInt) :: li
+    type(fnode), pointer :: child, child2
+    type(string) :: modifier, buffer
+    integer, allocatable :: tmpI1(:)
+    real(dp) :: vTmp
+    integer :: ii
+    integer, allocatable :: iAt_(:), iAtTmp(:)
+    real(dp), allocatable :: Vext_(:), VextTmp(:)
+
+    @:ASSERT(allocated(iAt) .eqv. allocated(Vext))
+
+    call getChildValue(node, "Species", buffer, child=child, multiple=.true.)
+    call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species, tmpI1)
+    call getChildValue(node, "Vext", vTmp, modifier=modifier, child=child)
+    call convertUnitHsd(char(modifier), energyUnits, child, vTmp)
+    allocate(iAt_(size(tmpI1)), source=tmpI1)
+    allocate(Vext_(size(tmpI1)), source=vTmp)
+
+    if (.not.allocated(iAt)) then
+      call move_alloc(iAt_, iAt)
+      call move_alloc(Vext_, Vext)
+    else
+      allocate(iAtTmp(size(iAt)+size(iAt_)), source=0)
+      allocate(VextTmp(size(Vext)+size(Vext_)), source=0.0_dp)
+      iAtTmp(:size(iAt)) = iAt
+      VextTmp(:size(iAt)) = Vext
+      iAtTmp(size(iAt)+1:) = iAt_
+      VextTmp(size(iAt)+1:) = Vext_
+      call move_alloc(iAtTmp, iAt)
+      call move_alloc(VextTmp, Vext)
+      if (isRepeated(iAt)) then
+        call detailedError(node, "Repeated potentials for the same chemical species")
+      end if
+    end if
+
+  end subroutine readExternalSpecies_
 
 
   !> Filling of electronic levels

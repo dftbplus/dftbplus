@@ -12,6 +12,7 @@ extpot/CH4_net2                        #? MPI_PROCS <= 1
 extpot/CH4_scc_gross                   #? MPI_PROCS <= 1
 extpot/CH4_scc_net                     #? MPI_PROCS <= 1
 extpot/CH4_scc_species_pot             #? MPI_PROCS <= 1
+extpot/CH3OH_species                   #? MPI_PROCS <= 1
 
 deltadftb/C2H4                         #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/C2H4_noground                #? OMP_THREADS <= 2 and not WITH_MPI
