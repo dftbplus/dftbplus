@@ -167,7 +167,7 @@ module dftbp_poisson_parameters
     tipbias=0.0_dp
     DOS(:)=0.0_dp
     delta=1e-4_dp
-    racc=DLAMCH('Precision')
+    racc=DLAMCH('P') ! precision
     PoissAcc=1e-5_dp
     dmin(:)=0.50_dp
     PoissBox(:,:)=0.0_dp
