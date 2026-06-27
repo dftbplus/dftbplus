@@ -47,6 +47,12 @@ Changed
 - Improve control for single-shot transport calculations in cases
   where charges are read from a file
 
+- Removed mm/ from API path in code, also renaming getDftbPlusApi to
+  getDftbPlusApiVersion and dftbp_api to dftbp_api_version for the
+  Fortran and C API bindings. The Fortran API module for imports is
+  now called dftbp_api. Bumped the API version to 0.6.0 as this
+  renaming is a breaking change.
+
 
 Fixed
 -----
@@ -553,7 +559,7 @@ Added
 - Caching for transition charges in excited state.
 
 - DFTB+ can be compiled as a library and accessed via high level API (version
-  number is in the file api/mm/API_VERSION below the main directory).
+  number is in the file api/API_VERSION below the main directory).
 
 - Onsite corrected hamiltonian for ground state energies.
 

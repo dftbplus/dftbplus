@@ -185,7 +185,7 @@ endfunction()
 #
 function(dftbp_get_api_version apiversion apimajor apiminor apipatch)
 
-  file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/dftbp/api/mm/API_VERSION _api
+  file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/dftbp/api/API_VERSION _api
     REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
   string(REGEX MATCHALL "[0-9]+" _api_list "${_api}")
   list(GET _api_list 0 _api_major)
