@@ -2452,7 +2452,7 @@ contains
     end if
 
     if (allocated(input%ctrl%elecConstraintInp)) then
-      call this%ensureConstrainedDftbReqs(input%ctrl%elecConstraintInp)
+      call this%ensureConstrainedDftbReqs()
       allocate(this%elecConstraint)
       call TElecConstraint_init(this%elecConstraint, input%ctrl%elecConstraintInp, this%orb,&
           & this%q0)
@@ -5676,11 +5676,13 @@ contains
     !> Computing environment
     type(TEnvironment), intent(in) :: env
 
+    integer :: nLocalCols, nLocalRows, nLocalKS
+
+  #:if WITH_SCALAPACK
+
     !! True, if hybrid xc-functional calculation requested and MPI-ready algorithm
     !! has been selected
     logical :: hybridXcAlgoNonDistributed
-
-    integer :: nLocalCols, nLocalRows, nLocalKS
 
     if (this%isHybridXc) then
       hybridXcAlgoNonDistributed = .not. (this%tRealHS&
@@ -5689,9 +5691,6 @@ contains
       hybridXcAlgoNonDistributed = .false.
     end if
 
-    nLocalKS = size(this%parallelKS%localKS, dim=2)
-
-  #:if WITH_SCALAPACK
     if (hybridXcAlgoNonDistributed) then
       nLocalRows = this%denseDesc%fullSize
       nLocalCols = this%denseDesc%fullSize
@@ -5699,12 +5698,15 @@ contains
       call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
           & nLocalCols)
     end if
+
   #:else
 
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
 
   #:endif
+
+    nLocalKS = size(this%parallelKS%localKS, dim=2)
 
     if (this%t2Component .or. .not. this%tRealHS) then
       allocate(this%HSqrCplx(nLocalRows, nLocalCols))
@@ -6065,13 +6067,10 @@ contains
 
 
   !> Stop if any setting incompatible with the constrained DFTB formalism is found.
-  subroutine ensureConstrainedDftbReqs(this, elecConstraintInp)
+  subroutine ensureConstrainedDftbReqs(this)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
-
-    !> Input parameters for electronic constraints
-    type(TElecConstraintInp), intent(in) :: elecConstraintInp
 
     if (.not. this%tSccCalc) then
       call error("Electronically constrained calculations do not yet support non-SCC calculations.")
