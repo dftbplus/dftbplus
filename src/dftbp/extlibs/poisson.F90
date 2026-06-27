@@ -199,10 +199,10 @@ module dftbp_extlibs_poisson
     real(dp) :: gatePot
 
     !> Gate length along transport direction
-    real(dp) :: gateLength_l
+    real(dp) :: gateLength_l = 0.0_dp
 
     !> Gate length in transverse direction
-    real(dp) :: gateLength_t
+    real(dp) :: gateLength_t = 0.0_dp
 
     !> Insulator length
     real(dp) :: insLength
