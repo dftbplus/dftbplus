@@ -122,79 +122,79 @@ module dftbp_poisson_parameters
   ! -----------------------------------------------------------------
   subroutine init_defaults()
 
-    verbose=0
-    biasdir=0
-    gatedir=0
-    contdir(:)=0
-    ncont=0
-    ni(:)=0; ni(1)=1;
-    nf(:)=0; nf(1)=2;
-    iatc(:,:)=0
-    iatm(:)=0
-    ncdim(:)=0
-    mbound_end(:)=0
-    maxiter=30
-    localBC=0
-    poissBC=0
+    verbose = 0
+    biasdir = 0
+    gatedir = 0
+    contdir(:) = 0
+    ncont = 0
+    ni(:) = 0; ni(1) = 1;
+    nf(:) = 0; nf(1) = 2;
+    iatc(:,:) = 0
+    iatm(:) = 0
+    ncdim(:) = 0
+    mbound_end(:) = 0
+    maxiter = 30
+    localBC = 0
+    poissBC = 0
     overrideBC(:) = poissonBCsEnum%periodic
     overrBulkBC(:) = poissonBCsEnum%unset
     mixed = .false.
-    maxpoissiter=60
+    maxpoissiter = 60
 
-    Temp=0.0_dp
-    deltaR_max=9.0_dp
-    LmbMax=0.50_dp
-    gate=0.0_dp
-    GateLength_l=0.0_dp
-    GateLength_t=0.0_dp
-    OxLength=0.0_dp
-    OxLength_t=0.0_dp
-    OxLength_l=0.0_dp
-    insLength_t=0.0_dp
-    insLength_l=0.0_dp
-    Efermi(:)=0.0_dp
-    bias_dEf=0.0_dp
-    Rmin_Ins=0.0_dp
-    Rmin_Gate=0.0_dp
+    Temp = 0.0_dp
+    deltaR_max = 9.0_dp
+    LmbMax = 0.50_dp
+    gate = 0.0_dp
+    GateLength_l = 0.0_dp
+    GateLength_t = 0.0_dp
+    OxLength = 0.0_dp
+    OxLength_t = 0.0_dp
+    OxLength_l = 0.0_dp
+    insLength_t = 0.0_dp
+    insLength_l = 0.0_dp
+    Efermi(:) = 0.0_dp
+    bias_dEf = 0.0_dp
+    Rmin_Ins = 0.0_dp
+    Rmin_Gate = 0.0_dp
     insSharpBC = .false.
-    dr_eps=0.0_dp
-    eps_r=0.0_dp
-    cntr_gate(:)=0.0_dp
-    cntr_gate_set(:)=.false.
-    tip_atom(:)=0.0_dp
-    base_atom1(:)=0.0_dp
-    base_atom2(:)=0.0_dp
-    tipbias=0.0_dp
-    DOS(:)=0.0_dp
-    delta=1e-4_dp
-    racc=DLAMCH('P') ! precision
-    PoissAcc=1e-5_dp
-    dmin(:)=0.50_dp
-    PoissBox(:,:)=0.0_dp
-    PoissPlane(:)=0.0_dp
-    mu(:)=0.0_dp
-    cntr_cont(:,:)=0.0_dp
-    R_cont(:)=0.0_dp
-    dR_cont(:)=1.0_dp
+    dr_eps = 0.0_dp
+    eps_r = 0.0_dp
+    cntr_gate(:) = 0.0_dp
+    cntr_gate_set(:) = .false.
+    tip_atom(:) = 0.0_dp
+    base_atom1(:) = 0.0_dp
+    base_atom2(:) = 0.0_dp
+    tipbias = 0.0_dp
+    DOS(:) = 0.0_dp
+    delta = 1e-4_dp
+    racc = DLAMCH('P') ! precision
+    PoissAcc = 1e-5_dp
+    dmin(:) = 0.50_dp
+    PoissBox(:,:) = 0.0_dp
+    PoissPlane(:) = 0.0_dp
+    mu(:) = 0.0_dp
+    cntr_cont(:,:) = 0.0_dp
+    R_cont(:) = 0.0_dp
+    dR_cont(:) = 1.0_dp
     bufferBox = 0.0_dp
 
-    etb=.false.
-    cluster=.false.
-    SavePot=.false.
-    SaveNNList=.false.
-    SaveHS=.false.
-    FictCont(:)=.false.
-    DoPoisson=.true.
-    Readold=.false.
-    InitPot=.false.
-    DoGate=.false.
-    DoInsulator=.false.
-    DoCilGate=.false.
-    DoTip=.false.
-    ReadBulk=.false.
-    FoundBox=.false.
-    do_renorm=.true.
-    fixed_renorm=.true.
+    etb = .false.
+    cluster = .false.
+    SavePot = .false.
+    SaveNNList = .false.
+    SaveHS = .false.
+    FictCont(:) = .false.
+    DoPoisson = .true.
+    Readold = .false.
+    InitPot = .false.
+    DoGate = .false.
+    DoInsulator = .false.
+    DoCilGate = .false.
+    DoTip = .false.
+    ReadBulk = .false.
+    FoundBox = .false.
+    do_renorm = .true.
+    fixed_renorm = .true.
 
   end subroutine
 
@@ -300,7 +300,7 @@ module dftbp_poisson_parameters
     real(dp), intent(in) :: Box(:)
     integer i
     do i = 1, 3
-      PoissBox(i,i)=box(i)
+      PoissBox(i,i) = box(i)
     end do
   end subroutine set_poissonbox
 

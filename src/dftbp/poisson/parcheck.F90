@@ -155,19 +155,18 @@ contains
 
  subroutine check_parameters()
 
-
-   if(OxLength.lt.GateLength_l) OxLength=GateLength_l
-   print *,'Oxlength=',OxLength, 'GateLength_l=',GateLength_l
+   if (OxLength < GateLength_l) OxLength = GateLength_l
+   print *,'Oxlength=', OxLength, 'GateLength_l=', GateLength_l
    if (DoInsulator) then
-       if(Rmin_ins.le.0.0d0) then
+       if (Rmin_ins <= 0.0_dp) then
        call error('Insulator radius must be positive')
      end if
-     if(Rmin_ins.gt.Rmin_gate) then
+     if (Rmin_ins > Rmin_gate) then
        call warning('Insulator radius is larger than gate radius: setting Rmin_ins=Rmin_gate')
-       Rmin_ins=Rmin_gate
+       Rmin_ins = Rmin_gate
      end if
-     if(dr_eps.lt.0.5d0) dr_eps = 0.5d0 !TODO: should be changed to one grid spacing
-     print *,'dr_eps=',dr_eps
+     if (dr_eps < 0.5_dp) dr_eps = 0.5d0 !TODO: should be changed to one grid spacing
+     print *,'dr_eps=', dr_eps
    end if
 
    ! Check nPoles ----------------------------------------
