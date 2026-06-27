@@ -6,8 +6,8 @@ macro:
         RELEASE=25.1
 preprocess: true
 src_dir:
-        ../../../src/dftbp/api/mm
-        ../../../test/api/mm
+        ../../../src/dftbp/api
+        ../../../test/api
 output_dir: ./doc
 project_github: https://github.com/dftbplus/dftbplus
 project_website: http://www.dftbplus.org
