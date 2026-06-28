@@ -20,7 +20,8 @@ module dftbp_dftb_densitymatrix
   use dftbp_math_blasroutines, only : herk
   use dftbp_type_commontypes, only : TParallelKS
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, pblasfx_pgemm, pblasfx_ptranc, size
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, M_, pblasfx_pgemm, pblasfx_psyrk,&
+      & pblasfx_ptran, pblasfx_ptranc, scalafx_islocal, size
 #:endif
 #:if WITH_MAGMA
   use iso_fortran_env, only : int64
@@ -832,7 +833,8 @@ contains
     !> Eigenvalues, if energy weighted density matrix required
     real(dp), intent(in), optional :: eigenVals(:)
 
-    integer  :: ii, jj, iGlob, iLoc, blockSize
+    integer  :: ii, jj, iGlob, iLoc, blockSize, iLocRow, iLocCol
+    logical :: isLocal
     type(blocklist) :: blocks
     real(dp), allocatable :: work(:,:)
 
@@ -842,23 +844,48 @@ contains
     ! Scale a copy of the eigenvectors
     call blocks%init(myBlacs, desc, "c")
     if (present(eigenVals)) then
+      ! Energy-weighted matrix: eigenvalues of occupied states may be negative,
+      ! so the rank-k update below is not applicable. Use a matrix product.
       do ii = 1, size(blocks)
         call blocks%getblock(ii, iGlob, iLoc, blockSize)
         do jj = 0, blockSize - 1
           work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj) * filling(iGlob + jj)
         end do
       end do
-    else
+      call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
+    else if (minval(filling) < 0.0_dp) then
+      ! Some occupations are negative (e.g. Methfessel-Paxton filling), so
+      ! sqrt(filling) is not real. Use a matrix product, as above.
       do ii = 1, size(blocks)
         call blocks%getblock(ii, iGlob, iLoc, blockSize)
         do jj = 0, blockSize - 1
           work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
         end do
       end do
+      call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
+    else
+      ! For non-negative occupations the density matrix rho = V diag(f) V^T equals
+      ! W W^T with W = V sqrt(f). This symmetric rank-k update forms only one
+      ! triangle, roughly halving the work of the matrix product above. The
+      ! serial (herk) and GPU (syrk) density-matrix builds already do this.
+      do ii = 1, size(blocks)
+        call blocks%getblock(ii, iGlob, iLoc, blockSize)
+        do jj = 0, blockSize - 1
+          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * sqrt(filling(iGlob + jj))
+        end do
+      end do
+      call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N")
+      ! psyrk fills only the lower triangle. Mirror it into the upper triangle by
+      ! adding the transpose; this doubles the diagonal, which is halved below.
+      work(:,:) = densityMtx
+      call pblasfx_ptran(work, desc, densityMtx, desc, alpha=1.0_dp, beta=1.0_dp)
+      do ii = 1, desc(M_)
+        call scalafx_islocal(myBlacs, desc, ii, ii, isLocal, iLocRow, iLocCol)
+        if (isLocal) then
+          densityMtx(iLocRow, iLocCol) = 0.5_dp * densityMtx(iLocRow, iLocCol)
+        end if
+      end do
     end if
-
-    ! Create matrix
-    call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
 
   end subroutine makeDensityMtxRealBlacs
 
