@@ -555,6 +555,8 @@ contains
 
     else !--------------spin-polarized systems--------
 
+      tdaFactor = merge(1.0_dp, 2.0_dp, tTDA)
+
       call hemv(gtmp, frGamma, otmp)
 
       otmp(:) = 0.0_dp
@@ -565,7 +567,7 @@ contains
         qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
 
         ! singlet gamma part (S)
-        vOut(myia) = 2.0_dp * rpa%sqrOccIA(ia) * dot_product(qij, gtmp)
+        vOut(myia) = tdaFactor * rpa%sqrOccIA(ia) * dot_product(qij, gtmp)
 
         ! magnetization part (T1)
         ss = rpa%getIA(rpa%win(ia), 3)
@@ -585,7 +587,7 @@ contains
 
         ss = rpa%getIA(rpa%win(ia), 3)
 
-        vOut(myia) = vOut(myia) + 2.0_dp * rpa%sqrOccIA(ia) * spinFactor(ss) *&
+        vOut(myia) = vOut(myia) + tdaFactor * rpa%sqrOccIA(ia) * spinFactor(ss) *&
             & dot_product(qij, otmp)
 
       end do
@@ -1013,6 +1015,8 @@ contains
     !--------------spin-polarized systems--------
     else
 
+      tdaFactor = merge(1.0_dp, 2.0_dp, lr%tTDA)
+
       do jb = 1, initDim
         qTr(:) = transChrg%qTransIA(jb, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
         qTr(:) = qTr * rpa%sqrOccIA(jb)
@@ -1024,12 +1028,12 @@ contains
         do ia = iGlobal, fGlobal
           myia = ia - iGlobal + 1
           qTr(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
-          vP(myia,jb) = 2.0_dp * rpa%sqrOccIA(ia) * dot_product(qTr, gTmp)
+          vP(myia,jb) = tdaFactor * rpa%sqrOccIA(ia) * dot_product(qTr, gTmp)
         end do
 
         ss = rpa%getIA(rpa%win(jb), 3)
 
-        oTmp(:)  =  spinFactor(ss) * 2.0_dp * lr%spinW(species0) * oTmp
+        oTmp(:)  =  spinFactor(ss) * tdaFactor * lr%spinW(species0) * oTmp
 
         do ia = iGlobal, fGlobal
           myia = ia - iGlobal + 1

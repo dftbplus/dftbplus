@@ -610,10 +610,6 @@ contains
       call error("Range separation requires the Stratmann solver for excitations")
     end if
 
-    if (this%tTDA .and. this%tSpin) then
-      call error("Tamm-Dancoff Approximation is only implemented for spin-unpolarized systems")
-    end if
-
     if (this%tTDA .and. this%isSpectrumFolded) then
       call error("Spectrum folding is not supported with the Tamm-Dancoff approximation")
     end if
