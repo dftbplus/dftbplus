@@ -40,7 +40,7 @@ add_subdirectory(solvation)
 add_subdirectory(transport)
 add_subdirectory(xtb)
 if(WITH_API)
-  add_subdirectory(api/mm)
+  add_subdirectory(api)
 endif()
 if(WITH_POISSON)
   add_subdirectory(poisson)
@@ -70,7 +70,7 @@ target_include_directories(dftbplus PUBLIC
 
 if(WITH_API)
   target_include_directories(dftbplus INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api/mm>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_INCLUDEDIR}>)
 endif()
 
@@ -168,7 +168,7 @@ if(INSTALL_INCLUDE_FILES)
 
   if(WITH_API)
     CONFIGURE_FILE(
-      "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/api/dftbplus.h"
       "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
       @ONLY
       )
