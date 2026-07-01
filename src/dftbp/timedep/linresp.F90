@@ -43,6 +43,9 @@ module dftbp_timedep_linresp
     !> Number of excitations to be found
     integer :: nExc
 
+    !> Is Tamm-Dancoff Approximation being used?
+    logical :: tTDA
+
     !> Is an energy window being used?
     logical :: tEnergyWindow
 
@@ -203,6 +206,7 @@ contains
   #:endif
 
     this%nExc = ini%nExc
+    this%tTDA = ini%tTDA
     this%tEnergyWindow = ini%tEnergyWindow
     this%energyWindow = ini%energyWindow
     this%tOscillatorWindow = ini%tOscillatorWindow

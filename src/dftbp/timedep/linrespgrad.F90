@@ -610,6 +610,10 @@ contains
       call error("Range separation requires the Stratmann solver for excitations")
     end if
 
+    if (this%tTDA .and. this%isSpectrumFolded) then
+      call error("Spectrum folding is not supported with the Tamm-Dancoff approximation")
+    end if
+
     call env%globalTimer%stopTimer(globalTimers%lrSetup)
 
     do isym = 1, size(symmetries)
@@ -700,6 +704,7 @@ contains
           nStartLev = this%indNACouplings(1)
         end if
         nEndLev = this%indNACouplings(2)
+        doVanillaZvector = .false.
 
       else
 
@@ -961,6 +966,11 @@ contains
   !! The code deals with closed shell systems by diagonalising dedicated singlet/triplet
   !! submatrices.
   !! See Dominguez JCTC 9 4901 (2013)
+  !!
+  !! Under TDA we diagonalise A, We don't need to make the
+  !! hermitian transformation. Its eigenvector already is X = X+Y = X-Y;
+  !! no F -> (X+Y) conversion is needed. Store omega^2 to match the
+  !! Casida convention.
   subroutine buildAndDiagExcMatrixArpack(iGlobal, fGlobal, env, orb, lr, rpa, transChrg,&
       & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym, xpy, xmy, isSpectrumFolded,&
       & shiftSpace)
@@ -1096,18 +1106,18 @@ contains
         allocate(workTmp(nLoc))
         ! Action of excitation supermatrix on supervector
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-            & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1), workTmp)
+            & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1), workTmp, .false.)
         workTmp(:) = workTmp -shiftSpace * workd(ipntr(1):ipntr(1)+nLoc-1)
         ! Action of excitation supermatrix on supervector
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-            & ovrXev, grndEigVecs, gammaMat, .false., workTmp, workd(ipntr(2):ipntr(2)+nLoc-1))
+            & ovrXev, grndEigVecs, gammaMat, .false., workTmp, workd(ipntr(2):ipntr(2)+nLoc-1), .false.)
         workd(ipntr(2):ipntr(2)+nLoc-1) = workd(ipntr(2):ipntr(2)+nLoc-1) - shiftSpace * workTmp
         deallocate(workTmp)
       else
         ! Action of excitation supermatrix on supervector
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-            & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1),&
-            & workd(ipntr(2):ipntr(2)+nLoc-1))
+            & ovrXev, grndEigVecs, gammaMat, lr%tTDA, workd(ipntr(1):ipntr(1)+nLoc-1),&
+            & workd(ipntr(2):ipntr(2)+nLoc-1), lr%tTDA)
       end if
 
     end do
@@ -1153,7 +1163,7 @@ contains
 
           call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
               & species0, ovrXev, grndEigVecs, gammaMat, .false., xpy(iGlobal:fGlobal,iState),&
-              & workTmp)
+              & workTmp, .false.)
 
           eval(iState) = dot_product(xpy(iGlobal:fGlobal,iState), workTmp)
           call assembleChunks(env, eval(iState))
@@ -1185,8 +1195,8 @@ contains
       do iState = 1, nExc
 
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-          & ovrXev, grndEigVecs, gammaMat, .false., xpy(iGlobal:fGlobal,iState),&
-          & Hv(iGlobal:fGlobal))
+          & ovrXev, grndEigVecs, gammaMat, lr%tTDA, xpy(iGlobal:fGlobal,iState),&
+          & Hv(iGlobal:fGlobal), lr%tTDA)
 
         call assembleChunks(env, Hv)
 
@@ -1202,14 +1212,21 @@ contains
       xmy(:,:) = 0.0_dp
     end if
 
-    ! Conversion from eigenvectors of the hermitian problem (F) to (X+Y)
-    do iState = 1, nExc
-      omega = sqrt(eval(iState))
-      xpy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * sqrt(rpa%wij(:rpa%nxov_rd) / omega)
+    if (lr%tTDA) then
       if (rpa%tZVector) then
-        xmy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * omega / rpa%wij(:rpa%nxov_rd)
+        xmy(:rpa%nxov_rd,:nExc) = xpy(:rpa%nxov_rd,:nExc)
       end if
-    end do
+      eval(:nExc) = eval(:nExc)**2
+    else
+      ! Conversion from eigenvectors of the hermitian problem (F) to (X+Y)
+      do iState = 1, nExc
+        omega = sqrt(eval(iState))
+        xpy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * sqrt(rpa%wij(:rpa%nxov_rd) / omega)
+        if (rpa%tZVector) then
+          xmy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * omega / rpa%wij(:rpa%nxov_rd)
+        end if
+      end do
+    end if
 
   end subroutine buildAndDiagExcMatrixArpack
 
@@ -1288,7 +1305,7 @@ contains
     ! matrices M_plus, M_minus, M_minus^(1/2), M_minus^(-1/2) and M_herm~=resp. mat on subspace
     real(dp), allocatable :: mP(:,:), mM(:,:), mMsqrt(:,:), mMsqrtInv(:,:), mH(:,:)
     ! Residual vectors
-    real(dp), allocatable :: resR(:,:), resL(:,:), workspaceM(:,:)
+    real(dp), allocatable :: resR(:,:), resL(:,:), workspaceM(:,:), dummyTDA(:,:)
     real(dp), allocatable :: evalInt(:) ! store eigenvectors within routine
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp) :: placeHolderReal
@@ -1307,6 +1324,11 @@ contains
       write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonaliser.'
       call error(tmpStr)
     endif
+
+    if (lr%tTDA) then
+      write(stdOut,'(A)') ' '
+      write(stdOut,'(A)') '>> Using Tamm-Dancoff Approximation in Linear Response'
+    end if
 
     ! Number of excited states to solve for
     nExc = size(eval)
@@ -1368,13 +1390,19 @@ contains
         do ii = prevSubSpaceDim + 1, subSpaceDim
 
           call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
-              & species0, ovrXev, grndEigVecs, gammaMat, .true., vecB(:,ii), vP(:,ii), lrGamma)
-          call actionAminusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, denseDesc,&
-              & ovrXev, grndEigVecs, vecB(:,ii), vM(:,ii), lrGamma)
+              & species0, ovrXev, grndEigVecs, gammaMat, .true., vecB(:,ii), vP(:,ii),&
+              & lr%tTDA, lrGamma)
+
+          if (lr%tTDA) then
+            vM(:,ii) = vP(:,ii)
+          else
+            call actionAminusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, denseDesc,&
+                & ovrXev, grndEigVecs, vecB(:,ii), vM(:,ii), lrGamma)
+          end if
 
         end do
 
-       do ii = prevSubSpaceDim + 1, subSpaceDim
+        do ii = prevSubSpaceDim + 1, subSpaceDim
           do jj = 1, ii
             placeHolderReal = dot_product(vecB(:,jj), vP(:,ii))
             call assembleChunks(env, placeHolderReal)
@@ -1395,10 +1423,14 @@ contains
 
       end if
 
-      call calcMatrixSqrt(mM, mMsqrt, mMsqrtInv)
+      if (lr%tTDA) then
+        mH = mP
+      else
+        call calcMatrixSqrt(mM, mMsqrt, mMsqrtInv)
 
-      call symm(workspaceM, 'L', mP, mMsqrt, uplo='U')
-      call symm(mH, 'L', mMsqrt, workspaceM, uplo='U')
+        call symm(workspaceM, 'L', mP, mMsqrt, uplo='U')
+        call symm(mH, 'L', mMsqrt, workspaceM, uplo='U')
+      end if
 
       ! Diagonalise in subspace
       call heev(mH, evalInt, 'U', 'V', info)
@@ -1423,42 +1455,63 @@ contains
       ! Calc. |R_n>=|X+Y>=(A-B)^(1/2)T and |L_n>=|X-Y>=(A-B)^(-1/2)T.
       ! Transformation preserves orthonormality.
       ! Only compute up to nExc index, because only that much needed.
-      call symm(evecR, 'L', Mmsqrt, Mh, uplo='U')
-      call symm(evecL, 'L', Mmsqrtinv, Mh, uplo='U')
+      if (lr%tTDA) then
+        call gemm(vM, vecB, mH)
+      else
+        call symm(evecR, 'L', mMsqrt, mH, uplo='U')
+        call symm(evecL, 'L', mMsqrtinv, mH, uplo='U')
 
-      ! Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution to original
-      ! EV problem, only use first nExc vectors
-      do ii = 1, nExc
-        placeHolderReal = sqrt(sqrt(evalInt(ii)))
-        evecR(:,ii) = evecR(:,ii) / placeHolderReal
-        evecL(:,ii) = evecL(:,ii) * placeHolderReal
-      end do
+        ! need |x-y>=sqrt(w)(a-b)^(-1/2)t, |x+y>=(a-b)^(1/2)t/sqrt(w) for proper solution to original
+        ! ev problem, only use first nexc vectors
+        do ii = 1, nExc
+          placeholderReal = sqrt(sqrt(evalInt(ii)))
+          evecR(:,ii) = evecR(:,ii) / placeholderReal
+          evecL(:,ii) = evecL(:,ii) * placeholderReal
+        end do
+      end if
 
       ! Calculate the residual vectors
-      !   calcs. all |R_n>
-      call gemm(resR, vecB, evecR)
-      !   calcs. all |L_n>
-      call gemm(resL, vecB, evecL)
+      if (lr%tTDA) then
+        allocate(dummyTDA(nLoc,subSpaceDim))
+        call gemm(dummyTDA, vP, mH)
+        do ii = 1, nExc
+          resR(:,ii) = dummyTDA(:,ii) - evalInt(ii) * vM(:,ii)
+        end do
+        deallocate(dummyTDA)
 
-      do ii = 1, nExc
-        placeHolderReal = -sqrt(evalInt(ii))
-        resR(:,ii) = placeHolderReal * resR(:,ii)
-        resL(:,ii) = placeHolderReal * resL(:,ii)
-      end do
+      else
+        !   calcs. all |R_n>
+        call gemm(resR, vecB, evecR)
+        !   calcs. all |L_n>
+        call gemm(resL, vecB, evecL)
 
-      ! (A-B)|L_n> for all n=1,..,nExc
-      call gemm(resR, vM, evecL, beta=1.0_dp)
-      ! (A+B)|R_n> for all n=1,..,nExc
-      call gemm(resL, vP, evecR, beta=1.0_dp)
+        do ii = 1, nExc
+          placeHolderReal = -sqrt(evalInt(ii))
+          resR(:,ii) = placeHolderReal * resR(:,ii)
+          resL(:,ii) = placeHolderReal * resL(:,ii)
+        end do
+
+        ! (A-B)|L_n> for all n=1,..,nExc
+        call gemm(resR, vM, evecL, beta=1.0_dp)
+        ! (A+B)|R_n> for all n=1,..,nExc
+        call gemm(resL, vP, evecR, beta=1.0_dp)
+
+      end if
 
       ! calc. norms of residual vectors to check for convergence
       do ii = 1, nExc
         placeHolderReal = dot_product(resR(:,ii), resR(:,ii))
         call assembleChunks(env, placeHolderReal)
         vecNorm(ii) = placeHolderReal
-        placeHolderReal = dot_product(resL(:,ii), resL(:,ii))
-        call assembleChunks(env, placeHolderReal)
-        vecNorm(nExc+ii) = placeHolderReal
+
+        if (lr%tTDA) then
+          vecNorm(nExc+ii) = 0.0_dp
+        else
+          placeHolderReal = dot_product(resL(:,ii), resL(:,ii))
+          call assembleChunks(env, placeHolderReal)
+          vecNorm(nExc+ii) = placeHolderReal
+        end if
+
       end do
       didConverge = all(vecNorm < convThreshStrat)
 
@@ -1470,18 +1523,34 @@ contains
 
       ! if converged then exit loop:
       if (didConverge) then
+        if (lr%tTDA) then
+          ! Store omega^2 to match the full-Casida convention downstream
+          eval(:) = evalInt(1:nExc) * evalInt(1:nExc)
 
-        eval(:) = evalInt(1:nExc)
+          ! In TDA: |X+Y> = |X-Y> = |X>
+          xpy(:,:) = 0.0_dp
+          xpy(iGlobal:fGlobal,:) = vM(:,1:nExc)
+          call assembleChunks(env, xpy)
 
-        ! Calc. X+Y
-        xpy(:,:) = 0.0_dp
-        xpy(iGlobal:fGlobal,:) = matmul(vecB, evecR)
-        call assembleChunks(env, xpy)
+          if (rpa%tZVector) then
+            xmy(iGlobal:fGlobal,:) = vM(:,1:nExc)
+            call assembleChunks(env, xmy)
+          end if
 
-        ! Calc. X-Y, only when needed
-        if (rpa%tZVector) then
-          xmy(iGlobal:fGlobal,:) = matmul(vecB, evecL)
-          call assembleChunks(env, xmy)
+        else
+          eval(:) = evalInt(1:nExc)
+
+          ! Calc. X+Y
+          xpy(:,:) = 0.0_dp
+          xpy(iGlobal:fGlobal,:) = matmul(vecB, evecR)
+          call assembleChunks(env, xpy)
+
+          ! Calc. X-Y, only when needed
+          if (rpa%tZVector) then
+            xmy(iGlobal:fGlobal,:) = matmul(vecB, evecL)
+            call assembleChunks(env, xmy)
+          end if
+
         end if
 
         write(stdOut,'(A)') '>> Stratmann converged'
@@ -1502,32 +1571,50 @@ contains
             & mMsqrtInv, workspaceM, evalInt, evecL, evecR)
 
       iVec = 0
-      do ii = 1, nExc
-        if (vecNorm(ii) > convThreshStrat) then
-          iVec = iVec + 1
-          placeHolderReal = sqrt(evalInt(ii))
-          placeHolderInt = subSpaceDim + iVec
+      if (lr%tTDA) then
+        do ii = 1, nExc
+          if (vecNorm(ii) > convThreshStrat) then
+            iVec = iVec + 1
+            placeHolderReal = evalInt(ii)
+            placeHolderInt = subSpaceDim + iVec
 
-          do jj = iGlobal, fGlobal
-            myjj = jj - iGlobal + 1
-            vecB(myjj,placeHolderInt) = resR(myjj,ii) / (placeHolderReal - rpa%wij(jj))
-          end do
+            do jj = iGlobal, fGlobal
+              myjj = jj - iGlobal + 1
+              vecB(myjj,placeHolderInt) = resR(myjj,ii) / (placeHolderReal - rpa%wij(jj))
+            end do
 
-        end if
-      end do
+          end if
+        end do
 
-      do ii = 1, nExc
-        if (vecNorm(nExc+ii) > convThreshStrat) then
-          iVec = iVec + 1
-          placeHolderInt = subSpaceDim + iVec
+      else
+        do ii = 1, nExc
+          if (vecNorm(ii) > convThreshStrat) then
+            iVec = iVec + 1
+            placeHolderReal = sqrt(evalInt(ii))
+            placeHolderInt = subSpaceDim + iVec
 
-          do jj = iGlobal, fGlobal
-            myjj = jj - iGlobal + 1
-            vecB(myjj,placeHolderInt) = resL(myjj,ii) / (placeHolderReal - rpa%wij(jj))
-          end do
+            do jj = iGlobal, fGlobal
+              myjj = jj - iGlobal + 1
+              vecB(myjj,placeHolderInt) = resR(myjj,ii) / (placeHolderReal - rpa%wij(jj))
+            end do
 
-        end if
-      end do
+          end if
+        end do
+
+        do ii = 1, nExc
+          if (vecNorm(nExc+ii) > convThreshStrat) then
+            iVec = iVec + 1
+            placeHolderInt = subSpaceDim + iVec
+
+            do jj = iGlobal, fGlobal
+              myjj = jj - iGlobal + 1
+              vecB(myjj,placeHolderInt) = resL(myjj,ii) / (placeHolderReal - rpa%wij(jj))
+            end do
+
+          end if
+        end do
+
+      end if
 
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
@@ -2182,7 +2269,7 @@ contains
     ! we need the singlet action even for triplet excitations!
     call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, 'S', denseDesc, species0,&
         & ovrXev, grndEigVecs, gammaMat, .true., rhs2(iGlobal:fGlobal), rkm1(iGlobal:fGlobal),&
-        & lrGamma)
+        & .false., lrGamma)
 
     call assembleChunks(env, rkm1)
 
@@ -2197,7 +2284,7 @@ contains
       apk = 0.0_dp
       call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, 'S', denseDesc, species0,&
           & ovrXev, grndEigVecs, gammaMat, .true., pkm1(iGlobal:fGlobal), apk(iGlobal:fGlobal),&
-          & lrGamma)
+          & .false., lrGamma)
 
       call assembleChunks(env, apk)
 
