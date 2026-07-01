@@ -833,8 +833,7 @@ contains
     !> Eigenvalues, if energy weighted density matrix required
     real(dp), intent(in), optional :: eigenVals(:)
 
-    integer  :: ii, jj, iGlob, iLoc, blockSize, iLocRow, iLocCol
-    logical :: isLocal
+    integer  :: ii, jj, iGlob, iLoc, blockSize
     type(blocklist) :: blocks
     real(dp), allocatable :: work(:,:)
 
@@ -844,18 +843,35 @@ contains
     ! Scale a copy of the eigenvectors
     call blocks%init(myBlacs, desc, "c")
     if (present(eigenVals)) then
-      ! Energy-weighted matrix: eigenvalues of occupied states may be negative,
-      ! so the rank-k update below is not applicable. Use a matrix product.
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, blockSize - 1
-          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj) * filling(iGlob + jj)
+      if (all(filling * eigenVals <= 0.0_dp)) then
+        ! Energy-weighted matrix W = V diag(f e) V^T. When every occupied product
+        ! f*e is non-positive (the common case, occupied levels below the reference
+        ! energy), W = -(Y Y^T) with Y = V sqrt(-f e), so a symmetric rank-k update
+        ! with a prefactor of -1 applies, as for the density matrix below.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj)&
+                & * sqrt(-eigenVals(iGlob + jj) * filling(iGlob + jj))
+          end do
         end do
-      end do
-      call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
-    else if (minval(filling) < 0.0_dp) then
+        call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N", alpha=-1.0_dp)
+        call addLowerTriangleTranspose(myBlacs, desc, densityMtx, work)
+      else
+        ! Occupied products f*e have mixed signs, so the rank-k update is not
+        ! applicable. Use a matrix product.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj)&
+                & * filling(iGlob + jj)
+          end do
+        end do
+        call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
+      end if
+    else if (any(filling < 0.0_dp)) then
       ! Some occupations are negative (e.g. Methfessel-Paxton filling), so
-      ! sqrt(filling) is not real. Use a matrix product, as above.
+      ! sqrt(filling) is not real. Use a matrix product.
       do ii = 1, size(blocks)
         call blocks%getblock(ii, iGlob, iLoc, blockSize)
         do jj = 0, blockSize - 1
@@ -875,19 +891,43 @@ contains
         end do
       end do
       call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N")
-      ! psyrk fills only the lower triangle. Mirror it into the upper triangle by
-      ! adding the transpose; this doubles the diagonal, which is halved below.
-      work(:,:) = densityMtx
-      call pblasfx_ptran(work, desc, densityMtx, desc, alpha=1.0_dp, beta=1.0_dp)
-      do ii = 1, desc(M_)
-        call scalafx_islocal(myBlacs, desc, ii, ii, isLocal, iLocRow, iLocCol)
-        if (isLocal) then
-          densityMtx(iLocRow, iLocCol) = 0.5_dp * densityMtx(iLocRow, iLocCol)
-        end if
-      end do
+      call addLowerTriangleTranspose(myBlacs, desc, densityMtx, work)
     end if
 
   end subroutine makeDensityMtxRealBlacs
+
+
+  !> Completes a symmetric matrix held as its lower triangle (as produced by a
+  !> rank-k update) by adding its transpose and correcting the doubled diagonal.
+  subroutine addLowerTriangleTranspose(myBlacs, desc, matrix, work)
+
+    !> BLACS grid information
+    type(blacsgrid), intent(in) :: myBlacs
+
+    !> Matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> Lower triangle on entry, full symmetric matrix on exit
+    real(dp), intent(inout) :: matrix(:,:)
+
+    !> Scratch array with the same shape and descriptor as matrix
+    real(dp), intent(inout) :: work(:,:)
+
+    integer :: ii, iLocRow, iLocCol
+    logical :: isLocal
+
+    ! Mirror the lower triangle into the upper triangle by adding the transpose;
+    ! this doubles the diagonal, which is halved afterwards.
+    work(:,:) = matrix
+    call pblasfx_ptran(work, desc, matrix, desc, alpha=1.0_dp, beta=1.0_dp)
+    do ii = 1, desc(M_)
+      call scalafx_islocal(myBlacs, desc, ii, ii, isLocal, iLocRow, iLocCol)
+      if (isLocal) then
+        matrix(iLocRow, iLocCol) = 0.5_dp * matrix(iLocRow, iLocCol)
+      end if
+    end do
+
+  end subroutine addLowerTriangleTranspose
 
 
   !> Create density or energy weighted density matrix (complex) for both triangles.
