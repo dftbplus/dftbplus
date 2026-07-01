@@ -21,7 +21,8 @@ module dftbp_dftb_densitymatrix
   use dftbp_type_commontypes, only : TParallelKS
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, CSRC_, NB_, pblasfx_pgemm,&
-      & pblasfx_psyrk, pblasfx_ptran, pblasfx_ptranc, scalafx_indxl2g, scalafx_islocal, size
+      & pblasfx_pherk, pblasfx_psyrk, pblasfx_ptran, scalafx_indxl2g, scalafx_islocal, size
+  use dftbp_math_matrixops, only : adjointLowerTriangle_BLACS
 #:endif
 #:if WITH_MAGMA
   use iso_fortran_env, only : int64
@@ -948,7 +949,7 @@ contains
     !> Eigenvectors of system
     complex(dp), intent(inout) :: eigenVecs(:,:)
 
-    !> Resulting (symmetric) density matrix
+    !> Resulting (hermitian) density matrix
     complex(dp), intent(out) :: densityMtx(:,:)
 
     !> Eigenvalues, if energy weighted density matrix required
@@ -964,26 +965,57 @@ contains
     ! Scale a copy of the eigenvectors
     call blocks%init(myBlacs, desc, "c")
     if (present(eigenVals)) then
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, blockSize - 1
-          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj) * filling(iGlob + jj)
+      if (all(filling * eigenVals <= 0.0_dp)) then
+        ! Energy-weighted matrix W = V diag(f e) V^H. When every occupied product
+        ! f*e is non-positive (the common case, occupied levels below the reference
+        ! energy), W = -(Y Y^H) with Y = V sqrt(-f e), so a hermitian rank-k update
+        ! with a prefactor of -1 applies, as for the density matrix below.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj)&
+                & * sqrt(-eigenVals(iGlob + jj) * filling(iGlob + jj))
+          end do
         end do
-      end do
-    else
+        call pblasfx_pherk(work, desc, densityMtx, desc, uplo="L", trans="N", alpha=-1.0_dp)
+        call adjointLowerTriangle_BLACS(desc, myBlacs%mycol, myBlacs%myrow, myBlacs%ncol,&
+            & myBlacs%nrow, densityMtx)
+      else
+        ! Occupied products f*e have mixed signs, so the rank-k update is not
+        ! applicable. Use a matrix product.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj)&
+                & * filling(iGlob + jj)
+          end do
+        end do
+        call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
+      end if
+    else if (any(filling < 0.0_dp)) then
+      ! Some occupations are negative (e.g. Methfessel-Paxton filling), so
+      ! sqrt(filling) is not real. Use a matrix product.
       do ii = 1, size(blocks)
         call blocks%getblock(ii, iGlob, iLoc, blockSize)
         do jj = 0, blockSize - 1
           work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
         end do
       end do
+      call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
+    else
+      ! For non-negative occupations the density matrix rho = V diag(f) V^H equals
+      ! W W^H with W = V sqrt(f). This hermitian rank-k update forms only one
+      ! triangle, roughly halving the work of the matrix product above.
+      do ii = 1, size(blocks)
+        call blocks%getblock(ii, iGlob, iLoc, blockSize)
+        do jj = 0, blockSize - 1
+          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * sqrt(filling(iGlob + jj))
+        end do
+      end do
+      call pblasfx_pherk(work, desc, densityMtx, desc, uplo="L", trans="N")
+      call adjointLowerTriangle_BLACS(desc, myBlacs%mycol, myBlacs%myrow, myBlacs%ncol,&
+          & myBlacs%nrow, densityMtx)
     end if
-
-    ! Create matrix
-    call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
-    ! hermitian symmetrize
-    work(:,:) = densityMtx
-    call pblasfx_ptranc(work, desc, densityMtx, desc, alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
 
   end subroutine makeDensityMtxCplxBlacs
 
