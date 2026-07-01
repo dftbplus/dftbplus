@@ -2375,7 +2375,6 @@ contains
     real(dp), allocatable :: tmpR1(:), tmpR2(:,:)
     type(TListRealR2) :: lCharges
     type(TListRealR1) :: lBlurs, lr1
-    logical :: atomSitePotentialPresent
 
     call getChildValue(node, "ElectricField", value1, "", child=child, allowEmptyValue=.true.,&
         & dontMarkProcessed=.true., list=.true.)
@@ -2497,43 +2496,8 @@ contains
 
     end if
 
-    atomSitePotentialPresent = .false.
     call getChild(node, "AtomSitePotential", child, requested=.false.)
     if (associated(child)) then
-      atomSitePotentialPresent = .true.
-      allocate(ctrl%atomicExtPotential)
-
-      call getChild(child, "Net", child2, requested=.false.)
-      if (associated(child2)) then
-        ! onsites
-        ctrl%tNetAtomCharges = .true.
-        call readExternalAtom_(child2, ctrl%atomicExtPotential%iAtOnSite,&
-            & ctrl%atomicExtPotential%VextOnSite)
-      end if
-
-      call getChild(child, "Gross", child2, requested=.false.)
-      if (associated(child2)) then
-        ! atomic
-        call readExternalAtom_(child2, ctrl%atomicExtPotential%iAt, ctrl%atomicExtPotential%Vext)
-      end if
-
-      if (.not.( allocated(ctrl%atomicExtPotential%iAt) .or.&
-          & allocated(ctrl%atomicExtPotential%iAtOnSite))) then
-        call detailedError(child, "No atomic potentials specified")
-      end if
-
-    end if
-
-    call getChild(node, "SpeciesPotential", child, requested=.false.)
-
-    if (associated(child)) then
-
-      ! Raise an error if both are present
-      if (atomSitePotentialPresent) then
-        call detailedError(node, "Only one of AtomSitePotential or SpeciesPotential can be present&
-            & in the input file")
-      end if
-
       allocate(ctrl%atomicExtPotential)
 
       call getChildren(child, "Net", children)
@@ -2542,7 +2506,7 @@ contains
         ctrl%tNetAtomCharges = .true.
         do ii = 1, getLength(children)
           call getItem1(children, ii, child2)
-          call readExternalSpecies_(child2, geom, ctrl%atomicExtPotential%iAtOnSite,&
+          call readExternalAtom_(child2, geom, ctrl%atomicExtPotential%iAtOnSite,&
               & ctrl%atomicExtPotential%VextOnSite)
         end do
       end if
@@ -2551,9 +2515,8 @@ contains
       if (getLength(children) > 0) then
         ! atomic
         do ii = 1, getLength(children)
-          write(*,*)'Gross', ii
           call getItem1(children, ii, child2)
-          call readExternalSpecies_(child2, geom, ctrl%atomicExtPotential%iAt,&
+          call readExternalAtom_(child2, geom, ctrl%atomicExtPotential%iAt,&
               & ctrl%atomicExtPotential%Vext)
         end do
       end if
@@ -2563,43 +2526,8 @@ contains
   end subroutine readExternal
 
 
-  !> Read pairs of affected atoms and external potentials
-  subroutine readExternalAtom_(node, iAt, Vext)
-
-    !> Relevant node in input tree
-    type(fnode), pointer :: node
-
-    !> Affected atoms
-    integer, allocatable, intent(out) :: iAt(:)
-
-    !> Potential at those atoms
-    real(dp), allocatable, intent(out) :: Vext(:)
-
-    type(TListReal) :: lr
-    type(TListInt) :: li
-    type(fnode), pointer :: child, child2
-    type(string) :: modifier
-
-    call init(li)
-    call init(lr)
-    call getChildValue(node, "Atoms", li)
-    call getChildValue(node, "Vext", lr, modifier=modifier, child=child)
-    if (len(li) /= len(lr)) then
-      call detailedError(node, "Mismatch in number of sites and potentials")
-    end if
-    allocate(iAt(len(li)))
-    call asArray(li, iAt)
-    allocate(Vext(len(lr)))
-    call asArray(lr, Vext)
-    call convertUnitHsd(char(modifier), energyUnits, child, Vext)
-    call destruct(li)
-    call destruct(lr)
-
-  end subroutine readExternalAtom_
-
-
-  !> Read the affected species for an external potential
-  subroutine readExternalSpecies_(node, geom, iAt, Vext)
+  !> Read affected atom(s) and external potential(s)
+  subroutine readExternalAtom_(node, geom, iAt, Vext)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2614,23 +2542,33 @@ contains
     real(dp), allocatable, intent(inout) :: Vext(:)
 
     type(TListReal) :: lr
-    type(TListInt) :: li
     type(fnode), pointer :: child, child2
     type(string) :: modifier, buffer
-    integer, allocatable :: tmpI1(:)
-    real(dp) :: vTmp
     integer :: ii
     integer, allocatable :: iAt_(:), iAtTmp(:)
-    real(dp), allocatable :: Vext_(:), VextTmp(:)
+    real(dp), allocatable :: Vext_(:), VextTmp(:), rTmp(:)
 
     @:ASSERT(allocated(iAt) .eqv. allocated(Vext))
 
-    call getChildValue(node, "Species", buffer, child=child, multiple=.true.)
-    call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species, tmpI1)
-    call getChildValue(node, "Vext", vTmp, modifier=modifier, child=child)
-    call convertUnitHsd(char(modifier), energyUnits, child, vTmp)
-    allocate(iAt_(size(tmpI1)), source=tmpI1)
-    allocate(Vext_(size(tmpI1)), source=vTmp)
+    call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
+    call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species, iAt_)
+    call init(lr)
+    call getChildValue(node, "Vext", lr, modifier=modifier, child=child)
+
+    if (len(lr) /= size(iAt_) .and. len(lr) /= 1) then
+      call detailedError(node, "Mismatch in number of sites and potentials, must either be a single&
+          & potential for all or one for each specified atom site")
+    end if
+    allocate(rTmp(len(lr)), source=0.0_dp)
+    call asArray(lr, rTmp)
+    call destruct(lr)
+    call convertUnitHsd(char(modifier), energyUnits, child, rTmp)
+
+    if (size(rTmp) == 1) then
+      allocate(Vext_(size(iAt_)), source=rTmp(1))
+    else
+      call move_alloc(rTmp, Vext_)
+    end if
 
     if (.not.allocated(iAt)) then
       call move_alloc(iAt_, iAt)
@@ -2645,11 +2583,11 @@ contains
       call move_alloc(iAtTmp, iAt)
       call move_alloc(VextTmp, Vext)
       if (isRepeated(iAt)) then
-        call detailedError(node, "Repeated potentials for the same chemical species")
+        call detailedError(node, "Repeated potentials for an atomic site")
       end if
     end if
 
-  end subroutine readExternalSpecies_
+  end subroutine readExternalAtom_
 
 
   !> Filling of electronic levels
