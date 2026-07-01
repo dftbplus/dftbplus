@@ -20,8 +20,8 @@ module dftbp_dftb_densitymatrix
   use dftbp_math_blasroutines, only : herk
   use dftbp_type_commontypes, only : TParallelKS
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, M_, pblasfx_pgemm, pblasfx_psyrk,&
-      & pblasfx_ptran, pblasfx_ptranc, scalafx_islocal, size
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, CSRC_, NB_, pblasfx_pgemm,&
+      & pblasfx_psyrk, pblasfx_ptran, pblasfx_ptranc, scalafx_indxl2g, scalafx_islocal, size
 #:endif
 #:if WITH_MAGMA
   use iso_fortran_env, only : int64
@@ -913,15 +913,18 @@ contains
     !> Scratch array with the same shape and descriptor as matrix
     real(dp), intent(inout) :: work(:,:)
 
-    integer :: ii, iLocRow, iLocCol
+    integer :: ii, iGlob, iLocRow, iLocCol
     logical :: isLocal
 
     ! Mirror the lower triangle into the upper triangle by adding the transpose;
     ! this doubles the diagonal, which is halved afterwards.
     work(:,:) = matrix
     call pblasfx_ptran(work, desc, matrix, desc, alpha=1.0_dp, beta=1.0_dp)
-    do ii = 1, desc(M_)
-      call scalafx_islocal(myBlacs, desc, ii, ii, isLocal, iLocRow, iLocCol)
+    ! Halve the diagonal. Loop over this rank's local columns only (rather than the
+    ! full matrix order on every rank, which would scale serially).
+    do ii = 1, size(matrix, dim=2)
+      iGlob = scalafx_indxl2g(ii, desc(NB_), myBlacs%mycol, desc(CSRC_), myBlacs%ncol)
+      call scalafx_islocal(myBlacs, desc, iGlob, iGlob, isLocal, iLocRow, iLocCol)
       if (isLocal) then
         matrix(iLocRow, iLocCol) = 0.5_dp * matrix(iLocRow, iLocCol)
       end if
