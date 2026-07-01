@@ -12,14 +12,22 @@ Methanol
 Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1.0E-8
-    SpeciesPotential {
+    AtomSitePotential {
         Gross {
-            Species = C H
-            Vext [eV] = 1.5
+            Atoms = C 2 # all C atoms and first H atom
+            Vext [eV] = 1.5 # all with same potential
         }
-	Gross {
-            Species = O
+        Gross {
+            Atoms = 3:5 # The other hydrogen atoms
+            Vext [eV] = 1.5 1.5 1.5 # individually specified atomic potentials
+        }
+        Gross {
+            Atoms = O
             Vext [eV] = 1.4
+        }
+        Net { # Separate potential for the onsite only part at H atoms
+            Atoms = 2:5
+	    Vext [eV] = -1.5
         }
     }
     MaxAngularMomentum {
