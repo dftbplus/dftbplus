@@ -13,15 +13,16 @@
 !! Caveat: The routines create the transposed and complex conjugated of the density matrices
 !! (cc* instead of the conventional c*c).
 module dftbp_dftb_densitymatrix
-  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_accuracy, only : dp, lc, rdp
   use dftbp_common_constants, only : imag, pi
   use dftbp_common_status, only : TStatus
   use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_math_blasroutines, only : herk
   use dftbp_type_commontypes, only : TParallelKS
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, CSRC_, NB_, pblasfx_pgemm,&
-      & pblasfx_psyrk, pblasfx_ptran, pblasfx_ptranc, scalafx_indxl2g, scalafx_islocal, size
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, pblasfx_pgemm, pblasfx_psyr,&
+      & pblasfx_psyrk, pblasfx_ptranc, size
+  use dftbp_math_matrixops, only : adjointLowerTriangle_BLACS
 #:endif
 #:if WITH_MAGMA
   use iso_fortran_env, only : int64
@@ -833,33 +834,67 @@ contains
     !> Eigenvalues, if energy weighted density matrix required
     real(dp), intent(in), optional :: eigenVals(:)
 
-    integer  :: ii, jj, iGlob, iLoc, blockSize
+    integer  :: ii, jj, iGlob, iLoc, blockSize, iLev, nTiny
     type(blocklist) :: blocks
     real(dp), allocatable :: work(:,:)
+    real(dp) :: weight
+
+    ! Square-rooting occupation weights close to underflow in the rank-k updates below has
+    ! been observed to destabilise subsequent ScaLAPACK eigensolver (MRRR) calls for some
+    ! compiler/library combinations. Levels with weight magnitude in [dropTol, sqrt(eps))
+    ! are therefore applied through exact rank-1 updates instead, while weights below
+    ! dropTol are dropped: a few times eps is still negligible in any matrix element, and
+    ! truncating at 1 * eps has been observed to be insufficient for some compilers.
+    ! Should more than maxRank1 levels fall into the rank-1 window (each update is a
+    ! memory-bound level-2 pass over the distributed matrix), the plain matrix product is
+    ! used instead. The thresholds are anchored to double precision, matching the
+    ! ScaLAPACK solver behaviour they guard against, rather than the working kind.
+    real(dp), parameter :: sqrtEps = sqrt(epsilon(1.0_rdp))
+    real(dp), parameter :: dropTol = 16.0_dp * epsilon(1.0_rdp)
+    integer, parameter :: maxRank1 = 32
 
     densityMtx(:, :) = 0.0_dp
     work = densityMtx
 
-    ! Scale a copy of the eigenvectors
+    ! Scale a copy of the eigenvectors. Note: filling and eigenVals are replicated, so all
+    ! ranks take identical branches below and the collective calls stay matched.
     call blocks%init(myBlacs, desc, "c")
     if (present(eigenVals)) then
-      if (all(filling * eigenVals <= 0.0_dp)) then
+      nTiny = count(abs(filling * eigenVals) >= dropTol&
+          & .and. abs(filling * eigenVals) < sqrtEps)
+      if (all(filling * eigenVals <= 0.0_dp .or. abs(filling * eigenVals) < dropTol)&
+          & .and. nTiny <= maxRank1) then
         ! Energy-weighted matrix W = V diag(f e) V^T. When every occupied product
         ! f*e is non-positive (the common case, occupied levels below the reference
         ! energy), W = -(Y Y^T) with Y = V sqrt(-f e), so a symmetric rank-k update
-        ! with a prefactor of -1 applies, as for the density matrix below.
+        ! with a prefactor of -1 applies, as for the density matrix below. Products
+        ! below dropTol in magnitude are negligible either way, so they cannot veto
+        ! this path. The .not. form of the weight test keeps non-finite weights on
+        ! the square-root path, so they stay visible in the result.
         do ii = 1, size(blocks)
           call blocks%getblock(ii, iGlob, iLoc, blockSize)
           do jj = 0, blockSize - 1
-            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj)&
-                & * sqrt(-eigenVals(iGlob + jj) * filling(iGlob + jj))
+            if (.not. (-eigenVals(iGlob + jj) * filling(iGlob + jj) < sqrtEps)) then
+              work(:, iLoc + jj) = eigenVecs(:, iLoc + jj)&
+                  & * sqrt(-eigenVals(iGlob + jj) * filling(iGlob + jj))
+            else
+              work(:, iLoc + jj) = 0.0_dp
+            end if
           end do
         end do
         call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N", alpha=-1.0_dp)
-        call addLowerTriangleTranspose(myBlacs, desc, densityMtx, work)
+        do iLev = 1, size(filling)
+          weight = eigenVals(iLev) * filling(iLev)
+          if (-weight >= dropTol .and. -weight < sqrtEps) then
+            call pblasfx_psyr(eigenVecs, desc, densityMtx, desc, uplo="L", alpha=weight,&
+                & jx=iLev)
+          end if
+        end do
+        call adjointLowerTriangle_BLACS(desc, myBlacs%mycol, myBlacs%myrow, myBlacs%ncol,&
+            & myBlacs%nrow, densityMtx)
       else
-        ! Occupied products f*e have mixed signs, so the rank-k update is not
-        ! applicable. Use a matrix product.
+        ! Occupied products f*e have mixed signs (or too many levels fall into the
+        ! rank-1 window), so the rank-k update is not applicable. Use a matrix product.
         do ii = 1, size(blocks)
           call blocks%getblock(ii, iGlob, iLoc, blockSize)
           do jj = 0, blockSize - 1
@@ -869,68 +904,49 @@ contains
         end do
         call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
       end if
-    else if (any(filling < 0.0_dp)) then
-      ! Some occupations are negative (e.g. Methfessel-Paxton filling), so
-      ! sqrt(filling) is not real. Use a matrix product.
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, blockSize - 1
-          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
-        end do
-      end do
-      call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
     else
-      ! For non-negative occupations the density matrix rho = V diag(f) V^T equals
-      ! W W^T with W = V sqrt(f). This symmetric rank-k update forms only one
-      ! triangle, roughly halving the work of the matrix product above. The
-      ! serial (herk) and GPU (syrk) density-matrix builds already do this.
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, blockSize - 1
-          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * sqrt(filling(iGlob + jj))
+      nTiny = count(filling >= dropTol .and. filling < sqrtEps)
+      if (any(filling < -dropTol) .or. nTiny > maxRank1) then
+        ! Some occupations are meaningfully negative (e.g. Methfessel-Paxton filling),
+        ! so sqrt(filling) is not real (or too many levels fall into the rank-1
+        ! window). Use a matrix product.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
+          end do
         end do
-      end do
-      call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N")
-      call addLowerTriangleTranspose(myBlacs, desc, densityMtx, work)
+        call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
+      else
+        ! For non-negative occupations the density matrix rho = V diag(f) V^T equals
+        ! W W^T with W = V sqrt(f). This symmetric rank-k update forms only one
+        ! triangle, roughly halving the work of the matrix product above. The
+        ! serial (herk) and GPU (syrk) density-matrix builds already do this. The
+        ! .not. form of the weight test keeps non-finite occupations on the
+        ! square-root path, so they stay visible in the result.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            if (.not. (filling(iGlob + jj) < sqrtEps)) then
+              work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * sqrt(filling(iGlob + jj))
+            else
+              work(:, iLoc + jj) = 0.0_dp
+            end if
+          end do
+        end do
+        call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N")
+        do iLev = 1, size(filling)
+          if (filling(iLev) >= dropTol .and. filling(iLev) < sqrtEps) then
+            call pblasfx_psyr(eigenVecs, desc, densityMtx, desc, uplo="L",&
+                & alpha=filling(iLev), jx=iLev)
+          end if
+        end do
+        call adjointLowerTriangle_BLACS(desc, myBlacs%mycol, myBlacs%myrow, myBlacs%ncol,&
+            & myBlacs%nrow, densityMtx)
+      end if
     end if
 
   end subroutine makeDensityMtxRealBlacs
-
-
-  !> Completes a symmetric matrix held as its lower triangle (as produced by a
-  !> rank-k update) by adding its transpose and correcting the doubled diagonal.
-  subroutine addLowerTriangleTranspose(myBlacs, desc, matrix, work)
-
-    !> BLACS grid information
-    type(blacsgrid), intent(in) :: myBlacs
-
-    !> Matrix descriptor
-    integer, intent(in) :: desc(:)
-
-    !> Lower triangle on entry, full symmetric matrix on exit
-    real(dp), intent(inout) :: matrix(:,:)
-
-    !> Scratch array with the same shape and descriptor as matrix
-    real(dp), intent(inout) :: work(:,:)
-
-    integer :: ii, iGlob, iLocRow, iLocCol
-    logical :: isLocal
-
-    ! Mirror the lower triangle into the upper triangle by adding the transpose;
-    ! this doubles the diagonal, which is halved afterwards.
-    work(:,:) = matrix
-    call pblasfx_ptran(work, desc, matrix, desc, alpha=1.0_dp, beta=1.0_dp)
-    ! Halve the diagonal. Loop over this rank's local columns only (rather than the
-    ! full matrix order on every rank, which would scale serially).
-    do ii = 1, size(matrix, dim=2)
-      iGlob = scalafx_indxl2g(ii, desc(NB_), myBlacs%mycol, desc(CSRC_), myBlacs%ncol)
-      call scalafx_islocal(myBlacs, desc, iGlob, iGlob, isLocal, iLocRow, iLocCol)
-      if (isLocal) then
-        matrix(iLocRow, iLocCol) = 0.5_dp * matrix(iLocRow, iLocCol)
-      end if
-    end do
-
-  end subroutine addLowerTriangleTranspose
 
 
   !> Create density or energy weighted density matrix (complex) for both triangles.
