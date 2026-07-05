@@ -177,7 +177,13 @@ contains
       if (this%iLinRespSolver == linrespSolverTypes%Arpack) then
         if (allocated(ini%shiftSpace)) then
           this%isSpectrumFolded = .true.
-          this%shiftSpace = ini%shiftSpace**2
+          if (ini%tTDA) then
+            ! TDA operator A has eigenvalues omega
+            this%shiftSpace = ini%shiftSpace
+          else
+            ! Full-Casida operator Omega has eigenvalues omega**2
+            this%shiftSpace = ini%shiftSpace**2
+          end if
         else
           this%isSpectrumFolded = .false.
           this%shiftSpace = 0.0_dp
