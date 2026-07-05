@@ -610,10 +610,6 @@ contains
       call error("Range separation requires the Stratmann solver for excitations")
     end if
 
-    if (this%tTDA .and. this%isSpectrumFolded) then
-      call error("Spectrum folding is not supported with the Tamm-Dancoff approximation")
-    end if
-
     call env%globalTimer%stopTimer(globalTimers%lrSetup)
 
     do isym = 1, size(symmetries)
@@ -1043,6 +1039,11 @@ contains
     comm = env%mpi%globalComm%id
   #:endif
 
+    if (lr%tTDA) then
+      write(stdOut,'(A)') ' '
+      write(stdOut,'(A)') '>> Using Tamm-Dancoff Approximation in Linear Response'
+    end if
+
     ! Local chunk of RPA vectors have this size under MPI
     nLoc = fGlobal - iGlobal + 1
 
@@ -1106,11 +1107,13 @@ contains
         allocate(workTmp(nLoc))
         ! Action of excitation supermatrix on supervector
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-            & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1), workTmp, .false.)
+            & ovrXev, grndEigVecs, gammaMat, lr%tTDA, workd(ipntr(1):ipntr(1)+nLoc-1), workTmp,&
+            & lr%tTDA)
         workTmp(:) = workTmp -shiftSpace * workd(ipntr(1):ipntr(1)+nLoc-1)
         ! Action of excitation supermatrix on supervector
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-            & ovrXev, grndEigVecs, gammaMat, .false., workTmp, workd(ipntr(2):ipntr(2)+nLoc-1), .false.)
+            & ovrXev, grndEigVecs, gammaMat, lr%tTDA, workTmp, workd(ipntr(2):ipntr(2)+nLoc-1),&
+            & lr%tTDA)
         workd(ipntr(2):ipntr(2)+nLoc-1) = workd(ipntr(2):ipntr(2)+nLoc-1) - shiftSpace * workTmp
         deallocate(workTmp)
       else
@@ -1162,8 +1165,8 @@ contains
         do iState = 1, nExc
 
           call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
-              & species0, ovrXev, grndEigVecs, gammaMat, .false., xpy(iGlobal:fGlobal,iState),&
-              & workTmp, .false.)
+              & species0, ovrXev, grndEigVecs, gammaMat, lr%tTDA, xpy(iGlobal:fGlobal,iState),&
+              & workTmp, lr%tTDA)
 
           eval(iState) = dot_product(xpy(iGlobal:fGlobal,iState), workTmp)
           call assembleChunks(env, eval(iState))
