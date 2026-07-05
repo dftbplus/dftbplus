@@ -34,6 +34,8 @@ Added
 
 - Pairwise bond populations, bond energies and Mayer bond orders
 
+- Langevin thermostat added
+
 
 Changed
 -------
