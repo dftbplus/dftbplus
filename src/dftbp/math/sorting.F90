@@ -40,7 +40,7 @@ module dftbp_math_sorting
     module procedure merge_sort_int
     module procedure merge_sort_indx_int
     module procedure merge_sort_real
-    module procedure merge_sort_indx_real
+    module procedure index_mergesort
   end interface merge_sort
 
 
@@ -58,7 +58,6 @@ module dftbp_math_sorting
     module procedure MergeSort_int
     module procedure MergeSort_indx_int
     module procedure MergeSort_real
-    module procedure MergeSort_indx_real
   end interface MergeSort
 
 
@@ -67,7 +66,6 @@ module dftbp_math_sorting
     module procedure Merge_int
     module procedure Merge_indx_int
     module procedure Merge_real
-    module procedure Merge_indx_real
   end interface Merge
 
 contains
@@ -634,130 +632,155 @@ contains
   end subroutine mergeSort_real
 
 
-  !> Merge sort of reals, using an array index instead of re-ordering
+  !> Main wrapper function for indexing merge sort with a tolerance
+  subroutine index_mergesort(indx, arr, tolerance)
 
-  subroutine merge_sort_indx_real(indx,array, tol)
-
-    !> array of sorted order
+    !> Output index array
     integer, intent(out) :: indx(:)
 
-    !> vector to sort
-    real(dp), intent(in) :: array(:)
+    !> Data array to sort
+    real(dp), intent(in) :: arr(:)
 
-    !> tolerance for comparisons
+    !> Comparison epsilon
+    real(dp), intent(in) :: tolerance
+
+    integer :: n, ii
+    integer, allocatable :: work(:)
+    real(dp) :: tol
+
+    n = size(arr)
+    @:ASSERT(size(indx) >= n)
+
+    ! Initialize an index array
+    forall (ii = 1:n) indx(ii) = ii
+
+    if (n > 1) then
+      allocate(work(n))
+      call merge_sort_index_track(indx, arr, work, 1, n, tolerance)
+      deallocate(work)
+    end if
+
+  end subroutine index_mergesort
+
+
+  !> Recursive splitting of the index array
+  recursive subroutine merge_sort_index_track(indx, arr, work, left, right, tol)
+
+    !> Indexing array for data
+    integer, intent(inout) :: indx(:)
+
+    !> Data array to sort
+    real(dp), intent(in) :: arr(:)
+
+    !> Work array
+    integer, intent(inout) :: work(:)
+
+    !> Start of range
+    integer, intent(in) :: left
+
+    !> End of range
+    integer, intent(in) :: right
+
+    !> Tolerance for numerical comparisions
     real(dp), intent(in) :: tol
 
-    real(dp), allocatable :: work(:,:), tmp(:,:)
-    integer :: ii, n
+    integer :: midpoint
 
-    @:ASSERT(size(indx)==size(array))
+    if (left < right) then
 
-    n = size(array)
-    allocate(tmp(n,2))
-    tmp(:,2) = array
-    do ii = 1, n
-      tmp(ii,1) = real(ii)
-    end do
-    allocate(work((n+1)/2,2))
-    call mergeSort(tmp,n,work,tol)
-    indx = nint(tmp(:,1))
+      midpoint = left + (right - left) / 2 ! Overflow protected
 
-  end subroutine merge_sort_indx_real
+      ! Recursively sort left and right parts
+      call merge_sort_index_track(indx, arr, work, left, midpoint, tol)
+      call merge_sort_index_track(indx, arr, work, midpoint + 1, right, tol)
+
+      ! Merge the two sorted index segments
+      call merge_index(arr, indx, work, left, midpoint, right, tol)
+
+    end if
+
+  end subroutine merge_sort_index_track
 
 
-  !> Merge two arrays together in order onto a third, where first dimension of both is index for
-  !> original order and also value
-  subroutine merge_indx_real(NA,NB,NC,A,B,C, tol)
+  !> Merges two sorted sub-segments using tolerance logic safely
+  subroutine merge_index(arr, indx, work, left, midpoint, right, tol)
 
-    !> first array of values
-    integer, intent(in) :: NA
+    !> Data array to sort
+    real(dp), intent(in) :: arr(:)
 
-    !> elements in A
-    integer, intent(in) :: NB
+    !> Indexing array for data
+    integer, intent(inout) :: indx(:)
 
-    !> second array of values
-    integer, intent(in) :: NC
+    !> Work array
+    integer, intent(inout) :: work(:)
 
-    !> elements in A
-    real(dp), intent(in) :: A(NA,2)
+    !> Start of range
+    integer, intent(in) :: left
 
-    !> array to merge onto
-    real(dp), intent(in) :: B(NB,2)
+    !> Middle of range
+    integer, intent(in) :: midpoint
 
-    !> elements in C
-    real(dp), intent(inout) :: C(NC,2)
+    !> End of range
+    integer, intent(in) :: right
 
+    !> Tolerance for numerical comparisions
     real(dp), intent(in) :: tol
 
-    integer :: I, J, K
+    integer :: ii, jj, kk, nn
+    real(dp) :: val_i, val_j
 
-    @:ASSERT((na+nb)==nc)
+    ! Cache the current segment of array index into temporary workspace
+    work(left:right) = indx(left:right)
 
-    I = 1; J = 1; K = 1;
-    do while(I <= NA .and. J <= NB)
-      if (A(I,2) <= B(J,2) .and. abs(A(I,2)-B(J,2)) > tol) then
-        C(K,:) = A(I,:)
-        I = I+1
+    ii = left
+    jj = midpoint + 1
+    kk = left
+
+    ! Merge back into indx()
+    do while (ii <= midpoint .and. jj <= right)
+
+      val_i = arr(work(ii))
+      val_j = arr(work(jj))
+
+      if ((val_j - val_i) > tol) then
+        ! element ii is significantly smaller than element jj
+
+        indx(kk) = work(ii)
+        ii = ii + 1
+
+      else if ((val_i - val_j) > tol) then
+        ! element jj is significantly smaller than element i
+
+        indx(kk) = work(jj)
+        jj = jj + 1
+
       else
-        C(K,:) = B(J,:)
-        J = J+1
-      endif
-      K = K + 1
-    enddo
-    do while (I <= NA)
-      C(K,:) = A(I,:)
-      I = I + 1
-      K = K + 1
-    enddo
+        ! elements are equal within tolerance -> enforce stability
 
-  end subroutine merge_indx_real
+        if (work(ii) <= work(jj)) then
+          indx(kk) = work(ii)
+          ii = ii + 1
+        else
+          indx(kk) = work(jj)
+          jj = jj + 1
+        end if
 
+      end if
 
-  !> Real merge sort, using an index
-  recursive subroutine mergeSort_indx_real(A,N,T,tol)
+      kk = kk + 1
 
-    !> array to sort, first element of first dimension is an index array, second element is actual
-    !> value
-    real(dp), intent(inout) :: A(:,:)
+    end do
 
-    !> number of elements in array
-    integer, intent(in) :: N
+    ! Copy remaining elements from the left segment
+    nn = midpoint - ii
+    indx(kk:kk+nn) = work(ii:ii+nn)
+    kk = kk + nn + 1
 
-    !> workspace of at least (N+1)/2 size
-    real(dp), intent (out) :: T(:,:)
+    ! Copy remaining elements from the right segment
+    nn = right - jj
+    indx(kk:kk+nn) = work(jj:jj+nn)
 
-    !> tolerance for comparisons
-    real(dp), intent(in) :: tol
-
-    integer :: NA, NB
-    real(dp) :: V(2)
-
-    @:ASSERT(size(A,dim=2) == 2)
-    @:ASSERT(size(T,dim=2) == 2)
-
-    if (N < 2) return
-
-    if (N == 2) then
-      if (A(1,2) > A(2,2) .and. abs(A(1,2) - A(2,2)) > tol) then
-        V = A(1,:)
-        A(1,:) = A(2,:)
-        A(2,:) = V
-      endif
-      return
-    endif
-
-    NA=(N+1)/2
-    NB=N-NA
-
-    call MergeSort(A(:NA,:),NA,T,tol)
-    call MergeSort(A(NA+1:,:),NB,T,tol)
-
-    if (A(NA,2) > A(NA+1,2) .and. (A(NA,2) - A(NA+1,2)) > tol) then
-      T(1:NA,:)=A(1:NA,:)
-      call merge(NA,NB,N,T(:NA,:),A(NA+1:N,:),A(:N,:),tol)
-    endif
-
-  end subroutine mergeSort_indx_real
+  end subroutine merge_index
 
 
   !> Function to count number of unique elements in a sorted array of value greater than 0 and place
