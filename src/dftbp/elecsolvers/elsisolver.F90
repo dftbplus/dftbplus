@@ -322,7 +322,7 @@ contains
     type(TElsiSolverInp), intent(in) :: inp
 
     !> input structure for ELPA
-    type(TElpaInp), intent(in) :: inpElpa
+    type(TElpaInp), intent(in), allocatable :: inpElpa
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -401,6 +401,14 @@ contains
 
     end select
 
+  #:block DEBUG_CODE
+    if (this%solver == elsiEnum%ELPA_SOLVER) then
+      @:ASSERT(allocated(inpElpa))
+    else
+      @:ASSERT(.not.allocated(inpElpa))
+    end if
+  #:endblock DEBUG_CODE
+
     ! parallelism with multiple processes
     this%parallel = 1
 
@@ -465,16 +473,18 @@ contains
     end if
 
     ! ELPA settings
-    this%elpaSolverOption = inpElpa%solver
-    if (inpElpa%autotune) then
-      this%elpaAutotune = 1
-    else
-      this%elpaAutotune = 0
-    end if
-    if (inpElpa%gpu) then
-      this%elpaGpu = 1
-    else
-      this%elpaGpu = 0
+    if (allocated(inpElpa)) then
+      this%elpaSolverOption = inpElpa%solver
+      if (inpElpa%autotune) then
+        this%elpaAutotune = 1
+      else
+        this%elpaAutotune = 0
+      end if
+      if (inpElpa%gpu) then
+        this%elpaGpu = 1
+      else
+        this%elpaGpu = 0
+      end if
     end if
 
     ! OMM settings
