@@ -19,6 +19,7 @@ module dftbp_dftb_densitymatrix
   use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_math_blasroutines, only : herk
   use dftbp_type_commontypes, only : TParallelKS
+  use dftbp_elecsolvers_elpa, only : TElpa
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, CSRC_, NB_, pblasfx_pgemm,&
       & pblasfx_psyrk, pblasfx_ptran, pblasfx_ptranc, scalafx_indxl2g, scalafx_islocal, size
@@ -72,6 +73,9 @@ module dftbp_dftb_densitymatrix
     !> Weights of the k'-points
     real(dp), allocatable :: kWeightPrime(:)
 
+    !> Instance of the ELPA solver providing a custom GPU-optimized pgemm
+    type(TElpa), allocatable :: elpa
+
   contains
 
     !> Returns the density matrix
@@ -104,7 +108,7 @@ contains
 
 
   !> Initialise the density matrix container
-  subroutine TDensityMatrix_init(this, iDensityMatrixAlgorithm)
+  subroutine TDensityMatrix_init(this, iDensityMatrixAlgorithm, elpa)
 
     !> Instance
     type(TDensityMatrix), intent(out) :: this
@@ -112,7 +116,13 @@ contains
     !> Density matrix generation method
     integer, intent(in) :: iDensityMatrixAlgorithm
 
+    !> Instance of the ELPA solver providing a custom GPU-optimized pgemm
+    type(TElpa), intent(in), optional :: elpa
+
     this%iDensityMatrixAlgorithm = iDensityMatrixAlgorithm
+    if (present(elpa)) then
+      this%elpa = elpa
+    end if
 
   end subroutine TDensityMatrix_init
 
@@ -351,7 +361,7 @@ contains
       & errStatus)
 
     !> Instance
-    class(TDensityMatrix), intent(in) :: this
+    class(TDensityMatrix), intent(inout) :: this
 
     !> BLACS grid information
     type(blacsgrid), intent(in) :: myBlacs
@@ -371,7 +381,7 @@ contains
     !> Error status
     type(TStatus), intent(out) :: errStatus
 
-    call makeDensityMtxRealBlacs(myBlacs, desc, filling, eigenvecs, densityMatrix)
+    call makeDensityMtxRealBlacs(myBlacs, desc, filling, eigenvecs, densityMatrix, elpa=this%elpa)
 
   end subroutine getDensityMatrix_real_blacs
 
@@ -381,7 +391,7 @@ contains
       & filling, eigenvals, errStatus)
 
     !> Instance
-    class(TDensityMatrix), intent(in) :: this
+    class(TDensityMatrix), intent(inout) :: this
 
     !> BLACS grid information
     type(blacsgrid), intent(in) :: myBlacs
@@ -813,7 +823,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Create density or energy weighted density matrix (real) for both triangles.
-  subroutine makeDensityMtxRealBlacs(myBlacs, desc, filling, eigenVecs, densityMtx, eigenVals)
+  subroutine makeDensityMtxRealBlacs(myBlacs, desc, filling, eigenVecs, densityMtx, eigenVals, elpa)
 
     !> BLACS grid information
     type(blacsgrid), intent(in) :: myBlacs
@@ -833,65 +843,98 @@ contains
     !> Eigenvalues, if energy weighted density matrix required
     real(dp), intent(in), optional :: eigenVals(:)
 
+    !> Instance of the ELPA solver providing a custom GPU-optimized pgemm
+    type(TElpa), intent(inout), allocatable, optional :: elpa
+
     integer  :: ii, jj, iGlob, iLoc, blockSize
+    logical :: useElpa
     type(blocklist) :: blocks
     real(dp), allocatable :: work(:,:)
 
     densityMtx(:, :) = 0.0_dp
     work = densityMtx
 
-    ! Scale a copy of the eigenvectors
+    useElpa = .false.
+    if (present(elpa)) then
+      if (allocated(elpa)) then
+        useElpa = elpa%usePxgemm
+      end if
+    end if
+
     call blocks%init(myBlacs, desc, "c")
-    if (present(eigenVals)) then
-      if (all(filling * eigenVals <= 0.0_dp)) then
-        ! Energy-weighted matrix W = V diag(f e) V^T. When every occupied product
-        ! f*e is non-positive (the common case, occupied levels below the reference
-        ! energy), W = -(Y Y^T) with Y = V sqrt(-f e), so a symmetric rank-k update
-        ! with a prefactor of -1 applies, as for the density matrix below.
+
+    if (useElpa) then
+      if (present(eigenVals)) then
         do ii = 1, size(blocks)
           call blocks%getblock(ii, iGlob, iLoc, blockSize)
           do jj = 0, blockSize - 1
-            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj)&
-                & * sqrt(-eigenVals(iGlob + jj) * filling(iGlob + jj))
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj) *&
+                & filling(iGlob + jj)
           end do
         end do
-        call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N", alpha=-1.0_dp)
-        call addLowerTriangleTranspose(myBlacs, desc, densityMtx, work)
       else
-        ! Occupied products f*e have mixed signs, so the rank-k update is not
-        ! applicable. Use a matrix product.
         do ii = 1, size(blocks)
           call blocks%getblock(ii, iGlob, iLoc, blockSize)
           do jj = 0, blockSize - 1
-            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj)&
-                & * filling(iGlob + jj)
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
+          end do
+        end do
+      end if
+
+      call elpa%pgemm(eigenVecs, work, densityMtx, transb="T")
+    else
+      ! Scale a copy of the eigenvectors
+      if (present(eigenVals)) then
+        if (all(filling * eigenVals <= 0.0_dp)) then
+          ! Energy-weighted matrix W = V diag(f e) V^T. When every occupied product
+          ! f*e is non-positive (the common case, occupied levels below the reference
+          ! energy), W = -(Y Y^T) with Y = V sqrt(-f e), so a symmetric rank-k update
+          ! with a prefactor of -1 applies, as for the density matrix below.
+          do ii = 1, size(blocks)
+            call blocks%getblock(ii, iGlob, iLoc, blockSize)
+            do jj = 0, blockSize - 1
+              work(:, iLoc + jj) = eigenVecs(:, iLoc + jj)&
+                  & * sqrt(-eigenVals(iGlob + jj) * filling(iGlob + jj))
+            end do
+          end do
+          call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N", alpha=-1.0_dp)
+          call addLowerTriangleTranspose(myBlacs, desc, densityMtx, work)
+        else
+          ! Occupied products f*e have mixed signs, so the rank-k update is not
+          ! applicable. Use a matrix product.
+          do ii = 1, size(blocks)
+            call blocks%getblock(ii, iGlob, iLoc, blockSize)
+            do jj = 0, blockSize - 1
+              work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj)&
+                  & * filling(iGlob + jj)
+            end do
+          end do
+          call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
+        end if
+      else if (any(filling < 0.0_dp)) then
+        ! Some occupations are negative (e.g. Methfessel-Paxton filling), so
+        ! sqrt(filling) is not real. Use a matrix product.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
           end do
         end do
         call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
+      else
+        ! For non-negative occupations the density matrix rho = V diag(f) V^T equals
+        ! W W^T with W = V sqrt(f). This symmetric rank-k update forms only one
+        ! triangle, roughly halving the work of the matrix product above. The
+        ! serial (herk) and GPU (syrk) density-matrix builds already do this.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * sqrt(filling(iGlob + jj))
+          end do
+        end do
+        call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N")
+        call addLowerTriangleTranspose(myBlacs, desc, densityMtx, work)
       end if
-    else if (any(filling < 0.0_dp)) then
-      ! Some occupations are negative (e.g. Methfessel-Paxton filling), so
-      ! sqrt(filling) is not real. Use a matrix product.
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, blockSize - 1
-          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
-        end do
-      end do
-      call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
-    else
-      ! For non-negative occupations the density matrix rho = V diag(f) V^T equals
-      ! W W^T with W = V sqrt(f). This symmetric rank-k update forms only one
-      ! triangle, roughly halving the work of the matrix product above. The
-      ! serial (herk) and GPU (syrk) density-matrix builds already do this.
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, blockSize - 1
-          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * sqrt(filling(iGlob + jj))
-        end do
-      end do
-      call pblasfx_psyrk(work, desc, densityMtx, desc, uplo="L", trans="N")
-      call addLowerTriangleTranspose(myBlacs, desc, densityMtx, work)
     end if
 
   end subroutine makeDensityMtxRealBlacs
@@ -934,7 +977,7 @@ contains
 
 
   !> Create density or energy weighted density matrix (complex) for both triangles.
-  subroutine makeDensityMtxCplxBlacs(myBlacs, desc, filling, eigenVecs, densityMtx, eigenVals)
+  subroutine makeDensityMtxCplxBlacs(myBlacs, desc, filling, eigenVecs, densityMtx, eigenVals, elpa)
 
     !> BLACS grid information
     type(blacsgrid), intent(in) :: myBlacs
@@ -954,7 +997,11 @@ contains
     !> Eigenvalues, if energy weighted density matrix required
     real(dp), intent(in), optional :: eigenVals(:)
 
+    !> Instance of the ELPA solver providing a custom GPU-optimized pgemm
+    type(TElpa), intent(inout), allocatable, optional :: elpa
+
     integer  :: ii, jj, iGlob, iLoc, blockSize
+    logical :: useElpa
     type(blocklist) :: blocks
     complex(dp), allocatable :: work(:,:)
 
@@ -979,8 +1026,20 @@ contains
       end do
     end if
 
+    useElpa = .false.
+    if (present(elpa)) then
+      if (allocated(elpa)) then
+        useElpa = elpa%usePxgemm
+      end if
+    end if
+
     ! Create matrix
-    call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
+    if (useElpa) then
+      call elpa%pgemm(eigenVecs, work, densityMtx, transb="C")
+    else
+      call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
+    end if
+
     ! hermitian symmetrize
     work(:,:) = densityMtx
     call pblasfx_ptranc(work, desc, densityMtx, desc, alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))

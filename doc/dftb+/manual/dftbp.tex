@@ -2525,6 +2525,7 @@ It accepts following options
   \kw{PreferElsi} & l& & No & \\
   \kw{RedistributeFactor} & i& & 1 & \\
   \kw{RedistributeRanks} & p& RedistributeFactor = 1 & \cb & \\
+  \kw{UsePxgemm} & l& & No & \\
   \kw{Sparse} & l& & No & \\
 \end{ptable}
 \begin{description}
@@ -2550,6 +2551,9 @@ It accepts following options
   available if ELPA is included via the ELSI library.
 \item[\is{RedistributeRanks}] Explicit list of MPI ranks to be used to call
   ELPA, for example, \is{\{0, 2\}}. The matrix will be redistributed accordingly.
+\item[\is{UsePxgemm}] Whether the ELPA's matrix-matrix multiplication routine
+  should be used during density matrix creation. This implementation is
+  particularly optimized for GPUs and might give a performance boost.
 \item[\is{Sparse}] Whether the sparse matrix interface of ELPA should be used or
   the dense one (default: dense). The sparse interface does not reduce memory
   usage and is mainly for testing purposes.

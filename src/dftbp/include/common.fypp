@@ -40,6 +40,7 @@
 #:set INSTANCE_SAFE_BUILD = defined('INSTANCE_SAFE_BUILD')
 #:set WITH_CXX = defined('WITH_CXX')
 #:set ELPA_HAS_SETUP_GPU = defined('ELPA_HAS_SETUP_GPU')
+#:set ELPA_HAS_PXGEMM = defined('ELPA_HAS_PXGEMM')
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
