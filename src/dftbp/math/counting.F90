@@ -9,11 +9,11 @@
 
 !> Various types of value counting routines
 module dftbp_math_counting
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, elecTolMax, rsp
   implicit none
 
   private
-  public :: unique
+  public :: unique, filledStates, emptyStates
 
 
 contains
@@ -57,5 +57,69 @@ contains
     nUnique = ii
 
   end function unique
+
+
+  !> Last state with at least some occupation
+  subroutine filledStates(nFilled, fillings)
+
+    integer, intent(out), allocatable :: nFilled(:,:)
+
+    real(dp), intent(in) :: fillings(:,:,:)
+
+    integer :: iS, iK, iLev
+
+    allocate(nFilled(size(fillings, dim=3), size(fillings, dim=2)), source=size(fillings, dim=1))
+    do iS = 1, size(fillings, dim=3)
+      do iK = 1, size(fillings, dim=2)
+        do iLev = 1, size(fillings, dim=1)
+          if ( fillings(iLev, iK, iS) < epsilon(1.0) ) then
+            ! assumes Fermi filling, so above the previous level is an empty one
+            nFilled(iS, iK) = iLev - 1
+            exit
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine filledStates
+
+
+  !> First level of each k/spin channel; which is not filled to capacity
+  subroutine emptyStates(nEmpty, fillings, maxFill, tol)
+
+    integer, intent(out), allocatable :: nEmpty(:,:)
+
+    !> Fillings of levels
+    real(dp), intent(in) :: fillings(:,:,:)
+
+    !> Maximum occupation for levels
+    real(dp), intent(in) :: maxFill
+
+    !> Tolerance to detect empty
+    real(dp), intent(in), optional :: tol
+
+    integer :: iS, iK, iLev
+    real(dp) :: tol_
+
+    tol_ = elecTolMax
+    if (present(tol)) tol_ = tol
+
+    ! Start by assuming each channel is empty, so first level is unoccupied
+    allocate(nEmpty(size(fillings, dim=3), size(fillings, dim=2)), source = 1)
+    ! Check where there is slightly empty states
+    do iS = 1, size(fillings, dim=3)
+      do iK = 1, size(fillings, dim=2)
+        lpLevel: do iLev = 1, size(fillings, dim=1)
+          if ( abs( fillings(iLev, iK, iS) - maxFill ) > epsilon(1.0)) then
+            ! this is a partially filled level
+            nEmpty(iS, iK) = iLev
+            exit lpLevel
+          end if
+        end do lpLevel
+      end do
+    end do
+
+  end subroutine emptyStates
+
 
 end module dftbp_math_counting
