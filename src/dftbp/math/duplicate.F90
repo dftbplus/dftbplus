@@ -7,7 +7,8 @@
 
 !> Contains routines relating to duplicated numbers
 module dftbp_math_duplicate
-  use dftbp_math_sorting, only : heap_sort, unique
+  use dftbp_math_counting, only : unique
+  use dftbp_math_sorting, only : heap_sort
   implicit none
 
   private

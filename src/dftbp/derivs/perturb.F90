@@ -40,6 +40,7 @@ module dftbp_derivs_perturb
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_mainio, only : writeDerivBandOut, permitivityPrint
   use dftbp_dftbplus_outputfiles, only : derivVBandOut
+  use dftbp_math_counting, only : emptyStates, filledStates
   use dftbp_io_commonformats, only : format2U
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
@@ -3173,40 +3174,9 @@ contains
       maxFill = 1.0_dp
     end select
 
-    allocate(nFilled(nIndepHam, nKpts))
-    allocate(nEmpty(nIndepHam, nKpts))
-    nFilled(:,:) = -1
-    do iS = 1, nIndepHam
-      do iK = 1, nKPts
-        do iLev = 1, nOrbs
-          if ( filling(iLev, iK, iS) < epsilon(1.0) ) then
-            ! assumes Fermi filling, so above this is empty
-            nFilled(iS, iK) = iLev - 1
-            exit
-          end if
-        end do
-        ! check if channel is fully filled
-        if (nFilled(iS, iK) < 0) then
-          nFilled(iS, iK) = nOrbs
-        end if
-      end do
-    end do
-    nEmpty(:,:) = -1
-    do iS = 1, nIndepHam
-      do iK = 1, nKpts
-        do iLev = 1, nOrbs
-          if ( abs( filling(iLev, iK, iS) - maxFill ) > epsilon(1.0)) then
-            ! assumes Fermi filling, so this is filled
-            nEmpty(iS, iK) = iLev
-            exit
-          end if
-        end do
-        !> Check is channel is empty
-        if (nEmpty(iS, iK) < 0) then
-          nEmpty(iS, iK) = 1
-        end if
-      end do
-    end do
+
+    call filledStates(nFilled, filling)
+    call emptyStates(nEmpty, filling, maxFill)
 
     allocate(dHam(size(ham,dim=1),nSpin))
     allocate(dRho(size(ham,dim=1),nSpin))
