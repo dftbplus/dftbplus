@@ -13,7 +13,7 @@ module dftbp_math_sorting
   implicit none
 
   private
-  public :: heap_sort, index_heap_sort, merge_sort, unique
+  public :: heap_sort, index_heap_sort, merge_sort
 
 
   !> Heap sort algorithm - O(N log(N)) time performance and in place, but not 'stable' in order of
@@ -22,13 +22,6 @@ module dftbp_math_sorting
     module procedure heap_sort_real
     module procedure heap_sort_int
   end interface heap_sort
-
-
-  !> Function to count number of unique elements in a sorted array of value greater than 0 and place
-  !> them at the start of the array in order
-  interface unique
-    module procedure unique_int
-  end interface unique
 
 
 contains
@@ -367,44 +360,5 @@ contains
 
   end subroutine merge_index
 
-
-  !> Function to count number of unique elements in a sorted array of value greater than 0 and place
-  !> them at the start of the array in order.
-  !> To do: check that the elements are in sorted order, and generalise for
-  !> decreasing order as well as increasing
-  function unique_int(array, arraySize) result(nUnique)
-
-    !> Array to make unique.
-    integer, intent(inout) :: array(:)
-
-    !> Constrains the effect of the subroutine on the first n elements, where n is the value for
-    !> arraySize. (default: size(array))
-    integer, intent(in), optional :: arraySize
-
-    !> Number of unique elements.
-    integer :: nUnique
-
-    integer :: ii, ij, nn
-
-    if (present(arraySize)) then
-      nn = arraySize
-    else
-      nn = size(array)
-    end if
-
-    @:ASSERT(nn >= 1 )
-    @:ASSERT(nn <= size(array))
-    @:ASSERT(all(array(:nn) > 0))
-
-    ii = 1
-    do ij = 2, nn
-      if (array(ij) /= array(ii)) then
-        ii = ii + 1
-        array(ii) = array(ij)
-      end if
-    end do
-    nUnique = ii
-
-  end function unique_int
 
 end module dftbp_math_sorting
