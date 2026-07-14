@@ -20,8 +20,8 @@ module dftbp_dftb_densitymatrix
   use dftbp_math_blasroutines, only : herk
   use dftbp_type_commontypes, only : TParallelKS
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, pblasfx_pgemm, pblasfx_psyr,&
-      & pblasfx_psyrk, pblasfx_ptranc, size
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, pblasfx_pgemm, pblasfx_pher,&
+      & pblasfx_pherk, pblasfx_psyr, pblasfx_psyrk, pblasfx_ptranc, size
   use dftbp_math_matrixops, only : adjointLowerTriangle_BLACS
 #:endif
 #:if WITH_MAGMA
@@ -964,42 +964,130 @@ contains
     !> Eigenvectors of system
     complex(dp), intent(inout) :: eigenVecs(:,:)
 
-    !> Resulting (symmetric) density matrix
+    !> Resulting (hermitian) density matrix
     complex(dp), intent(out) :: densityMtx(:,:)
 
     !> Eigenvalues, if energy weighted density matrix required
     real(dp), intent(in), optional :: eigenVals(:)
 
-    integer  :: ii, jj, iGlob, iLoc, blockSize
+    integer  :: ii, jj, iGlob, iLoc, blockSize, iLev, nTiny
     type(blocklist) :: blocks
     complex(dp), allocatable :: work(:,:)
+    real(dp) :: weight
+
+    ! Square-rooting occupation weights close to underflow in the rank-k updates below has
+    ! been observed to destabilise subsequent ScaLAPACK eigensolver (MRRR) calls for some
+    ! compiler/library combinations. Levels with weight magnitude in [dropTol, sqrt(eps))
+    ! are therefore applied through exact rank-1 updates instead, while weights below
+    ! dropTol are dropped: a few times eps is still negligible in any matrix element, and
+    ! truncating at 1 * eps has been observed to be insufficient for some compilers.
+    ! Should more than maxRank1 levels fall into the rank-1 window (each update is a
+    ! memory-bound level-2 pass over the distributed matrix), the plain matrix product is
+    ! used instead. The thresholds are anchored to double precision, matching the
+    ! ScaLAPACK solver behaviour they guard against, rather than the working kind.
+    real(dp), parameter :: sqrtEps = sqrt(epsilon(1.0_rdp))
+    real(dp), parameter :: dropTol = 16.0_dp * epsilon(1.0_rdp)
+    integer, parameter :: maxRank1 = 32
 
     densityMtx(:, :) = cmplx(0,0,dp)
     work = densityMtx
 
-    ! Scale a copy of the eigenvectors
+    ! Scale a copy of the eigenvectors. Note: filling and eigenVals are replicated, so all
+    ! ranks take identical branches below and the collective calls stay matched.
     call blocks%init(myBlacs, desc, "c")
     if (present(eigenVals)) then
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, blockSize - 1
-          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj) * filling(iGlob + jj)
+      nTiny = count(abs(filling * eigenVals) >= dropTol&
+          & .and. abs(filling * eigenVals) < sqrtEps)
+      if (all(filling * eigenVals <= 0.0_dp .or. abs(filling * eigenVals) < dropTol)&
+          & .and. nTiny <= maxRank1) then
+        ! Energy-weighted matrix W = V diag(f e) V^H. When every occupied product
+        ! f*e is non-positive (the common case, occupied levels below the reference
+        ! energy), W = -(Y Y^H) with Y = V sqrt(-f e), so a hermitian rank-k update
+        ! with a prefactor of -1 applies, as for the density matrix below. Products
+        ! below dropTol in magnitude are negligible either way, so they cannot veto
+        ! this path. The .not. form of the weight test keeps non-finite weights on
+        ! the square-root path, so they stay visible in the result.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            if (.not. (-eigenVals(iGlob + jj) * filling(iGlob + jj) < sqrtEps)) then
+              work(:, iLoc + jj) = eigenVecs(:, iLoc + jj)&
+                  & * sqrt(-eigenVals(iGlob + jj) * filling(iGlob + jj))
+            else
+              work(:, iLoc + jj) = cmplx(0,0,dp)
+            end if
+          end do
         end do
-      end do
+        call pblasfx_pherk(work, desc, densityMtx, desc, uplo="L", trans="N", alpha=-1.0_dp)
+        do iLev = 1, size(filling)
+          weight = eigenVals(iLev) * filling(iLev)
+          if (-weight >= dropTol .and. -weight < sqrtEps) then
+            call pblasfx_pher(eigenVecs, desc, densityMtx, desc, uplo="L", alpha=weight,&
+                & jx=iLev)
+          end if
+        end do
+        call adjointLowerTriangle_BLACS(desc, myBlacs%mycol, myBlacs%myrow, myBlacs%ncol,&
+            & myBlacs%nrow, densityMtx)
+      else
+        ! Occupied products f*e have mixed signs (or too many levels fall into the
+        ! rank-1 window), so the rank-k update is not applicable. Use a matrix product.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj)&
+                & * filling(iGlob + jj)
+          end do
+        end do
+        call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
+        ! hermitian symmetrize
+        work(:,:) = densityMtx
+        call pblasfx_ptranc(work, desc, densityMtx, desc, alpha=(0.5_dp,0.0_dp),&
+            & beta=(0.5_dp,0.0_dp))
+      end if
     else
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, blockSize - 1
-          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
+      nTiny = count(filling >= dropTol .and. filling < sqrtEps)
+      if (any(filling < -dropTol) .or. nTiny > maxRank1) then
+        ! Some occupations are meaningfully negative (e.g. Methfessel-Paxton filling),
+        ! so sqrt(filling) is not real (or too many levels fall into the rank-1
+        ! window). Use a matrix product.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
+          end do
         end do
-      end do
+        call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
+        ! hermitian symmetrize
+        work(:,:) = densityMtx
+        call pblasfx_ptranc(work, desc, densityMtx, desc, alpha=(0.5_dp,0.0_dp),&
+            & beta=(0.5_dp,0.0_dp))
+      else
+        ! For non-negative occupations the density matrix rho = V diag(f) V^H equals
+        ! W W^H with W = V sqrt(f). This hermitian rank-k update forms only one
+        ! triangle, roughly halving the work of the matrix product above. The .not.
+        ! form of the weight test keeps non-finite occupations on the square-root
+        ! path, so they stay visible in the result.
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, blockSize - 1
+            if (.not. (filling(iGlob + jj) < sqrtEps)) then
+              work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * sqrt(filling(iGlob + jj))
+            else
+              work(:, iLoc + jj) = cmplx(0,0,dp)
+            end if
+          end do
+        end do
+        call pblasfx_pherk(work, desc, densityMtx, desc, uplo="L", trans="N")
+        do iLev = 1, size(filling)
+          if (filling(iLev) >= dropTol .and. filling(iLev) < sqrtEps) then
+            call pblasfx_pher(eigenVecs, desc, densityMtx, desc, uplo="L",&
+                & alpha=filling(iLev), jx=iLev)
+          end if
+        end do
+        call adjointLowerTriangle_BLACS(desc, myBlacs%mycol, myBlacs%myrow, myBlacs%ncol,&
+            & myBlacs%nrow, densityMtx)
+      end if
     end if
-
-    ! Create matrix
-    call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
-    ! hermitian symmetrize
-    work(:,:) = densityMtx
-    call pblasfx_ptranc(work, desc, densityMtx, desc, alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
 
   end subroutine makeDensityMtxCplxBlacs
 
