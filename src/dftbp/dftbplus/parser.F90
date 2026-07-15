@@ -2834,6 +2834,11 @@ contains
                 & the self-consistent cycle is only allowed to finish once a completely empty state&
                 & has been found. Use a negative value to calculate the whole spectrum.")
           end if
+          call getChildValue(value1, "SinglePrecisionCycles", ctrl%solver%elpa%nSinglePrecCycles,&
+              & 0, child=child)
+          if (ctrl%solver%elpa%nSinglePrecCycles < 0) then
+            call detailedError(child, "SinglePrecisionCycles must not be negative")
+          end if
         end if
       end if
   #:endif
