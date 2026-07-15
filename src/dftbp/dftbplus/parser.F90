@@ -2751,6 +2751,18 @@ contains
               & the GPU acceleration for the ELPA solver")
         end if
       #:endif
+      call getChildValue(value1, "NrOfEmptyStates", ctrl%solver%elpa%nEmptyStates, -1,&
+          & child=child)
+      if (ctrl%solver%elpa%nEmptyStates >= 0) then
+        if (ctrl%solver%elsi%elsiCsr) then
+          call detailedError(child, "NrOfEmptyStates is not available for the sparse (density&
+              & matrix) interface of ELPA")
+        end if
+        #:if not WITH_ELSI
+          call detailedError(child, "Restricting the eigenspectrum is only possible if ELPA is&
+              & included via the ELSI library")
+        #:endif
+      end if
       call getChildValue(value1, "RedistributeFactor", ctrl%solver%elpa%redistributeFactor, 1,&
           & child=child)
       #:if not WITH_ELPA
