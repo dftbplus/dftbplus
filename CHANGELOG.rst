@@ -42,6 +42,10 @@ Added
 
 - Ehrenfest dynamics for hybrid functionals (molecules and gamma-point only)
 
+- SinglePrecisionCycles option for the ELPA solver (via the ELSI
+  library), solving the eigenvalue problem in the first few SCC cycles in
+  single precision
+
 
 Changed
 -------
