@@ -1,0 +1,32 @@
+[[steps]]
+name = "Copy input files"
+action = "run"
+inputs.cmd = "cp -r ${cli.testdir}/[^_]* ."
+
+[[steps]]
+name = "Run dftb+"
+action = "run"
+inputs.cmd = """
+rm -f dftb_in.hsd \
+&& cp dftb_in1.hsd dftb_in.hsd \
+&& ${cli.executable}
+"""
+inputs.output = "dftbplus.1.out"
+inputs.env = {DFTBPLUS_PARAM_DIR = "${cli.paramdir}"}
+
+[[steps]]
+name = "Run dftb+ (restart)"
+action = "run"
+inputs.cmd = """
+rm -f dftb_in.hsd \
+&& cp dftb_in2.hsd dftb_in.hsd \
+&& ${cli.executable}
+"""
+inputs.output = "dftbplus.1.out"
+inputs.env = {DFTBPLUS_PARAM_DIR = "${cli.paramdir}"}
+
+[[steps]]
+name = "Check autotest.tag against reference"
+action = "run"
+inputs.cmd = "${cli.tagdiff} ${cli.tagdiffconfopts} ${cli.testdir}/_autotest.tag autotest.tag"
+inputs.output = "tagdiff.out"
