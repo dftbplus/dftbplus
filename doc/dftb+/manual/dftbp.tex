@@ -2522,6 +2522,7 @@ It accepts following options
   \kw{PreferElsi} & l& & No & \\
   \kw{RedistributeFactor} & i& & 1 & \\
   \kw{RedistributeRanks} & p& RedistributeFactor = 1 & \cb & \\
+  \kw{SinglePrecisionCycles} & i& & 0 & \\
   \kw{Sparse} & l& & No & \\
 \end{ptable}
 \begin{description}
@@ -2547,6 +2548,17 @@ It accepts following options
   available if ELPA is included via the ELSI library.
 \item[\is{RedistributeRanks}] Explicit list of MPI ranks to be used to call
   ELPA, for example, \is{\{0, 2\}}. The matrix will be redistributed accordingly.
+\item[\is{SinglePrecisionCycles}] Number of initial SCC cycles for which the
+  eigenvalue problem is solved in single precision~\cite{kus2019optimizations}
+  (must be greater or equal to \is{0}, default: \is{0}, i.e., all cycles are
+  solved in double precision). All later SCC cycles, and therefore the final
+  results, are obtained in double precision, while the early cycles, where the
+  charges are far from self-consistency anyway, become considerably
+  cheaper. Depending on the requested \is{SCCTolerance}, a few additional SCC
+  cycles may be needed to reach self-consistency. This feature is only
+  available if ELPA is included via the ELSI library, and requires the
+  ELPA library within ELSI to have been built with single precision support
+  enabled.
 \item[\is{Sparse}] Whether the sparse matrix interface of ELPA should be used or
   the dense one (default: dense). The sparse interface does not reduce memory
   usage and is mainly for testing purposes.

@@ -52,6 +52,9 @@ module dftbp_elecsolvers_elpa
     !> Whether to use the ELSI library for calling ELPA
     logical :: preferElsi = .false.
 
+    !> Number of initial SCC cycles solved in single precision (requires the ELSI interface)
+    integer :: nSinglePrecCycles = 0
+
     !> On what fraction of the original number of ranks to redistribute the matrix
     integer :: redistributeFactor = 1
 
@@ -190,6 +193,11 @@ contains
 
     if (env%blacs%rowBlockSize /= env%blacs%columnBlockSize) then
       call error("Error during ELPA initialization: different block sizes for rows and columns")
+    end if
+
+    if (inp%nSinglePrecCycles /= 0) then
+      call error("SinglePrecisionCycles is only supported if ELPA is called via the ELSI library&
+          & (set PreferElsi = Yes)")
     end if
 
     status = elpa_init(20220510) ! minimum ELPA version is 2022.05.001
