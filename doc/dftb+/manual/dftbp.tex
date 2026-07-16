@@ -5771,6 +5771,7 @@ available for range separated calculations.
     \kw{StateOfInterest}        & i & & 0 & \\
     \kw{Symmetry}               & s & SpinPolarisation $=$ \cb~ & - &\\
     \kw{Diagonaliser}           & m & & - & \pref{sec:dftbp.casdiag}\\
+    \kw{TammDancoff}            & l & & No & \\
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
@@ -5815,6 +5816,11 @@ available for range separated calculations.
     for spin restricted calculation. For calculations in the ``triplet'' or
     ``both'' cases, \kw{SpinConstants} must be supplied (see
     p.~\pref{sec:dftbp.SpinConstants}).
+
+  \item[\is{TammDancoff}] If set to \is{Yes}, the Tamm-Dancoff Approximation
+    (TDA) is applied to the Casida equations by neglecting the de-excitation
+    (\textbf{B}) coupling block, so that the excitation energies are obtained
+    from the Hermitian eigenproblem of the \textbf{A} matrix alone.
 
   \item[\is{EnergyWindow}]\modif{\modtype{energy}} Energy range above the last
     transition at \is{NrOfExcitations} to be included in excited state spectrum
