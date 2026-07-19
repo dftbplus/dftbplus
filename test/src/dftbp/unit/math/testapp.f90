@@ -1,13 +1,15 @@
 program testapp
   use fortuno_serial, only : execute_serial_cmd_app, test_list
-  use test_math_matrixops, only : matrixops_tests => tests
+  use test_math_binarysearch, only : binarysearch_tests => tests
   use test_math_lapackroutines, only : lapack_svd_tests => tests
+  use test_math_matrixops, only : matrixops_tests => tests
   use test_math_sorting, only : sorting_tests => tests
   implicit none
 
   call execute_serial_cmd_app(test_list([&
-      matrixops_tests(),&
+      binarysearch_tests(),&
       lapack_svd_tests(),&
+      matrixops_tests(),&
       sorting_tests()&
     ])&
   )

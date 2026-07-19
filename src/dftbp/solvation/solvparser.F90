@@ -23,7 +23,7 @@ module dftbp_solvation_solvparser
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue, setChild
   use dftbp_io_hsdutils2, only : convertUnitHsd, localiseName
-  use dftbp_math_bisect, only : bisection
+  use dftbp_math_binarysearch, only : search_int
   use dftbp_solvation_born, only : fgbKernel, TGBInput
   use dftbp_solvation_cm5, only : TCM5Input
   use dftbp_solvation_cosmo, only : TCosmoInput, TDomainDecompositionInput
@@ -609,7 +609,7 @@ contains
 
     call getChildValue(node, "AngularGrid", gridPoints, default, child=child)
     angGrid = 0
-    call bisection(angGrid, gridSize, gridPoints)
+    call search_int(angGrid, gridSize, gridPoints)
     if (angGrid == 0) then
       call detailedError(child, "Illegal number of grid points for numerical integration")
     end if

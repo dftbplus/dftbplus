@@ -2,7 +2,7 @@ set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
   ${curdir}/angmomentum.F90
-  ${curdir}/bisect.F90
+  ${curdir}/binarysearch.F90
   ${curdir}/blasroutines.F90
   ${curdir}/contactsymm.F90
   ${curdir}/counting.F90

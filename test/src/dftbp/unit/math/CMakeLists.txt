@@ -6,8 +6,9 @@ if (NOT WITH_MPI)
     testapp.f90)
 
   set(sources-fypp
-    matrixops.F90
+    binarysearch.F90
     lapacksvd.F90
+    matrixops.F90
     sorting.F90)
 
   set(sources-fypp-f90)
