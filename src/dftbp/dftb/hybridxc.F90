@@ -43,7 +43,7 @@ module dftbp_dftb_hybridxc
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
   use dftbp_extlibs_scalapackfx, only : CSRC_, linecomm, MB_, NB_, pblasfx_pgemm, pblasfx_psymm,&
       & pblasfx_ptran, RSRC_, scalafx_addl2g, scalafx_indxl2g
-  use dftbp_math_bisect, only : bisection
+  use dftbp_math_binarysearch, only : search_int
 #:endif
 
   implicit none
@@ -2100,11 +2100,11 @@ contains
       do jj = 1, size(camGammaAO, dim=2)
         iOrb2 = scalafx_indxl2g(jj, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
             & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
-        call bisection(iAt2, denseDesc%iAtomStart, iOrb2)
+        call search_int(iAt2, denseDesc%iAtomStart, iOrb2)
         do ii = 1, size(camGammaAO, dim=1)
           iOrb1 = scalafx_indxl2g(ii, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
               & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
-          call bisection(iAt1, denseDesc%iAtomStart, iOrb1)
+          call search_int(iAt1, denseDesc%iAtomStart, iOrb1)
           camGammaAO(ii, jj) = this%camGammaEval0(iAt1, iAt2)
         end do
       end do
@@ -5591,11 +5591,11 @@ contains
     do jj = 1, size(camGammaAO, dim=2)
       iOrb1 = scalafx_indxl2g(jj, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
           & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
-      call bisection(iAt1, denseDesc%iAtomStart, iOrb1)
+      call search_int(iAt1, denseDesc%iAtomStart, iOrb1)
       do ii = 1, size(camGammaAO, dim=1)
         iOrb2 = scalafx_indxl2g(ii, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
             & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
-        call bisection(iAt2, denseDesc%iAtomStart, iOrb2)
+        call search_int(iAt2, denseDesc%iAtomStart, iOrb2)
         camGammaAO(ii, jj) = this%camGammaEval0(iAt2, iAt1)
       end do
     end do

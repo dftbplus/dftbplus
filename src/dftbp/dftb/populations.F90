@@ -24,7 +24,7 @@ module dftbp_dftb_populations
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, NB_, scalafx_addg2l, scalafx_addl2g,&
       & scalafx_getdescriptor, scalafx_indxl2g
-  use dftbp_math_bisect, only : bisection
+  use dftbp_math_binarysearch, only : search_int
 #:endif
   implicit none
 
@@ -495,7 +495,7 @@ contains
         iGlob = scalafx_indxl2g(iLocCol, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
             & env%blacs%orbitalGrid%ncol)
         ! search atom index that corresponds to the global matrix index
-        call bisection(iAt, denseDesc%iAtomStart, iGlob)
+        call search_int(iAt, denseDesc%iAtomStart, iGlob)
         qq(iGlob - denseDesc%iAtomStart(iAt) + 1, iAt, iS)&
             & = sum(overSqr(:, iLocCol) * rhoSqr(:, iLocCol, iKS))
       end do

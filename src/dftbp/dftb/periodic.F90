@@ -22,7 +22,7 @@ module dftbp_dftb_periodic
       & MPIFX_SIZE_T, mpifx_win
 #:endif
   use dftbp_io_message, only : error, warning
-  use dftbp_math_bisect, only : bisection
+  use dftbp_math_binarysearch, only : search_asc_real_geq
   use dftbp_math_quaternions, only : rotate3
   use dftbp_math_simplealgebra, only : determinant33, invert33
   use dftbp_math_sorting, only : index_heap_sort
@@ -1051,8 +1051,8 @@ contains
     end if
 
     ! Get last interacting neighbour for given cutoff
-    call bisection(nNeighbour, neigh%neighDist2(1:neigh%nNeighbour(iAtom), iAtom), cutoff**2,&
-        & tolSameDist2)
+    call search_asc_real_geq(nNeighbour, neigh%neighDist2(1:neigh%nNeighbour(iAtom), iAtom),&
+        & cutoff**2, tolSameDist2)
 
   end function getNrOfNeighbours
 
