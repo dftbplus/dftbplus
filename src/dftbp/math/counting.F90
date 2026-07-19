@@ -10,6 +10,7 @@
 !> Various types of value counting routines
 module dftbp_math_counting
   use dftbp_common_accuracy, only : dp, elecTolMax, rsp
+  use dftbp_dftb_etemp, only : fillingTypes
   implicit none
 
   private
@@ -59,25 +60,39 @@ contains
   end function unique
 
 
-  !> Last state with at least some occupation
-  subroutine filledStates(nFilled, fillings)
+  !> Finds last electronic state with at least some occupation
+  subroutine filledStates(nFilled, fillings, iFilling, tol)
 
+    !> Number of (partially) filled states for each k-point and spin channel
     integer, intent(out), allocatable :: nFilled(:,:)
 
+    !> Fillings for each level at k-points and spin channels
     real(dp), intent(in) :: fillings(:,:,:)
 
-    integer :: iS, iK, iLev
+    !> Choice of electron distribution function, defaults to Fermi if not present
+    integer, intent(in), optional :: iFilling
 
-    allocate(nFilled(size(fillings, dim=3), size(fillings, dim=2)), source=size(fillings, dim=1))
+    !> Tolerance to detect empty states, defaults to elecTolMax if not present
+    real(dp), intent(in), optional :: tol
+
+    integer :: iS, iK, iLev, iFilling_
+    real(dp) :: tol_
+
+    tol_ = elecTolMax
+    if (present(tol)) tol_ = tol
+    iFilling_ = fillingTypes%Fermi
+    if (present(iFilling)) iFilling_ = iFilling
+
+    allocate(nFilled(size(fillings, dim=3), size(fillings, dim=2)), source=0)
+
     do iS = 1, size(fillings, dim=3)
       do iK = 1, size(fillings, dim=2)
-        do iLev = 1, size(fillings, dim=1)
-          if ( fillings(iLev, iK, iS) < epsilon(1.0) ) then
-            ! assumes Fermi filling, so above the previous level is an empty one
-            nFilled(iS, iK) = iLev - 1
-            exit
+        lpLevels: do iLev = size(fillings, dim=1), 1, -1
+          if ( fillings(iLev, iK, iS) > tol_ ) then
+            nFilled(iS, iK) = iLev
+            exit lpLevels
           end if
-        end do
+        end do lpLevels
       end do
     end do
 
@@ -85,8 +100,9 @@ contains
 
 
   !> First level of each k/spin channel; which is not filled to capacity
-  subroutine emptyStates(nEmpty, fillings, maxFill, tol)
+  subroutine emptyStates(nEmpty, fillings, maxFill, iFilling, tol)
 
+    !> First (partially) empty state for each k-point and spin channel
     integer, intent(out), allocatable :: nEmpty(:,:)
 
     !> Fillings of levels
@@ -95,14 +111,19 @@ contains
     !> Maximum occupation for levels
     real(dp), intent(in) :: maxFill
 
+    !> Choice of electron distribution function, defaults to Fermi if not present
+    integer, intent(in), optional :: iFilling
+
     !> Tolerance to detect empty
     real(dp), intent(in), optional :: tol
 
-    integer :: iS, iK, iLev
+    integer :: iS, iK, iLev, iFilling_
     real(dp) :: tol_
 
     tol_ = elecTolMax
     if (present(tol)) tol_ = tol
+    iFilling_ = fillingTypes%Fermi
+    if (present(iFilling)) iFilling_ = iFilling
 
     ! Start by assuming each channel is empty, so first level is unoccupied
     allocate(nEmpty(size(fillings, dim=3), size(fillings, dim=2)), source = 1)
