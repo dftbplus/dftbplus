@@ -5,6 +5,7 @@ set(sources-fpp
   ${curdir}/bisect.F90
   ${curdir}/blasroutines.F90
   ${curdir}/contactsymm.F90
+  ${curdir}/counting.F90
   ${curdir}/degeneracy.F90
   ${curdir}/duplicate.F90
   ${curdir}/eigensolver.F90
