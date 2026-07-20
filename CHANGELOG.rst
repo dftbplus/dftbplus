@@ -48,6 +48,10 @@ Added
 
 - Tamm-Dancoff approximation for TD-DFTB
 
+- Perturbation based derivatives with respect to crystal momentum k
+
+- Dielectric function evaluation
+
 
 Changed
 -------
