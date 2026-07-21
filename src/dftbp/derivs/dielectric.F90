@@ -20,11 +20,8 @@ module dftbp_derivs_dielectric
   use dftbp_derivs_momentumelements, only : momentumElements
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_hybridxc, only : THybridXcFunc
-  use dftbp_dftb_nonscc, only : buildS
   use dftbp_dftb_periodic, only : TAuxNeighbourList, TNeighbourList
   use dftbp_dftbplus_outputfiles, only : autotestTag, resultsTag
-  use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : unpackHSdk
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_kramerskronig, only : kki2r
   use dftbp_math_simplealgebra, only : determinant33
@@ -32,14 +29,7 @@ module dftbp_derivs_dielectric
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
-  use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedInt2, TWrappedReal1, TWrappedCmplx2
-#:if WITH_SCALAPACK
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_phemm,&
-      & scalafx_getdescriptor
-#:else
-  use dftbp_math_blasroutines, only : hemm
-#:endif
+  use dftbp_type_wrappedintr, only : TWrappedInt2, TWrappedReal1
 
   implicit none
 
@@ -211,7 +201,7 @@ contains
     call filledOrEmpty(nFilled, nEmpty, nIndepHam, nKpts, filling, nOrbs, maxFill)
 
     ! Count total number of transitions for locally stored k-points and spins
-    allocate(nTrans(parallelKS%nLocalKS))
+    allocate(nTrans(parallelKS%nLocalKS), source=0)
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
@@ -222,8 +212,6 @@ contains
     allocate(wij(parallelKS%nLocalKS))
     allocate(fij(parallelKS%nLocalKS))
 
-    !$OMP PARALLEL DO&
-    !$OMP& DEFAULT(SHARED) PRIVATE(iK, iS, iTrans, iFil, iEmp, win) SCHEDULE(RUNTIME)
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
@@ -246,7 +234,6 @@ contains
       fij(iKS)%data(:) = fij(iKS)%data(win)
       deallocate(win)
     end do
-    !$OMP END PARALLEL DO
 
     lowerEgy = huge(1.0_dp)
     upperEgy = -huge(1.0_dp)
@@ -258,8 +245,6 @@ contains
     nEgyPts = ceiling((upperEgy-lowerEgy) / settings%gridSpacing)
     nEgyPts = nEgyPts + 2 * nNonZero
 
-    allocate(imChi(6, 0:nEgyPts), source = 0.0_dp)
-
   #:if WITH_SCALAPACK
 
     @:ASSERT(.false.)
@@ -270,6 +255,8 @@ contains
         & wij, neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, orb, denseDesc,&
         & iSparseStart, img2CentCell, kPoint, kWeight, rCellVecs, cellVec, iCellVec, densityMatrix,&
         & hybridXc, dab, errStatus)
+
+    allocate(imChi(6, 0:nEgyPts), source = 0.0_dp)
 
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)

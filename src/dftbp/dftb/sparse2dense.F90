@@ -3750,7 +3750,7 @@ contains
     square(:, :) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
-    phase = 0.0_dp
+    phase = 1.0_dp
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
@@ -3847,7 +3847,7 @@ contains
     square(:, :) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
-    phase = 0.0_dp
+    phase = 1.0_dp
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
@@ -3922,12 +3922,7 @@ contains
     integer, intent(in) :: iDir
 
     complex(dp) :: phase
-    integer :: nAtom
-    integer :: iOrig, ii, jj
-    integer :: iNeigh
-    integer :: iOldVec, iVec
-    integer :: iAtom1, iAtom2, iAtom2f
-    integer :: nOrb1, nOrb2
+    integer :: iAtom1, iAtom2, iAtom2f, ii, iNeigh, iOldVec, iOrig, iVec, jj, nAtom, nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
 
     nAtom = size(iNeighbour, dim=2)
@@ -3942,7 +3937,7 @@ contains
     square(:, :) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
-    phase = 0.0_dp
+    phase = 1.0_dp
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
@@ -4036,7 +4031,7 @@ contains
     square(:, :) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
-    phase = 0.0_dp
+    phase = 1.0_dp
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
