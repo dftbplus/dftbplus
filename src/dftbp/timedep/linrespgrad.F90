@@ -189,11 +189,13 @@ contains
     real(dp), allocatable :: eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
+  #:if WITH_SCALAPACK
     !> MPI Global array
     real(dp), allocatable :: VecGlb(:,:)
+  #:endif
 
     !> Array from pairs of single particles states to compound index - should replace with a more
-    !> compact data structure in the cases where there are oscilator windows
+    !! compact data structure in the cases where there are oscilator windows
     integer, allocatable :: iatrans(:,:,:)
 
     character, allocatable :: symmetries(:)
@@ -226,7 +228,7 @@ contains
     !> Casida parameters (number of transitions, index arrays and alike)
     type(TCasidaParameter) :: rpa
 
-    type(TFileDescr) :: fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc, fdTransQ
+    type(TFileDescr) :: fdTrans, fdTransDip, fdXPlusY, fdExc, fdTransQ
 
     !> Communication with ARPACK for progress information
     integer :: logfil, ndigit, mgetv0
@@ -1022,7 +1024,8 @@ contains
     real(dp), allocatable :: Hv(:), orthnorm(:,:), qij(:), resid(:), vv(:,:)
     real(dp), allocatable :: workd(:), workl(:), workTmp(:)
     real(dp) :: sigma, omega
-    integer :: iparam(11), ipntr(11), ido, ncv, lworkl, info, nexc, natom, nLoc, iState, comm
+    integer :: iparam(11), ipntr(11), ido, ncv, lworkl, info, nexc, natom, nLoc, iState
+
     integer, allocatable :: indxEigVals(:)
     logical, allocatable :: selection(:)
     logical :: rvec
@@ -1030,6 +1033,8 @@ contains
     type(TFileDescr) :: fdArnoldiTest
 
   #:if WITH_PARPACK
+    integer :: comm
+
     comm = env%mpi%globalComm%id
   #:endif
 
@@ -2595,7 +2600,6 @@ contains
     real(dp), allocatable :: deltaRhoGlobal(:,:,:), grndEigVecsGlobal(:,:,:)
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp6, tmp8, tmp9, tmp10, rab
     real(dp) :: diffvec(3), dgab(3), tmpVec(3), tmp3a, tmp3b, tmprs, tmprs2, tmps(2)
-    integer, allocatable :: species(:)
     integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, ka
     integer :: indalpha, indalpha1, indbeta, indbeta1, soo(2), svv(2)
     integer :: iSp1, iSp2, iSpin, nSpin, nOrb, iGlobal, fGlobal
