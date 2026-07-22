@@ -38,9 +38,10 @@ module dftbp_elecsolvers_elsisolver
       & elsi_get_edm_complex_sparse, elsi_get_edm_real, elsi_get_edm_real_sparse, elsi_get_entropy,&
       & elsi_get_mu, elsi_get_pexsi_mu_max, elsi_get_pexsi_mu_min, elsi_get_version, elsi_init,&
       & elsi_init_rw, elsi_reinit, elsi_set_blacs, elsi_set_csc, elsi_set_csc_blk,&
-      & elsi_set_elpa_autotune, elsi_set_elpa_gpu, elsi_set_elpa_solver, elsi_set_kpoint,&
-      & elsi_set_mpi, elsi_set_mpi_global, elsi_set_mu_broaden_scheme, elsi_set_mu_broaden_width,&
-      & elsi_set_mu_mp_order, elsi_set_ntpoly_filter, elsi_set_ntpoly_method, elsi_set_ntpoly_tol,&
+      & elsi_set_elpa_autotune, elsi_set_elpa_gpu, elsi_set_elpa_n_single, elsi_set_elpa_solver,&
+      & elsi_set_kpoint, elsi_set_mpi, elsi_set_mpi_global, elsi_set_mu_broaden_scheme,&
+      & elsi_set_mu_broaden_width, elsi_set_mu_mp_order, elsi_set_ntpoly_filter,&
+      & elsi_set_ntpoly_method, elsi_set_ntpoly_tol,&
       & elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol, elsi_set_output,&
       & elsi_set_output_log, elsi_set_pexsi_delta_e, elsi_set_pexsi_method, elsi_set_pexsi_mu_max,&
       & elsi_set_pexsi_mu_min, elsi_set_pexsi_n_mu, elsi_set_pexsi_n_pole,&
@@ -236,6 +237,9 @@ module dftbp_elecsolvers_elsisolver
 
     !> Whether ELPA uses GPUs (1=true)
     integer :: elpaGpu
+
+    !> Number of initial SCC cycles solved by ELPA in single precision
+    integer :: elpaNSinglePrec
 
     !! OMM settings
 
@@ -485,6 +489,10 @@ contains
       else
         this%elpaGpu = 0
       end if
+      if (inpElpa%nSinglePrecCycles < 0) then
+        call error("Number of single precision cycles for the ELPA solver must not be negative")
+      end if
+      this%elpaNSinglePrec = inpElpa%nSinglePrecCycles
     end if
 
     ! OMM settings
@@ -679,6 +687,10 @@ contains
 
         call elsi_set_elpa_autotune(this%handle, this%elpaAutotune)
         call elsi_set_elpa_gpu(this%handle, this%elpaGpu)
+        if (this%elpaNSinglePrec > 0) then
+          ! solve the first SCC cycles in single precision, later ones in double precision
+          call elsi_set_elpa_n_single(this%handle, this%elpaNSinglePrec)
+        end if
 
       case(electronicSolverTypes%omm)
         ! libOMM

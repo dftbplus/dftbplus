@@ -19,8 +19,8 @@ module dftbp_extlibs_elsiiface
       & elsi_get_edm_real_sparse, elsi_get_entropy, elsi_get_mu, elsi_get_pexsi_mu_max,&
       & elsi_get_pexsi_mu_min, elsi_get_version, elsi_handle, elsi_init, elsi_init_rw, elsi_reinit,&
       & elsi_rw_handle, elsi_set_blacs, elsi_set_csc, elsi_set_csc_blk, elsi_set_elpa_autotune,&
-      & elsi_set_elpa_gpu, elsi_set_elpa_solver, elsi_set_kpoint, elsi_set_mpi,&
-      & elsi_set_mpi_global, elsi_set_mu_broaden_scheme, elsi_set_mu_broaden_width,&
+      & elsi_set_elpa_gpu, elsi_set_elpa_n_single, elsi_set_elpa_solver, elsi_set_kpoint,&
+      & elsi_set_mpi, elsi_set_mpi_global, elsi_set_mu_broaden_scheme, elsi_set_mu_broaden_width,&
       & elsi_set_mu_mp_order, elsi_set_ntpoly_filter, elsi_set_ntpoly_method, elsi_set_ntpoly_tol,&
       & elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol, elsi_set_output,&
       & elsi_set_output_log, elsi_set_pexsi_delta_e, elsi_set_pexsi_method, elsi_set_pexsi_mu_max,&
@@ -53,7 +53,8 @@ module dftbp_extlibs_elsiiface
   public :: elsi_set_pexsi_mu_min, elsi_set_pexsi_mu_max
   public :: elsi_get_mu, elsi_get_entropy
   public :: elsi_set_mu_mp_order, elsi_set_mu_broaden_width, elsi_set_mu_broaden_scheme
-  public :: elsi_set_elpa_solver, elsi_set_elpa_autotune, elsi_set_elpa_gpu
+  public :: elsi_set_elpa_solver, elsi_set_elpa_autotune, elsi_set_elpa_gpu,&
+      & elsi_set_elpa_n_single
   public :: elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol
   public :: elsi_set_pexsi_method
   public :: elsi_set_pexsi_np_per_pole, elsi_set_pexsi_temp, elsi_set_pexsi_n_pole
@@ -293,6 +294,13 @@ contains
     integer(i4), intent(in) :: gpu
     call stubError("elsi_set_elpa_gpu")
   end subroutine elsi_set_elpa_gpu
+
+
+  subroutine elsi_set_elpa_n_single(eh, n_single)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: n_single
+    call stubError("elsi_set_elpa_n_single")
+  end subroutine elsi_set_elpa_n_single
 
 
   subroutine elsi_set_kpoint(eh, n_kpt, i_kpt, i_wt)
