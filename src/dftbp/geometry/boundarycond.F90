@@ -14,6 +14,7 @@ module dftbp_geometry_boundarycond
   use dftbp_common_constants, only : pi
   use dftbp_common_status, only : TStatus
   use dftbp_math_angmomentum, only : rotateZ
+  use dftbp_math_lapackroutines, only : gesv
   use dftbp_math_matrixops, only : pseudoInv
   use dftbp_math_quaternions, only : rotate3
   use dftbp_math_simplealgebra, only : invert33, determinant33
@@ -365,17 +366,10 @@ contains
 
       else
 
-        call invert33(invLatVecs, latVec)
-        vecLen(:) = sqrt(sum(latVec**2, dim=1))
-        !$OMP PARALLEL DO&
-        !$OMP& DEFAULT(SHARED) PRIVATE(frac) SCHEDULE(RUNTIME)
-        do iAt = 1, nAtom
-          frac(:) = matmul(invLatVecs, coord(:,iAt))
-          frac(:) = frac - real(floor(frac), dp)
-          where (abs(vecLen * (1.0_dp - frac)) < epsilon(0.0_dp)) frac = 0.0_dp
-          coord(:, iAt) = matmul(latVec, frac)
-        end do
-        !$OMP END PARALLEL DO
+        invLatVecs(:,:) = latVec
+        work = coord(:,:nAtom)
+        call gesv(invLatVecs, work)
+        coord(:,:nAtom) = matmul(latVec, modulo(work, 1.0_dp))
 
       end if
 
