@@ -2730,6 +2730,7 @@ contains
           & this solver")
   #:endif
 
+  #:if WITH_ELPA or WITH_ELSI
     case ("elpa")
       allocate(ctrl%solver%elsi)
       allocate(ctrl%solver%elpa)
@@ -2744,44 +2745,50 @@ contains
         ctrl%solver%isolver = electronicSolverTypes%elpa
       end if
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value1, "PreferElsi", ctrl%solver%elpa%preferElsi, .false.)
       call getChildValue(value1, "Mode", ctrl%solver%elpa%solver, 2)
-      call getChildValue(value1, "Autotune", ctrl%solver%elpa%autotune, .false.)
-      call getChildValue(value1, "AutotuneFile", buffer, "elpa_autotune_state.out")
-      ctrl%solver%elpa%autotuneFile = trim(unquote(char(buffer)))
-      call getChildValue(value1, "Gpu", ctrl%solver%elpa%gpu, .false., child=child)
-      #:if not WITH_GPU
-        if (ctrl%solver%elpa%gpu) then
-          call detailedError(child, "DFTB+ must be compiled with GPU support in order to enable&
-              & the GPU acceleration for the ELPA solver")
-        end if
-      #:endif
-      call getChildValue(value1, "RedistributeFactor", ctrl%solver%elpa%redistributeFactor, 1,&
-          & child=child)
-      #:if not WITH_ELPA
-        if (ctrl%solver%elpa%redistributeFactor /= 1) then
-          call detailedError(child, "Matrix redistribution is only possible if ELPA is directly&
-              & included without using the ELSI interface")
-        end if
-      #:endif
 
-      call getChild(value1, "RedistributeRanks", child=child, requested=.false.)
-      if (associated(child)) then
-      #:if not WITH_ELPA
-        call detailedError(child, "Matrix redistribution is only possible if ELPA is directly&
-            & included without using the ELSI interface")
+      if (ctrl%solver%isolver == electronicSolverTypes%elpa) then
+      #:if WITH_ELPA and WITH_ELSI
+        call getChildValue(value1, "PreferElsi", ctrl%solver%elpa%preferElsi, .false.)
       #:endif
-        if (ctrl%solver%elpa%redistributeFactor /= 1) then
-          call detailedError(child, "RedistributeFactor and RedistributeRanks must not be specified&
-              & at the same time")
+        if (.not.ctrl%solver%elpa%preferElsi) then
+          call getChildValue(value1, "Autotune", ctrl%solver%elpa%autotune, .false.)
+          call getChildValue(value1, "AutotuneFile", buffer, "elpa_autotune_state.out")
+          ctrl%solver%elpa%autotuneFile = trim(unquote(char(buffer)))
+          call getChildValue(value1, "Gpu", ctrl%solver%elpa%gpu, .false., child=child)
+        #:if not WITH_GPU
+          if (ctrl%solver%elpa%gpu) then
+            call detailedError(child, "DFTB+ must be compiled with GPU support in order to enable&
+                & the GPU acceleration for the ELPA solver")
+          end if
+        #:endif
+          call getChildValue(value1, "RedistributeFactor", ctrl%solver%elpa%redistributeFactor, 1,&
+              & child=child)
+          call getChild(value1, "RedistributeRanks", child=child, requested=.false.)
+          if (associated(child)) then
+            if (ctrl%solver%elpa%redistributeFactor /= 1) then
+              call detailedError(child, "RedistributeFactor and RedistributeRanks must not be&
+                  & specified at the same time")
+            end if
+            call init(elpaRedistributeRanks)
+            call getChildValue(child, "", elpaRedistributeRanks)
+            allocate(ctrl%solver%elpa%redistributeRanks(len(elpaRedistributeRanks)))
+            call asArray(elpaRedistributeRanks, ctrl%solver%elpa%redistributeRanks)
+            call destruct(elpaRedistributeRanks)
+          end if
         end if
-        call init(elpaRedistributeRanks)
-        call getChildValue(child, "", elpaRedistributeRanks)
-        allocate(ctrl%solver%elpa%redistributeRanks(len(elpaRedistributeRanks)))
-        call asArray(elpaRedistributeRanks, ctrl%solver%elpa%redistributeRanks)
-        call destruct(elpaRedistributeRanks)
+        if (ctrl%solver%elpa%preferElsi .or. .not. withElpa) then
+          call getChildValue(value1, "EmptyStates", ctrl%solver%elpa%nEmptyStates, -1, child=child)
+          if (ctrl%solver%elpa%nEmptyStates == 0) then
+            call detailedError(child, "A partial diagonalisation needs at least one empty state, as&
+                & the self-consistent cycle is only allowed to finish once a completely empty state&
+                & has been found. Use a negative value to calculate the whole spectrum.")
+          end if
+        end if
       end if
+  #:endif
 
+  #:if WITH_ELSI
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
       allocate(ctrl%solver%elsi)
@@ -2838,6 +2845,7 @@ contains
       call getChildValue(value1, "PurificationMethod", ctrl%solver%elsi%ntpolyMethod, 2)
       call getChildValue(value1, "Tolerance", ctrl%solver%elsi%ntpolyTolerance, 1.0E-5_dp)
       call getChildValue(value1, "Truncation", ctrl%solver%elsi%ntpolyTruncation, 1.0E-10_dp)
+  #:endif
 
   #:if WITH_TRANSPORT
     case ("greensfunction")
@@ -2875,12 +2883,12 @@ contains
     end if
     if (any(ctrl%solver%isolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])) then
-      if (.not.withELSI) then
+      if (.not. withELSI) then
         call error("Not compiled with ELSI supported solvers")
       end if
     end if
     if (ctrl%solver%isolver == electronicSolverTypes%elpa) then
-      if (.not.withELSI .and. .not.withElpa) then
+      if (.not. withELSI .and. .not. withElpa) then
         call error("Not compiled with ELSI or ELPA support")
       end if
     end if

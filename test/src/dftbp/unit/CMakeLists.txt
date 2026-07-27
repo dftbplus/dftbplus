@@ -6,6 +6,7 @@ set(unit-test-prefix "unit")
 
 add_subdirectory(common)
 add_subdirectory(dftb)
+add_subdirectory(elecsolvers)
 add_subdirectory(include)
 add_subdirectory(io)
 add_subdirectory(math)
