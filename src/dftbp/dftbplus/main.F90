@@ -17,6 +17,7 @@ module dftbp_dftbplus_main
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
+  use dftbp_derivs_dielectric, only : dielectric, approxAtomDipole, TDielectricSettings
   use dftbp_derivs_numderivs2, only : dipoleAdd, getHessianMatrix, next, polAdd, TNumderivs
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo, getPairWiseMayer
@@ -1462,10 +1463,10 @@ contains
 
           call convertToUpDownRepr(this%ints%hamiltonian, this%ints%iHamiltonian)
 
-          call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ints,&
+          call getDensity(env, this, this%negfInt, iSccIter, this%denseDesc, this%ints,&
               & this%neighbourList, this%symNeighbourList, this%nNeighbourSk, this%iSparseStart,&
               & this%img2CentCell, this%iCellVec, this%cellVec, this%kPoint, this%kWeight,&
-              & this%orb, this%tHelical, this%coord, this%species, this%electronicSolver,&
+              & this%orb, this%tHelical, this%coord, this%coord, this%species, this%electronicSolver,&
               & this%rCellVec, this%latVec, this%invLatVec, this%tPeriodic, this%tRealHS,&
               & this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep,&
               & this%tFixEf, this%tMulliken, this%iDistribFn, this%tempElec, this%nEl,&
@@ -1474,7 +1475,7 @@ contains
               & this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx,&
               & this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal, this%densityMatrix,&
               & this%nNeighbourCam, this%nNeighbourCamSym, this%deltaDftb, this%apiCallBack,&
-              & this%dangerousChanges, errStatus)
+              & this%dangerousChanges, this%evaluateDielectricFn, this%taggedWriter, errStatus)
           if (errStatus%hasError()) call error(errStatus%message)
 
           if (this%tWriteBandDat) then
@@ -2916,19 +2917,21 @@ contains
   !> Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
   !> as those unpacked quantities do not exist elsewhere.
   !>
-  subroutine getDensity(env, negfInt, iScc, denseDesc, ints, neighbourList, symNeighbourList,&
+  subroutine getDensity(env, this, negfInt, iScc, denseDesc, ints, neighbourList, symNeighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-      & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
+      & tHelical, coord, coord0, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
       & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
       & iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, hybridXc, eigen, filling, rhoPrim,&
       & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
       & rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, apiCallBack,&
-      & dangerousChanges, errStatus)
-
+      & dangerousChanges, evaluateDielectricFn, taggedWriter, errStatus)
     use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Global variables
+    type(TDftbPlusMain), intent(in) :: this
 
     !> NEGF interface
     type(TNegfInt), intent(inout) :: negfInt
@@ -2977,6 +2980,8 @@ contains
 
     !> Coordinates of all atoms including images
     real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    real(dp), allocatable, intent(inout) :: coord0(:,:)
 
     !> Species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -3098,6 +3103,12 @@ contains
     !> Possibly fatal situations to check for at run-time
     type(TDangerousChange), intent(in) :: dangerousChanges
 
+    !> Whether the dielectric function is evaluated
+    type(TDielectricSettings), intent(in), allocatable :: evaluateDielectricFn
+
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
@@ -3113,14 +3124,14 @@ contains
 
     case(densityMatrixTypes%fromEigenVecs, densityMatrixTypes%magma_fromEigenVecs)
 
-      call getDensityFromDenseDiag(env, denseDesc, ints, neighbourList, symNeighbourList,&
+      call getDensityFromDenseDiag(env, this, denseDesc, ints, neighbourList, symNeighbourList,&
           & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-          & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
+          & tHelical, coord, coord0, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
           & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
           & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, eigen, filling, rhoPrim,&
           & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
           & eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb,&
-          & apiCallBack, dangerousChanges, errStatus)
+          & apiCallBack, dangerousChanges, evaluateDielectricFn, taggedWriter, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     case(densityMatrixTypes%elecSolverProvided)
 
@@ -3155,17 +3166,20 @@ contains
 
 
   !> Returns the density matrix using dense diagonalisation.
-  subroutine getDensityFromDenseDiag(env, denseDesc, ints, neighbourList, symNeighbourList,&
+  subroutine getDensityFromDenseDiag(env, this, denseDesc, ints, neighbourList, symNeighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-      & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
+      & tHelical, coord, coord0, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
       & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
       & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, eigen, filling, rhoPrim, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
       & rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, apiCallBack,&
-      & dangerousChanges, errStatus)
+      & dangerousChanges, evaluateDielectricFn, taggedWriter, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Global variables
+    type(TDftbPlusMain), intent(in) :: this
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -3208,6 +3222,9 @@ contains
 
     !> Coordinates of all atoms including images
     real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Coordinates of all atoms including images
+    real(dp), allocatable, intent(inout) :: coord0(:,:)
 
     !> Species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -3326,12 +3343,30 @@ contains
     !> Possibly fatal situations to check for at run-time
     type(TDangerousChange), intent(in) :: dangerousChanges
 
+    !> Whether the dielectric function is evaluated
+    type(TDielectricSettings), intent(in), allocatable :: evaluateDielectricFn
+
+    !> Machine-readable tagged file writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
     integer :: nSpin
+    real(dp), allocatable :: dab(:,:,:,:)
 
     nSpin = size(ints%hamiltonian, dim=2)
+
+    if (allocated(evaluateDielectricFn)) then
+    #:if WITH_SCALAPACK
+      @:RAISE_ERROR(errStatus, -1, "Not implemented")
+    #:else
+      if (nSpin == 4 .or. tRealHS .or. tHelical) then
+        @:RAISE_ERROR(errStatus, -1, "Not implemented")
+      end if
+    #:endif
+    end if
+
     call env%globalTimer%startTimer(globalTimers%diagonalization)
     if (nSpin /= 4) then
       if (tRealHS) then
@@ -3364,6 +3399,13 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
+      if (allocated(evaluateDielectricFn)) then
+        if (evaluateDielectricFn%isAtomicDipoleIncluded) then
+          allocate(dab(orb%mOrb, orb%mOrb, size(nNeighbourSK), 3), source=0.0_dp)
+          call approxAtomDipole(ints%overlap, nNeighbourSK, neighbourList%iNeighbour, iSparseStart,&
+              & img2CentCell, orb, species, coord, dab)
+        end if
+      end if
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, species, coord, tPeriodic, tHelical, eigVecsReal,&
@@ -3371,6 +3413,18 @@ contains
             & errStatus)
         @:PROPAGATE_ERROR(errStatus)
       else
+      #:if not WITH_SCALAPACK
+        if (allocated(evaluateDielectricFn)) then
+          @:ASSERT(.not.tHelical)
+          @:ASSERT(electronicSolver%providesEigenvals)
+          call dielectric(env, evaluateDielectricFn, parallelKS, eigen, filling, eigvecsCplx, ints,&
+              & neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, orb, denseDesc,&
+              & iSparseStart, img2CentCell, kPoint, kWeight, coord, rCellVecs, cellVec, iCellVec,&
+              & latVecs, densityMatrix, hybridXc, taggedWriter, this%tWriteAutotest,&
+              & this%tWriteResultsTag, dab, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
+        end if
+      #:endif
         call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb,&
             & parallelKS, tHelical, species, coord, eigvecsCplx, densityMatrix, rhoPrim, SSqrCplx,&

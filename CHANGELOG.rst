@@ -38,6 +38,10 @@ Added
   with optional MPI redistribution to a lower number of ranks for all
   ELPA calls
 
+- Perturbation based derivatives with respect to crystal momentum k
+
+- Dielectric function evaluation
+
 
 Changed
 -------
