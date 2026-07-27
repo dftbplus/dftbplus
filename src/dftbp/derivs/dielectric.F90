@@ -64,7 +64,7 @@ contains
   !> Calculate dielectric function
   subroutine dielectric(env, settings, parallelKS, eigvals, filling, eigVecsCplx, ints,&
       & neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, orb, denseDesc,&
-      & iSparseStart, img2CentCell, kPoint, kWeight, rCellVecs, cellVec, iCellVec, latVecs,&
+      & iSparseStart, img2CentCell, kPoint, kWeight, coord, rCellVecs, cellVec, iCellVec, latVecs,&
       & densityMatrix, hybridXc, taggedWriter, isAutotestWritten, isResultsTagWritten, dab,&
       & errStatus)
 
@@ -119,6 +119,9 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
 
+    !> Coordinates of all atoms including images
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
     !> Vectors to units cells in absolute units
     real(dp), intent(in) :: rCellVecs(:,:)
 
@@ -163,7 +166,7 @@ contains
 
     real(dp) :: norm, lambda, widthOfNonZero
     integer :: nEgyPts, nNonZero
-    real(dp) :: lowerEgy, upperEgy
+    real(dp) :: lowerEgy, upperEgy, factor
 
     !! Small complex broadening
     complex(dp) :: eta
@@ -220,18 +223,26 @@ contains
       allocate(fij(iKS)%data(nTrans(iKS)))
       iTrans = 0
       do iFil = 1, nFilled(iS, iK)
-        do iEmp = nEmpty(iS, iK), nOrbs
+        lpEmpty: do iEmp = nEmpty(iS, iK), nOrbs
+          if (abs(eigvals(iEmp, iK, iS) - eigvals(iFil, iK, iS)) < epsilon(0.0)) then
+            write(*,*)'Skipping', iTrans+1, iK, iFil, iEmp
+            cycle lpEmpty ! just in case between same state with fractional filling
+          end if
           iTrans = iTrans + 1
           getIA(iKS)%data(iTrans, :) = [iFil, iEmp]
           wij(iKS)%data(iTrans) = eigvals(iEmp, iK, iS) - eigvals(iFil, iK, iS)
           fij(iKS)%data(iTrans) = filling(iFil, iK, iS) - filling(iEmp, iK, iS)
-        end do
+        end do lpEmpty
       end do
+      nTrans(iKS) = iTrans
       allocate(win(nTrans(iKS)))
-      call merge_sort(win, wij(iKS)%data, 1.0E-3_dp*epsilon(0.0_rsp))
-      getIA(iKS)%data(:,:) = getIA(iKS)%data(win, :)
-      wij(iKS)%data(:) = wij(iKS)%data(win)
-      fij(iKS)%data(:) = fij(iKS)%data(win)
+      call merge_sort(win, wij(iKS)%data(:nTrans(iKS)), 1.0E-3_dp*epsilon(0.0_rsp))
+      getIA(iKS)%data(:nTrans(iKS),:) = getIA(iKS)%data(win, :)
+      getIA(iKS)%data(nTrans(iKS)+1:,:) = -1
+      wij(iKS)%data(:nTrans(iKS)) = wij(iKS)%data(win)
+      wij(iKS)%data(nTrans(iKS)+1:) = -1.0_dp
+      fij(iKS)%data(:nTrans(iKS)) = fij(iKS)%data(win)
+      fij(iKS)%data(nTrans(iKS)+1:) = -1.0_dp
       deallocate(win)
     end do
 
@@ -253,32 +264,33 @@ contains
 
     call momentumElements(env, pElement, parallelKS, eigvals, eigVecsCplx, ints, nTrans, getIA,&
         & wij, neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, orb, denseDesc,&
-        & iSparseStart, img2CentCell, kPoint, kWeight, rCellVecs, cellVec, iCellVec, densityMatrix,&
-        & hybridXc, dab, errStatus)
+        & iSparseStart, img2CentCell, kPoint, kWeight, coord, rCellVecs, cellVec, iCellVec,&
+        & densityMatrix, hybridXc, dab, errStatus)
 
     allocate(imChi(6, 0:nEgyPts), source = 0.0_dp)
 
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
-
-      do iTrans = 1, nTrans(iKS)
-
+      factor = pi * kweight(iK) / cellVol
+      lpTrans: do iTrans = 1, nTrans(iKS)
+        if (wij(iKS)%data(iTrans) < epsilon(0.0)) then
+          cycle lpTrans
+        end if
         do kk = 1, 6
           ii = quadOrder(1, kk)
           jj = quadOrder(2, kk)
-          chiTmp(kk) = real(pElement(ii, iTrans, iKS),dp) * real(pElement(jj, iTrans, iKS),dp)&
-              & + aimag(pElement(ii, iTrans, iKS)) * aimag(pElement(jj, iTrans, iKS))
+          chiTmp(kk) = real(conjg(pElement(ii, iTrans, iKS)) * pElement(jj, iTrans, iKS), dp)
         end do
-
-        chiTmp(:) = 2.0_dp * pi * fij(iKS)%data(iTrans) * kWeight(iK) * chiTmp
-        chiTmp(:) = real(chiTmp / (cellVol * (wij(iKS)%data(iTrans)**2 + eta)), dp)
+        chiTmp(:) = chiTmp * factor * fij(iKS)%data(iTrans) / wij(iKS)%data(iTrans)**2
+        !write(123,*)iTrans, iKS, chiTmp, wij(iKS)%data(iTrans)
+        ! Convolve with broadening function
         jj = ceiling((wij(iKS)%data(iTrans) - lowerEgy) / settings%gridSpacing)
         do ii = -nNonZero, nNonZero
           imChi(:, jj+ii) = imChi(:, jj+ii) + chiTmp*norm*exp(lambda * (ii*settings%gridSpacing)**2)
         end do
 
-      end do
+      end do lpTrans
 
     end do
 
@@ -290,9 +302,9 @@ contains
     allocate(reChi(6, 0:nEgyPts), source = 0.0_dp)
     call kki2r(settings%gridSpacing, lowerEgy, imChi, reChi, eta)
 
-    ! Convert chi to epsilon
-    reChi(:, :) = 1.0_dp + 4.0_dp * pi * reChi
-    imChi(:, :) = 4.0_dp * pi * imChi
+    !! Convert chi to epsilon
+    !reChi(:, :) = 1.0_dp + 4.0_dp * pi * reChi
+    !imChi(:, :) = 4.0_dp * pi * imChi
 
     call openFile(fd, "epsilon.dat", mode="w")
 

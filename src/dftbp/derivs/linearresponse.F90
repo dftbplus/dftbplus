@@ -2393,12 +2393,12 @@ contains
         eigvecsTransformed = eigVecsCplx(:,:,iKS)
 
         call unpackHSdk(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
-            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, dHamSqr,&
-            & iCart)
+            & nNeighbourSK, coord, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc,&
+            & dHamSqr, iCart)
 
         call unpackHSdk(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
-            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, dOverSqr,&
-            & iCart)
+            & nNeighbourSK, coord, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc,&
+            & dOverSqr, iCart)
 
         ! e_i |c_i>
         do ii = 1, blocks%getSize()
@@ -2531,9 +2531,9 @@ contains
         dOverSqr(:,:) = cmplx(0,0,dp)
         dHamSqr(:,:) = cmplx(0,0,dp)
         call unpackHSdk(dOverSqr, over, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCart)
+            & coord, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCart)
         call unpackHSdk(dHamSqr, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCart)
+            & coord, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCart)
 
         ! form |c> H' - e S' <c|
         call hemm(workLocal, 'l', dHamSqr, eigVecsCplx(:,:,iKS))

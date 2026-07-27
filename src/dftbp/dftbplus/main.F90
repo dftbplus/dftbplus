@@ -1466,7 +1466,7 @@ contains
           call getDensity(env, this, this%negfInt, iSccIter, this%denseDesc, this%ints,&
               & this%neighbourList, this%symNeighbourList, this%nNeighbourSk, this%iSparseStart,&
               & this%img2CentCell, this%iCellVec, this%cellVec, this%kPoint, this%kWeight,&
-              & this%orb, this%tHelical, this%coord, this%species, this%electronicSolver,&
+              & this%orb, this%tHelical, this%coord, this%coord, this%species, this%electronicSolver,&
               & this%rCellVec, this%latVec, this%invLatVec, this%tPeriodic, this%tRealHS,&
               & this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep,&
               & this%tFixEf, this%tMulliken, this%iDistribFn, this%tempElec, this%nEl,&
@@ -2919,7 +2919,7 @@ contains
   !>
   subroutine getDensity(env, this, negfInt, iScc, denseDesc, ints, neighbourList, symNeighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-      & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
+      & tHelical, coord, coord0, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
       & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
       & iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, hybridXc, eigen, filling, rhoPrim,&
       & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
@@ -2980,6 +2980,8 @@ contains
 
     !> Coordinates of all atoms including images
     real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    real(dp), allocatable, intent(inout) :: coord0(:,:)
 
     !> Species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -3124,7 +3126,7 @@ contains
 
       call getDensityFromDenseDiag(env, this, denseDesc, ints, neighbourList, symNeighbourList,&
           & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-          & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
+          & tHelical, coord, coord0, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
           & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
           & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, eigen, filling, rhoPrim,&
           & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
@@ -3166,7 +3168,7 @@ contains
   !> Returns the density matrix using dense diagonalisation.
   subroutine getDensityFromDenseDiag(env, this, denseDesc, ints, neighbourList, symNeighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-      & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
+      & tHelical, coord, coord0, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
       & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
       & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, eigen, filling, rhoPrim, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
@@ -3220,6 +3222,9 @@ contains
 
     !> Coordinates of all atoms including images
     real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Coordinates of all atoms including images
+    real(dp), allocatable, intent(inout) :: coord0(:,:)
 
     !> Species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -3414,9 +3419,9 @@ contains
           @:ASSERT(electronicSolver%providesEigenvals)
           call dielectric(env, evaluateDielectricFn, parallelKS, eigen, filling, eigvecsCplx, ints,&
               & neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, orb, denseDesc,&
-              & iSparseStart, img2CentCell, kPoint, kWeight, rCellVecs, cellVec, iCellVec, latVecs,&
-              & densityMatrix, hybridXc, taggedWriter, this%tWriteAutotest, this%tWriteResultsTag,&
-              & dab, errStatus)
+              & iSparseStart, img2CentCell, kPoint, kWeight, coord, rCellVecs, cellVec, iCellVec,&
+              & latVecs, densityMatrix, hybridXc, taggedWriter, this%tWriteAutotest,&
+              & this%tWriteResultsTag, dab, errStatus)
           @:PROPAGATE_ERROR(errStatus)
         end if
       #:endif

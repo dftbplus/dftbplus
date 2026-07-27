@@ -12,6 +12,7 @@
 !! 10.1103/PhysRevB.63.201101 10.1103/PhysRevB.98.115115
 module dftbp_derivs_momentumelements
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : imag, pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
@@ -35,8 +36,8 @@ contains
   !> Calculate the momentum elements between occupied and virtual states
   subroutine momentumElements(env, pElement, parallelKS, eigvals, eigVecsCplx, ints, nTrans, getIA,&
       & wij, neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, orb, denseDesc,&
-      & iSparseStart, img2CentCell, kPoint, kWeight, rCellVecs, cellVec, iCellVec, densityMatrix,&
-      & hybridXc, dab, errStatus)
+      & iSparseStart, img2CentCell, kPoint, kWeight, coord, rCellVecs, cellVec, iCellVec,&
+      & densityMatrix, hybridXc, dab, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -91,6 +92,9 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
 
+    !> Coordinates of all atoms including images
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
     !> Vectors to units cells in absolute units
     real(dp), intent(in) :: rCellVecs(:,:)
 
@@ -113,7 +117,9 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     integer :: iAt, iK, iKS, iS, iCart, nOrbs, iTrans, nLocCol, nLocRow, iFil, iEmp, iOrb, ii, jj
-    complex(dp), allocatable :: work(:,:), work2(:,:), dHamHyb_dk(:,:,:,:)
+    complex(dp), allocatable :: work(:,:), work2(:,:), dHamHyb_dk(:,:,:,:), gaugeEigVecs(:,:)
+    complex(dp) :: phase
+    real(dp) :: kVec(3)
 
   #:if WITH_SCALAPACK
 
@@ -128,7 +134,7 @@ contains
     nLocRow = size(eigVecsCplx, dim=2)
 
     allocate(work(nLocCol, nLocRow))
-    allocate(work2(nLocCol, nLocRow))
+    allocate(work2, mold=work)
 
     if (allocated(hybridXc)) then
 
@@ -143,32 +149,42 @@ contains
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
 
+      gaugeEigVecs = eigVecsCplx(:,:,iKS)
+      ! Transform to better convention to evaluate optical matrix elements
+      kVec(:) = 2.0_dp * pi * kPoint(:,iK)
+      do iAt = 1, size(nNeighbourSK)
+        ii = denseDesc%iAtomStart(iAt)
+        jj = denseDesc%iAtomStart(iAt+1)-1
+        phase = exp(imag * dot_product(kVec, coord(:, iAt)))
+        gaugeEigVecs(ii:jj, :) = gaugeEigVecs(ii:jj, :) * phase
+      end do
+
       do iCart = 1, 3
 
         ! First term of (7) from 10.1103/PhysRevB.98.115115 since basis is non-orthogonal
-        ! Pulay term <psi|dS/dk|psi>
+        ! Pulay term - e_i dS/dk |psi>
         work(:,:) = cmplx(0,0,dp)
         call unpackHSdk(work, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCart)
-        call hemm(work2, 'l', work, eigVecsCplx(:,:,iKS))
+            & coord, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCart)
+        call hemm(work2, 'l', work, gaugeEigVecs)
         do iOrb = 1, nOrbs
           work2(:,iOrb) = -eigvals(iOrb, iK, iS) * work2(:,iOrb)
         end do
 
-        ! <psi|dH/dk|psi>
+        ! dH/dk|psi>
         work(:,:) = cmplx(0,0,dp)
         call unpackHSdk(work, ints%hamiltonian(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
-            & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
-            & iCart)
+            & nNeighbourSK, coord, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell, iCart)
         if (allocated(hybridXc)) then
           work(:,:) = work + dHamHyb_dk(:, :, iKS, iCart)
         end if
-        call hemm(work2, 'l', work, eigVecsCplx(:,:,iKS), beta=cmplx(1,0,dp))
+        call hemm(work2, 'l', work, gaugeEigVecs, beta=cmplx(1,0,dp))
 
         do iTrans = 1, nTrans(iKS)
           iFil = getIA(iKS)%data(iTrans, 1)
           iEmp = getIA(iKS)%data(iTrans, 2)
-          pElement(iCart, iTrans, iKS) = dot_product(eigVecsCplx(:,iEmp,iKS), work2(:,iFil))
+          pElement(iCart, iTrans, iKS) = dot_product(gaugeEigVecs(:,iEmp), work2(:,iFil))
         end do
 
         if (allocated(dab)) then
@@ -181,16 +197,27 @@ contains
             work(ii:jj,ii:jj) = dab(orb%nOrbAtom(iAt), orb%nOrbAtom(iAt), iAt, iCart)
           end do
 
-          call hemm(work2, 'l', work, eigVecsCplx(:,:,iKS))
+          call hemm(work2, 'l', work, gaugeEigVecs)
 
           do iTrans = 1, nTrans(iKS)
             iFil = getIA(iKS)%data(iTrans, 1)
             iEmp = getIA(iKS)%data(iTrans, 2)
             pElement(iCart, iTrans, iKS) = pElement(iCart, iTrans, iKS)&
-                & + wij(iKS)%data(nTrans(iKS)) * dot_product(eigVecsCplx(:,iEmp,iKS),work2(:,iFil))
+                & + wij(iKS)%data(nTrans(iKS)) * dot_product(gaugeEigVecs(:,iEmp), work2(:,iFil))
           end do
 
         end if
+
+        !do iTrans = 1, nTrans(iKS)
+        !  do iAt = 1, size(nNeighbourSK)
+        !    ii = denseDesc%iAtomStart(iAt)
+        !    jj = denseDesc%iAtomStart(iAt+1)-1
+        !    pElement(iCart, iTrans, iKS) = pElement(iCart, iTrans, iKS)&
+        !        & - imag * wij(iKS)%data(iTrans)&
+        !        & * dot_product(gaugeEigVecs(ii:jj, getIA(iKS)%data(iTrans,2)),&
+        !        & gaugeEigVecs(ii:jj, getIA(iKS)%data(iTrans,1))) * coord(iCart, iAt)
+        !  end do
+        !end do
 
       end do
 
