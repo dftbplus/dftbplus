@@ -3693,8 +3693,8 @@ contains
   !!
   !! Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !!
-  subroutine unpackHSdkBlacs_cmplx(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-      & cellVec, iSparseStart, img2CentCell, desc, square, iDir)
+  subroutine unpackHSdkBlacs_cmplx(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, coord,&
+      & iCellVec, cellVec, iSparseStart, img2CentCell, desc, square, iDir)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -3710,6 +3710,9 @@ contains
 
     !> Nr. of neighbours for each atom (incl. itself).
     integer, intent(in) :: nNeighbourSK(:)
+
+    !> List of all atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
@@ -3733,12 +3736,8 @@ contains
     integer, intent(in) :: iDir
 
     complex(dp) :: phase
-    integer :: nAtom
-    integer :: iOrig, nOrb1, nOrb2, ii, jj
-    integer :: iNeigh
-    integer :: iOldVec, iVec
-    integer :: iAtom1, iAtom2, iAtom2f
-    real(dp) :: kPoint2p(3)
+    integer :: iAtom1, iAtom2, iAtom2f, ii, iNeigh, iOrig, jj, nAtom, nOrb1, nOrb2
+    real(dp) :: kPoint2p(3), vec(3)
 
     nAtom = size(iNeighbour, dim=2)
 
@@ -3749,26 +3748,17 @@ contains
 
     square(:, :) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
-    iOldVec = 0
-    phase = 1.0_dp
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iVec = iCellVec(iAtom2)
-        if (iVec == 0) then
-          cycle
-        end if
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-        if (iVec /= iOldVec) then
-          phase = imag * 2.0_dp * pi * cellVec(iDir, iVec)&
-              & * exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
-          iOldVec = iVec
-        end if
+        vec(:) = coord(:, iAtom2) - coord(:, iAtom1)
+        phase = imag * 2.0_dp * pi * vec(iDir) * exp(imag * dot_product(kPoint2p, vec))
         call scalafx_addl2g(myBlacs%orbitalGrid, phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1),&
             & [nOrb2, nOrb1]), desc%blacsOrbSqr, jj, ii, square)
         if (iAtom1 /= iAtom2f) then
@@ -3885,8 +3875,8 @@ contains
   !! Note the non-on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !! the matrix completely, apply the blockSymmetrizeHS subroutine.
   !!
-  subroutine unpackHSdk_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iAtomStart, iSparseStart, img2CentCell, iDir)
+  subroutine unpackHSdk_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, coord, iCellVec,&
+      & cellVec, iAtomStart, iSparseStart, img2CentCell, iDir)
 
     !> Square form matrix on exit wrt to partial k_iDir
     complex(dp), intent(out) :: square(:, :)
@@ -3902,6 +3892,9 @@ contains
 
     !> Nr. of neighbours for each atom (incl. itself).
     integer, intent(in) :: nNeighbourSK(:)
+
+    !> List of all atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
@@ -3922,8 +3915,8 @@ contains
     integer, intent(in) :: iDir
 
     complex(dp) :: phase
-    integer :: iAtom1, iAtom2, iAtom2f, ii, iNeigh, iOldVec, iOrig, iVec, jj, nAtom, nOrb1, nOrb2
-    real(dp) :: kPoint2p(3)
+    integer :: iAtom1, iAtom2, iAtom2f, ii, iNeigh, iOrig, iVec, jj, nAtom, nOrb1, nOrb2
+    real(dp) :: kPoint2p(3), vec(3)
 
     nAtom = size(iNeighbour, dim=2)
 
@@ -3936,27 +3929,19 @@ contains
 
     square(:, :) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
-    iOldVec = 0
-    phase = 1.0_dp
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iVec = iCellVec(iAtom2)
-        if (iVec == 0) then
-          cycle
-        end if
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
-        if (iVec /= iOldVec) then
-          phase = imag * 2.0_dp * pi * cellVec(iDir, iVec) *&
-              & exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
-          iOldVec = iVec
-        end if
+        iVec = iCellVec(iAtom2)
+        vec(:) = coord(:, iAtom2) - coord(:, iAtom1)
+        phase = imag * 2.0_dp * pi * vec(iDir) * exp(imag * dot_product(kPoint2p, vec))
         square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
             & + phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
       end do
