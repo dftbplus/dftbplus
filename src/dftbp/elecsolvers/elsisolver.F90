@@ -297,6 +297,7 @@ module dftbp_elecsolvers_elsisolver
   contains
 
     procedure :: reset => TElsiSolver_reset
+    procedure :: setNState => TElsiSolver_setNState
     procedure :: updateGeometry => TElsiSolver_updateGeometry
     procedure :: updateElectronicTemp => TElsiSolver_updateElectronicTemp
     procedure :: getDensity => TElsiSolver_getDensity
@@ -312,8 +313,8 @@ contains
 
 
   !> Initialise ELSI solver
-  subroutine TElsiSolver_init(this, inp, inpElpa, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin,&
-      & nKPoint, iKPoint, kWeight, tWriteHS, providesElectronEntropy)
+  subroutine TElsiSolver_init(this, inp, inpElpa, env, nBasisFn, nState, nEl, iDistribFn, nSpin,&
+      & iSpin, nKPoint, iKPoint, kWeight, tWriteHS, providesElectronEntropy)
 
     !> control structure for solvers, including ELSI data
     class(TElsiSolver), intent(out) :: this
@@ -329,6 +330,10 @@ contains
 
     !> number of orbitals in the system
     integer, intent(in) :: nBasisFn
+
+    !> number of states the eigensolver should return, which is smaller than the number of orbitals
+    !> for a partial diagonalisation
+    integer, intent(in) :: nState
 
     !> number of electrons
     real(dp), intent(in) :: nEl(:)
@@ -371,8 +376,8 @@ contains
 
     case (electronicSolverTypes%elpa)
       this%solver = elsiEnum%ELPA_SOLVER
-      ! ELPA is asked for all states
-      this%nState = nBasisFn
+      ! ELPA is asked for all states, unless a partial diagonalisation was requested
+      this%nState = min(nState, nBasisFn)
 
     case (electronicSolverTypes%omm)
       this%solver = elsiEnum%OMM_SOLVER
@@ -603,6 +608,41 @@ contains
   #:endif
 
   end subroutine TELsiSolver_final
+
+
+  !> Changes the number of states the solver returns.
+  !>
+  !> The number of states is fixed when the ELSI handle is created, so the handle has to be
+  !> discarded and built again. This is only expected to happen a few times during a calculation,
+  !> as the number of empty states is doubled whenever it is found to be insufficient.
+  subroutine TElsiSolver_setNState(this, nState)
+
+    !> Instance
+    class(TElsiSolver), intent(inout) :: this
+
+    !> Number of states to calculate from now on
+    integer, intent(in) :: nState
+
+  #:if WITH_ELSI
+
+    if (nState == this%nState) then
+      return
+    end if
+
+    if (this%tSolverInitialised) then
+      call elsi_finalize(this%handle)
+      this%tSolverInitialised = .false.
+    end if
+    this%nState = nState
+    call this%reset()
+
+  #:else
+
+    call error("Internal error: TElsiSolver_setNState() called despite missing ELSI support")
+
+  #:endif
+
+  end subroutine TElsiSolver_setNState
 
 
   !> reset the ELSI solver - safer to do this on geometry change, due to the lack of a Choleskii
