@@ -2578,14 +2578,15 @@ able to utilise GPUs. It can be included standalone or via the ELSI library.
 It accepts following options
 
 \begin{ptable}
-  \kw{Autotune} & l& & No & \\
-  \kw{AutotuneFile} & s& Autotune = Yes & "elpa\_autotune\_state.out" & \\
-  \kw{Gpu}    & l& & No & \\
-  \kw{Mode} & i& & 2 & \\
-  \kw{PreferElsi} & l& & No & \\
-  \kw{RedistributeFactor} & i& & 1 & \\
-  \kw{RedistributeRanks} & p& RedistributeFactor = 1 & \cb & \\
-  \kw{Sparse} & l& & No & \\
+  \kw{Autotune} & l & external ELPA present & No & \\
+  \kw{AutotuneFile} & s & Autotune = Yes & "elpa\_autotune\_state.out" & \\
+  \kw{EmptyStates} & i & ELSI used & -1 & \\
+  \kw{Gpu} & l & external ELPA and GPU enabled & No & \\
+  \kw{Mode} & i & & 2 & \\
+  \kw{PreferElsi} & l & ELSI and external ELPA present & No & \\
+  \kw{RedistributeFactor} & i & external ELPA present & 1 & \\
+  \kw{RedistributeRanks} & p & RedistributeFactor = 1 & \cb & \\
+  \kw{Sparse} & l & ELSI used & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{Autotune}] Whether ELPA's autotune capability should be used to
@@ -2593,6 +2594,43 @@ It accepts following options
 \item[\is{AutotuneFile}] The ELPA autotune state is stored in this file.
   If present at startup, the autotuning process is resumed using its previous
   state. (default: \is{elpa\_autotune\_state.out})
+\item[\is{EmptyStates}] Number of empty states to calculate, in
+  addition to the filled states needed to hold the electrons of the
+  system. A negative value (the default) requests the complete
+  spectrum, which is the usual behaviour.
+
+  A positive value switches on partial diagonalisation, where the
+  solver only returns the lowest occupied states plus the
+  \kw{EmpyStates}. Since the states left out are unoccupied, they do
+  not contribute to the density matrix, and calculating them is
+  avoidable work. The count you provide here is only the starting
+  value: whenever the highest calculated state is not far enough above
+  the electronic chemical potential for its occupation to be
+  negligible (e.g., when there is a large electronic temperature), the
+  number of empty states is doubled and the self-consistent cycle
+  continues, so the calculation cannot converge while states which
+  should be (partially) occupied are missing. The energy of states
+  required above the chemical potential is the point at which the
+  occupation of a state falls below $10^{-10}$ e, which is 24 times
+  the broadening width for \is{Fermi} filling and 5 times the width of
+  the \is{Gaussian} and \is{MethfesselPaxton} schemes.
+
+  This option requires a self-consistent calculation, since the number
+  of states is adjusted during the self-consistent cycle. It is
+  currently only available when ELPA is called through the ELSI
+  library (see \is{PreferElsi}) and cannot be combined with
+  calculations which need the full set of empty states. These are
+  currently excited state and perturbation calculations, electron
+  dynamics, $\Delta$DFTB, custom occupations, non-collinear spin,
+  writing the eigenvectors and projecting them onto regions. It is
+  also incompatible with \is{FillingKSeparate}, which gives a chemical
+  potential for each k-point while the test for enough empty states
+  only receives their average.
+
+  \textbf{Note:} When a specified number of empty states are
+  calculated, ELPA currently provides {\em all} of the band energies,
+  but only eigenvectors for the specified states.
+
 \item[\is{Gpu}] Whether ELPA should use available GPUs (default: \is{No}). Note,
   that you can only enable this option, if \dftbp{} was built with GPU support.
 \item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
