@@ -80,6 +80,7 @@ module dftbp_dftbplus_initprogram
       & TElectronicSolver_init
   use dftbp_elecsolvers_elpa, only : TElpa_final, TElpa_init
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver_final, TElsiSolver_init
+  use dftbp_elecsolvers_partialdiag, only : TPartialDiag, TPartialDiag_init
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elpa, only : withElpa
   use dftbp_extlibs_elsiiface, only : withELSI
@@ -2102,8 +2103,13 @@ contains
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       this%tWriteHS = .false.
 
+      call initPartialDiag_(this%electronicSolver%partialDiag, input%ctrl,&
+          & this%denseDesc%fullSize, this%nEl, this%nSpin,&
+          & this%electronicSolver%iSolver == electronicSolverTypes%elpa)
+
       call TElsiSolver_init(this%electronicSolver%elsi, input%ctrl%solver%elsi,&
-          & input%ctrl%solver%elpa, env, this%denseDesc%fullSize, this%nEl, this%iDistribFn,&
+          & input%ctrl%solver%elpa, env, this%denseDesc%fullSize,&
+          & this%electronicSolver%partialDiag%getNState(), this%nEl, this%iDistribFn,&
           & this%nSpin, this%parallelKS%localKS(2, 1), this%nKPoint, this%parallelKS%localKS(1, 1),&
           & this%kWeight(this%parallelKS%localKS(1, 1)), input%ctrl%tWriteHS,&
           & this%electronicSolver%providesElectronEntropy)
@@ -2111,6 +2117,12 @@ contains
     end if
 
     if (this%electronicSolver%isElpaStandalone) then
+      if (allocated(input%ctrl%solver%elpa)) then
+        if (input%ctrl%solver%elpa%nEmptyStates >= 0) then
+          call error("Partial diagonalisation is currently only available when ELPA is called&
+              & through the ELSI library, please also set PreferElsi = Yes")
+        end if
+      end if
       call TElpa_init(this%electronicSolver%elpa, env, input%ctrl%solver%elpa,&
           & this%denseDesc%fullSize, input%ctrl%timingLevel)
     end if
@@ -7587,6 +7599,73 @@ contains
   end subroutine overrideContactCharges
 
 #:endif
+
+
+  !> Sets up the state counting for a partial diagonalisation, checking that the requested
+  !> calculation does not need the states which would be left out.
+  subroutine initPartialDiag_(partialDiag, ctrl, nOrb, nEl, nSpin, isEigenSolver)
+
+    !> State counting to initialise
+    type(TPartialDiag), intent(out) :: partialDiag
+
+    !> Control structure
+    type(TControl), intent(in) :: ctrl
+
+    !> Number of states of a full diagonalisation
+    integer, intent(in) :: nOrb
+
+    !> Number of electrons, per spin channel where these are separate
+    real(dp), intent(in) :: nEl(:)
+
+    !> Number of spin blocks in the Hamiltonian
+    integer, intent(in) :: nSpin
+
+    !> Whether the solver in use returns individual eigenstates
+    logical, intent(in) :: isEigenSolver
+
+    integer :: nEmpty
+
+    nEmpty = -1
+    if (isEigenSolver .and. allocated(ctrl%solver%elpa)) then
+      nEmpty = ctrl%solver%elpa%nEmptyStates
+    end if
+
+    if (nEmpty >= 0) then
+      if (nSpin == 4) then
+        call error("Partial diagonalisation is not available for non-collinear spin")
+      end if
+      if (allocated(ctrl%lrespini) .or. allocated(ctrl%ppRPA)) then
+        call error("Excited state calculations need the complete set of states, so are not&
+            & compatible with a partial diagonalisation")
+      end if
+      if (allocated(ctrl%perturbInp)) then
+        call error("Perturbation calculations need the complete set of states, so are not&
+            & compatible with a partial diagonalisation")
+      end if
+      if (allocated(ctrl%elecDynInp)) then
+        call error("Electron dynamics needs the complete set of states, so is not compatible with&
+            & a partial diagonalisation")
+      end if
+      if (ctrl%isNonAufbau) then
+        call error("Delta DFTB occupies states above the Fermi level, so is not compatible with a&
+            & partial diagonalisation")
+      end if
+      if (ctrl%reksInp%reksAlg /= reksTypes%noReks) then
+        call error("REKS is not compatible with a partial diagonalisation")
+      end if
+      if (allocated(ctrl%customOccFillings)) then
+        call error("Custom occupations may occupy states above the Fermi level, so are not&
+            & compatible with a partial diagonalisation")
+      end if
+      if (ctrl%tPrintEigVecs .or. ctrl%tPrintEigVecsTxt) then
+        call error("Writing the eigenvectors requires all of them to be calculated, so is not&
+            & compatible with a partial diagonalisation")
+      end if
+    end if
+
+    call TPartialDiag_init(partialDiag, nEmpty, nOrb, nEl, nSpin)
+
+  end subroutine initPartialDiag_
 
 
 end module dftbp_dftbplus_initprogram

@@ -2741,6 +2741,12 @@ contains
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value1, "PreferElsi", ctrl%solver%elpa%preferElsi, .false.)
       call getChildValue(value1, "Mode", ctrl%solver%elpa%solver, 2)
+      call getChildValue(value1, "EmptyStates", ctrl%solver%elpa%nEmptyStates, -1, child=child)
+      if (ctrl%solver%elpa%nEmptyStates == 0) then
+        call detailedError(child, "A partial diagonalisation needs at least one empty state, as&
+            & the self-consistent cycle is only allowed to finish once a completely empty state&
+            & has been found. Use a negative value to calculate the whole spectrum.")
+      end if
       call getChildValue(value1, "Autotune", ctrl%solver%elpa%autotune, .false.)
       call getChildValue(value1, "AutotuneFile", buffer, "elpa_autotune_state.out")
       ctrl%solver%elpa%autotuneFile = trim(unquote(char(buffer)))
