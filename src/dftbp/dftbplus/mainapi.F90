@@ -19,6 +19,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_dftbplus_initprogram, only : initElectronNumber, initReferenceCharges, TDftbPlusMain,&
       & updateReferenceShellCharges
   use dftbp_dftbplus_main, only : processPerturbations, processGeometry
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_message, only : error, warning
   use dftbp_timedep_timeprop, only : doTdStep, finalizeDynamics, initializeDynamics
@@ -410,6 +411,11 @@ contains
 
   #:endblock DEBUG_CODE
 
+    if (allocated(main%qInput)) then
+      main%qInput(:,:,:) = main%qInput + q0 - main%q0
+      call OrbitalEquiv_reduce(main%qInput, main%iEqOrbitals, main%orb,&
+          & main%qInpRed(1:main%nIneqOrb))
+    end if
     main%q0(:,:,:) = q0
 
     call updateReferenceShellCharges(main%qShell0, main%q0, main%orb, main%nAtom, main%species0)

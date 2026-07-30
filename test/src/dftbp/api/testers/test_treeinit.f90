@@ -48,7 +48,7 @@ contains
     type(TDftbPlusInput) :: input
 
     real(dp) :: merminEnergy
-    real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2), stressTensor(3,3)
+    real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2), stressTensor(3, 3), charges(2)
 
     ! pointers to the parts of the input tree that will be set
     type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pOptions, pParserOpts
@@ -84,7 +84,7 @@ contains
     call setChildValue(pGeo, "TypesAndCoordinates", reshape([1, 1], [1, 2]), coords)
     call setChild(pRoot, "Hamiltonian", pHam)
     call setChild(pHam, "Dftb", pDftb)
-    call setChildValue(pDftb, "Scc", .false.)
+    call setChildValue(pDftb, "Scc", .true.)
     call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
     call setChildValue(pMaxAng, "Si", "p")
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)
@@ -125,6 +125,10 @@ contains
     latVecs(1, 1) = latVecs(1, 1) + 0.1_dp * AA__Bohr
     coords(1, 1) = coords(1, 1) + 0.1_dp * AA__Bohr
     call dftbp%setGeometry(coords, latVecs)
+
+    call dftbp%getRefCharges(charges)
+    charges(1) = charges(1) + 0.5_dp
+    call dftbp%setRefCharges(charges)
 
     ! re-calculate energy and forces
     call dftbp%getEnergy(merminEnergy)
