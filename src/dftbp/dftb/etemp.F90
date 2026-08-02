@@ -15,6 +15,7 @@ module dftbp_dftb_etemp
   use dftbp_common_accuracy, only : dp, elecTol, elecTolMax, mExpArg, rsp
   use dftbp_common_constants, only : pi
   use dftbp_io_message, only : error
+  use dftbp_math_binarysearch, only : search_asc_real_gt, search_asc_real_geq
   use dftbp_math_errorfunction, only : erfcwrap
   use dftbp_math_factorial, only : fact
   use dftbp_math_hermite, only : hx
@@ -217,6 +218,7 @@ contains
 
     real(dp), allocatable :: A(:), hermites(:)
     integer ii, jj , kk, ll, MPorder, iSpin
+    integer :: nLastFully, nLastPartially
     real(dp) :: beta, occ, comp, x
 
     beta = 1.0_dp / kT
@@ -232,8 +234,11 @@ contains
       do iSpin = 1, size(eigenvals,dim=3)
         do ii = 1, size(kWeight)
 
+          !call search_asc_real_gt(nLastFully, eigenvals(:, ii, iSpin), Ef - 3.0_dp * beta)
+          !call search_asc_real_geq(nLastPartially, eigenvals(:, ii, iSpin), Ef + 3.0_dp * beta)
+
           lpFilled: do jj = 1, size(eigenvals, dim=1)
-            if (eigenvals(jj, ii, iSpin) > Ef - 3.0_dp * beta) then
+            if (eigenvals(jj, ii, iSpin) > Ef - 3.0_dp * beta) then ! broken
               ! Should find with bisection insead of an if statements inside a loop
               exit lpFilled
             else
@@ -242,7 +247,7 @@ contains
           end do lpFilled
 
           lpPartially: do kk = jj, size(eigenvals, dim=1)
-            if (eigenvals(kk, ii, iSpin) > Ef + 3.0_dp * beta) then
+            if (eigenvals(kk, ii, iSpin) > Ef + 3.0_dp * beta) then ! broken
               ! Likewise, find with bisection, not an if test
               exit lpPartially
             end if
@@ -260,10 +265,18 @@ contains
 
     else
 
+      write(*,*)'XXX',Ef, 36.0_dp * kT
       ! Fermi function
       do iSpin = 1, size(eigenvals, dim=3)
         do ii = 1, size(kWeight)
-          do jj = 1, size(eigenvals, dim=1)
+
+          call search_asc_real_geq(nLastFully, eigenvals(:, ii, iSpin), Ef - 36.0_dp * kT)
+          nLastFully = max(nLastFully, 1)
+          call search_asc_real_geq(nLastPartially, eigenvals(:, ii, iSpin), Ef + 36.0_dp * kT)
+          nLastPartially = min(nLastPartially + 1, size(eigenvals, dim=1)) ! Check for a gap?
+
+          call kahan(electronCount, kWeight(ii) * real(nLastFully-1,dp), comp)
+          do jj = nLastFully, nLastPartially
             x = ( eigenvals(jj, ii, iSpin) - Ef ) * beta
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small input values
