@@ -24,7 +24,7 @@ module dftbp_derivs_fermihelper
 contains
 
   !> Fermi function at energy En for a level at energy Em
-  pure function theta(En, Em, sigma)
+  pure function theta(En, Em, beta)
 
     !> Virtual energy
     real(dp), intent(in) :: En
@@ -32,15 +32,15 @@ contains
     !> Occupied energy
     real(dp), intent(in) :: Em
 
-    !> Distribution width
-    real(dp), intent(in) :: sigma
+    !> Reciprocal temperature
+    real(dp), intent(in) :: beta
 
     !> Resulting occupation value
     real(dp) :: theta
 
     real(dp) :: x
 
-    x = (En - Em) / sigma
+    x = (En - Em) * beta
   #:if EXP_TRAP
     ! Where the compiler does not handle inf gracefully, trap the exponential function for small
     ! values
@@ -57,7 +57,7 @@ contains
 
 
   !> Expression limit aware evaluation of (Theta(occ) - Theta(empty))/(Eempty-Efilled)
-  pure function invDiffStatic(En, Em, Ef, sigma)
+  pure function invDiffStatic(En, Em, Ef, beta)
 
     !> Empty level energy
     real(dp), intent(in) :: En
@@ -68,23 +68,23 @@ contains
     !> Fermi energy
     real(dp), intent(in) :: Ef
 
-    !> Width of distribution
-    real(dp), intent(in) :: sigma
+    !> Reciprocal temperature
+    real(dp), intent(in) :: beta
 
     !> Resulting value
     real(dp) :: invDiffStatic
 
     if (abs(En - Em) > 10.0_dp * epsilon(1.0_dp)) then
-      invDiffStatic = (theta(En, Ef, sigma) - theta(Em, Ef, sigma)) / (En - Em)
+      invDiffStatic = (theta(En, Ef, beta) - theta(Em, Ef, beta)) / (En - Em)
     else
-      invDiffStatic = -deltamn(En, Ef, sigma)
+      invDiffStatic = -deltamn(En, Ef, beta)
     end if
 
   end function invDiffStatic
 
 
   !> Expression limit aware evaluation of (Theta(occ) - Theta(empty))/(Eempty-Efilled + omega)
-  pure function invDiffDynamic(En, Em, Ef, sigma, omega)
+  pure function invDiffDynamic(En, Em, Ef, beta, omega)
 
     !> Empty level energy
     real(dp), intent(in) :: En
@@ -95,8 +95,8 @@ contains
     !> Fermi energy
     real(dp), intent(in) :: Ef
 
-    !> Width of distribution
-    real(dp), intent(in) :: sigma
+    !> Reciprocal temperature
+    real(dp), intent(in) :: beta
 
     !> Complex frequency
     complex(dp), intent(in) :: omega
@@ -104,13 +104,13 @@ contains
     !> Resulting value
     complex(dp) :: invDiffDynamic
 
-    invDiffDynamic = (theta(En, Ef, sigma) - theta(Em, Ef, sigma)) / (En - Em + omega)
+    invDiffDynamic = (theta(En, Ef, beta) - theta(Em, Ef, beta)) / (En - Em + omega)
 
   end function invDiffDynamic
 
 
   !> Limit of function occurring in perturbation expression sum over states
-  pure function deltamn(En,Em,sigma)
+  pure function deltamn(En, Em, beta)
 
     !> Energy at which to measure the smeared level
     real(dp), intent(in) :: En
@@ -118,17 +118,13 @@ contains
     !> Level centre
     real(dp), intent(in) :: Em
 
-    !> Distribution width
-    real(dp), intent(in) :: sigma
+    !> Reciprocal temperature
+    real(dp), intent(in) :: beta
 
     !> Resulting contribution
     real(dp) :: deltamn
 
-    real(dp) :: invSigma
-
-    invSigma = 1.0_dp / sigma
-
-    deltamn = deltatilde((En - Em) * invSigma) * invSigma
+    deltamn = deltatilde((En - Em) * beta) * beta
 
   end function deltamn
 
