@@ -675,6 +675,7 @@ contains
     integer :: iS
     real(dp) :: workReal(size(eigVecsReal, dim=1), size(eigVecsReal, dim=2))
     logical :: isHelical_
+    real(dp) :: beta
 
   #:if WITH_SCALAPACK
     ! BLACS matrix descriptor
@@ -682,6 +683,8 @@ contains
 
     desc(:) = denseDesc%blacsOrbSqr
   #:endif
+
+    beta = 1.0_dp / tempElec
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -701,8 +704,8 @@ contains
       jGlob = scalafx_indxl2g(jj,desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
           & env%blacs%orbitalGrid%ncol)
       if (jGlob >= nEmpty(iS, 1) .and. jGlob <= nFilled(iS, 1)) then
-        workReal(:,jj) = eigVecsReal(:,jj,iKS) * &
-            & deltamn(eigVals(jGlob, 1, iS), Ef(iS), tempElec) * dE_F(iS)
+        workReal(:,jj) = eigVecsReal(:,jj,iKS)&
+            & * deltamn(eigVals(jGlob, 1, iS), Ef(iS), beta) * dE_F(iS)
       end if
     end do
 
@@ -720,7 +723,7 @@ contains
     ! potential for each eigenstate and build the resulting change in the density matrix
     do iFilled = nEmpty(iS, 1), nFilled(iS, 1)
       workReal(:, iFilled) = eigVecsReal(:, iFilled, iS) * &
-          & deltamn(eigvals(iFilled, 1, iS), Ef(iS), tempElec) * dE_F(iS)
+          & deltamn(eigvals(iFilled, 1, iS), Ef(iS), beta) * dE_F(iS)
     end do
     workReal(:, :) = maxFill * matmul(workReal(:, nEmpty(iS, 1):nFilled(iS, 1)),&
         & transpose(eigVecsReal(:, nEmpty(iS, 1):nFilled(iS, 1), iS)))
@@ -1244,6 +1247,7 @@ contains
     complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
   #:endif
     logical :: isHelical_
+    real(dp) :: beta
 
   #:if WITH_SCALAPACK
     ! BLACS matrix descriptor
@@ -1251,6 +1255,8 @@ contains
 
     desc(:) = denseDesc%blacsOrbSqr
   #:endif
+
+    beta = 1.0_dp / tempElec
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -1270,7 +1276,7 @@ contains
           & env%blacs%orbitalGrid%ncol)
       if (jGlob >= nEmpty(iS,iK) .and. jGlob <= nFilled(iS,iK)) then
         workLocal(:, jj) = eigVecsCplx(:, jj, iKS) * &
-            & deltamn(eigVals(jGlob, iK, iS), Ef(iS), tempElec) * dE_F(iS)
+            & deltamn(eigVals(jGlob, iK, iS), Ef(iS), beta) * dE_F(iS)
       end if
     end do
 
@@ -1288,7 +1294,7 @@ contains
 
     do iFilled = nEmpty(iS,iK), nFilled(iS,iK)
       workLocal(:, iFilled) = eigVecsCplx(:, iFilled, iKS) * &
-          & deltamn(eigvals(iFilled, iK, iS), Ef(iS), tempElec) * dE_F(iS)
+          & deltamn(eigvals(iFilled, iK, iS), Ef(iS), beta) * dE_F(iS)
     end do
 
     workLocal(:, :) = maxFill * matmul(workLocal(:, nEmpty(iS,iK):nFilled(iS,iK)),&
@@ -1817,6 +1823,7 @@ contains
     complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
   #:endif
     logical :: isHelical_
+    real(dp) :: beta
 
   #:if WITH_SCALAPACK
     ! BLACS matrix descriptor
@@ -1824,6 +1831,8 @@ contains
 
     desc(:) = denseDesc%blacsOrbSqr
   #:endif
+
+    beta = 1.0_dp / tempElec
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -1847,7 +1856,7 @@ contains
           & env%blacs%orbitalGrid%ncol)
       if (jGlob >= nEmpty(iS,iK) .and. jGlob <= nFilled(iS,iK)) then
         workLocal(:, jj) = eigVecsCplx(:, jj, iKS) * &
-            & deltamn(eigVals(jGlob, iK, iS), Ef(iS), tempElec) * dE_F(iS)
+            & deltamn(eigVals(jGlob, iK, iS), Ef(iS), beta) * dE_F(iS)
       end if
     end do
 
@@ -1864,7 +1873,7 @@ contains
 
     do iFilled = nEmpty(iS,iK), nFilled(iS,iK)
       workLocal(:, iFilled) = eigVecsCplx(:, iFilled, iKS) * &
-          & deltamn(eigvals(iFilled, iK, iS), Ef(iS), tempElec) * dE_F(iS)
+          & deltamn(eigvals(iFilled, iK, iS), Ef(iS), beta) * dE_F(iS)
     end do
 
     workLocal(:, :) = matmul(workLocal(:, nEmpty(iS,iK):nFilled(iS,iK)),&
@@ -1940,6 +1949,10 @@ contains
 
     integer :: jj, jGlob, ii, iGlob
 
+    real(dp) :: beta
+
+    beta = 1.0_dp / tempElec
+
     ! weight matrix with inverse of energy differences
     do jj = 1, size(workIn, dim=2)
       jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
@@ -1960,9 +1973,9 @@ contains
           ! degenerate, so no contribution
           workOut(ii,jj) = 0.0_dp
         else
-          workOut(ii,jj) = workIn(ii,jj) *&
-              & invDiff(eigvals(jGlob,iK,iS), eigvals(iGlob,iK,iS), Ef(iS), tempElec)&
-              & * theta(eigvals(jGlob,iK,iS), eigvals(iGlob,iK,iS), tempElec)
+          workOut(ii,jj) = workIn(ii,jj)&
+              & * theta(eigvals(jGlob,iK,iS), eigvals(iGlob,iK,iS), beta)&
+              & * invDiff(eigvals(jGlob,iK,iS), eigvals(iGlob,iK,iS), Ef(iS), beta)
         end if
       end do
     end do
@@ -2014,6 +2027,9 @@ contains
     complex(dp), intent(in) :: eta
 
     integer :: jj, jGlob, ii, iGlob
+    real(dp) :: beta
+
+    beta = 1.0_dp / tempElec
 
     ! weight matrix with inverse of energy differences
     do jj = 1, size(workIn, dim=2)
@@ -2036,8 +2052,8 @@ contains
           workOut(ii,jj) = 0.0_dp
         else
           workOut(ii,jj) = workIn(ii,jj)&
-              & * theta(eigvals(jGlob,iK,iS), eigvals(iGlob,iK,iS), tempElec)&
-              & * invDiff(eigvals(jGlob,iK,iS), eigvals(iGlob,iK,iS), Ef(iS), tempElec, eta)
+              & * theta(eigvals(jGlob,iK,iS), eigvals(iGlob,iK,iS), beta)&
+              & * invDiff(eigvals(jGlob,iK,iS), eigvals(iGlob,iK,iS), Ef(iS), beta, eta)
         end if
       end do
     end do
@@ -2088,15 +2104,17 @@ contains
     real(dp), intent(in) :: Ef(:)
 
     integer :: iFilled, iEmpty
+    real(dp) :: beta
 
+     beta = 1.0_dp / tempElec
     ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
     ! the elements
     do iFilled = 1, nFilled(iS, iK)
       do iEmpty = nEmpty(iS, iK), nLevels
         if (.not.degenTransform%isDegenerate(iFilled,iEmpty) .or. iEmpty == iFilled) then
           workOut(iEmpty, iFilled) = workIn(iEmpty, iFilled)&
-              & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)&
-              & * invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec)
+              & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), beta)&
+              & * invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), beta)
         else
           ! Orbital rotation should have already have set these elements to zero
           workOut(iEmpty, iFilled) = 0.0_dp
@@ -2151,16 +2169,17 @@ contains
     real(dp), intent(in) :: Ef(:)
 
     integer :: iFilled, iEmpty
+    real(dp) :: beta
 
+    beta = 1.0_dp / tempElec
     ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
     ! the elements at frequency (plus imaginary constant) eta
     do iFilled = 1, nFilled(iS, iK)
       do iEmpty = nEmpty(iS, iK), nLevels
         if (.not.degenTransform%isDegenerate(iFilled,iEmpty) .or. iEmpty == iFilled) then
           workOut(iEmpty, iFilled) = workIn(iEmpty, iFilled)&
-              & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)&
-              & * invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec,&
-              & eta)
+              & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), beta)&
+              & * invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), beta, eta)
         else
           ! Degeneracy rotation should already have set these elements to zero
           workOut(iEmpty, iFilled) = 0.0_dp

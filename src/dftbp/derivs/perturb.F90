@@ -3156,7 +3156,9 @@ contains
     real(dp), intent(in) :: kWeight(:)
 
     integer :: iS, iK, iLev, ii
+    real(dp) :: beta
 
+    beta = 1.0_dp / tempElec
     nOrbs = size(filling,dim=1)
     nKpts = size(filling,dim=2)
     nSpin = size(ham,dim=2)
@@ -3223,7 +3225,7 @@ contains
         neFermi(iS) = 0.0_dp
         do iK = 1, nKpts
           do ii = nEmpty(iS, iK), nFilled(iS, iK)
-            neFermi(iS) = neFermi(iS) + kWeight(iK) * deltamn(Ef(iS), eigvals(ii,iK,iS), tempElec)
+            neFermi(iS) = neFermi(iS) + kWeight(iK) * deltamn(Ef(iS), eigvals(ii,iK,iS), beta)
           end do
         end do
       end do
