@@ -8,8 +8,9 @@
 !> example code for adding external charges to a water molecule calculation
 program test_extcharges
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbplus, only : convertAtomTypesToSpecies, dumpHsd, fnode, getDftbPlusApiVersion, getDftbPlusBuild,&
-      & getMaxAngFromSlakoFile, setChild, setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use dftbplus, only : convertAtomTypesToSpecies, dumpHsd, fnode, getDftbPlusApiVersion,&
+      & getDftbPlusBuild, getMaxAngFromSlakoFile, setChild, setChildValue, TDftbPlus,&
+      & TDftbPlus_init, TDftbPlusInput
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none

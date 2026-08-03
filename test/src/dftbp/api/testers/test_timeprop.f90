@@ -7,8 +7,8 @@
 
 program test_timeprop
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbplus, only : dumpHsd, fnode, getDftbPlusApiVersion, getDftbPlusBuild, setChild, setChildValue,&
-      & TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use dftbplus, only : dumpHsd, fnode, getDftbPlusApiVersion, getDftbPlusBuild, setChild,&
+      & setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use dftbp_common_constants, only : AA__Bohr, V_m__au
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
@@ -47,7 +47,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 

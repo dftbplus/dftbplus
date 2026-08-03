@@ -7,8 +7,8 @@
 
 program test_ehrenfest
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbplus, only : dumpHsd, fnode, getDftbPlusApiVersion, getDftbPlusBuild, setChild, setChildValue,&
-      & TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use dftbplus, only : dumpHsd, fnode, getDftbPlusApiVersion, getDftbPlusBuild, setChild,&
+      & setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use dftbp_common_constants, only : AA__Bohr, eV__Hartree, fs__au, imag, pi, V_m__au
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
