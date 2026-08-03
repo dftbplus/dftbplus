@@ -162,7 +162,7 @@ contains
 
 
   !> Evaluates the derivative of level fillings, given the derivative of eigenvalues
-  pure subroutine dEida(dfill, f, dEi, kT)
+  pure subroutine dEida(dfill, f, dEi, beta)
 
     !> Derivatives of fillings
     real(dp), intent(out) :: dfill(:)
@@ -173,8 +173,8 @@ contains
     !> Derivatives of eigenvalues
     real(dp), intent(in) :: dEi(:)
 
-    !> Electronic temperature
-    real(dp), intent(in) :: kT
+    !> Inverse electronic temperature
+    real(dp), intent(in) :: beta
 
     integer :: ii
     real(dp) :: dEf
@@ -182,7 +182,7 @@ contains
     dEf = dEfda(f, dEi)
 
     do ii = 1, size(f)
-      dfill(ii) = -(dEi(ii) - deF) * f(ii) * (1.0_dp - f(ii)) / kT
+      dfill(ii) = -(dEi(ii) - deF) * f(ii) * (1.0_dp - f(ii)) * beta
     end do
 
   end subroutine dEida
