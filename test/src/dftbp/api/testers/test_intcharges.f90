@@ -8,8 +8,9 @@
 !> example code for changing internal charges inside calculation
 program test_intcharges
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbplus, only : convertAtomTypesToSpecies, dumpHsd, fnode, getDftbPlusApiVersion, getDftbPlusBuild,&
-      & getMaxAngFromSlakoFile, setChild, setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use dftbplus, only : convertAtomTypesToSpecies, dumpHsd, fnode, getDftbPlusApiVersion,&
+      & getDftbPlusBuild, getMaxAngFromSlakoFile, setChild, setChildValue, TDftbPlus,&
+      & TDftbPlus_init, TDftbPlusInput
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none
@@ -44,7 +45,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 

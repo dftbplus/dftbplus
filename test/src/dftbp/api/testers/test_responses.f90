@@ -11,7 +11,8 @@
 !! Use it with the inputs in the test/src/dftbp/api/testcases/deriv_responses/ folder.
 !!
 program test_responses
-  use dftbplus, only : getDftbPlusApiVersion, getDftbPlusBuild, TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use dftbplus, only : getDftbPlusApiVersion, getDftbPlusBuild, TDftbPlus, TDftbPlus_init,&
+      & TDftbPlusInput
   use dftbp_common_constants, only : AA__Bohr
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag

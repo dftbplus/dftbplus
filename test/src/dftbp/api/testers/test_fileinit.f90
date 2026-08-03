@@ -8,7 +8,8 @@
 !> Reads in a dftb_in.hsd file then overrides some of its supplied setting, before calculating
 !> properties
 program test_fileinit
-  use dftbplus, only : getDftbPlusApiVersion, getDftbPlusBuild, TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use dftbplus, only : getDftbPlusApiVersion, getDftbPlusBuild, TDftbPlus, TDftbPlus_init,&
+      & TDftbPlusInput
   use dftbp_common_constants, only : AA__Bohr
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag

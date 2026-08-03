@@ -47,7 +47,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_mdftb, only : TMdftb, TMdftbAtomicIntegrals, TMdftbInp, TMdftb_init
   use dftbp_dftb_nonscc, only : diffTypes, NonSccDiff_init, TNonSccDiff
   use dftbp_dftb_onsitecorrection, only : Ons_blockIndx, Ons_getOrbitalEquiv
- use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
   use dftbp_dftb_periodic, only : getCellTranslations, TNeighbourList, TNeighbourlist_init,&
       & TAuxNeighbourList, TAuxNeighbourList_init
   use dftbp_dftb_pmlocalisation, only : initialise, TPipekMezey
