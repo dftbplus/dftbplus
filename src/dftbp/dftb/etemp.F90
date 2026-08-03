@@ -14,6 +14,7 @@
 module dftbp_dftb_etemp
   use dftbp_common_accuracy, only : dp, elecTol, elecTolMax, mExpArg, rsp
   use dftbp_common_constants, only : pi
+  use dftbp_derivs_fermihelper, only : theta
   use dftbp_io_message, only : error
   use dftbp_math_binarysearch, only : search_asc_real_gt, search_asc_real_geq
   use dftbp_math_errorfunction, only : erfcwrap
@@ -277,16 +278,7 @@ contains
           call kahan(electronCount, kWeight(ii) * real(nLastFully-1,dp), comp)
 
           do jj = nLastFully, nLastPartially
-            x = ( eigenvals(jj, ii, iSpin) - Ef ) * beta
-            ! Where the compiler does not handle inf gracefully, trap the exponential function for
-            ! small input values
-          #:if EXP_TRAP
-            if (x <= mExpArg) then
-              call kahan(electronCount, kWeight(ii) / (1.0_dp + exp(x)), comp)
-            end if
-          #:else
-            call kahan(electronCount, kWeight(ii) / (1.0_dp + exp(x)), comp)
-          #:endif
+            call kahan(electronCount, kWeight(ii) * theta(eigenvals(jj, ii, iSpin), Ef, beta), comp)
           end do
 
         end do
@@ -444,19 +436,8 @@ contains
           end do
 
           do jj = nLastFully, nLastPartially
-            x = (eigenvals(jj, ii, iSpin) - Ef) * beta
-            ! Where the compiler does not handle inf gracefully, trap the exponential function for
-            ! small values
-          #:if EXP_TRAP
-            if (x > mExpArg) then
-              filling(jj, ii, iSpin) = 0.0_dp
-            else
-              filling(jj, ii, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-            endif
-          #:else
-            filling(jj, ii, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-          #:endif
 
+            filling(jj, ii, iSpin) = theta(eigenvals(jj, ii, iSpin), Ef, beta)
             call kahan(Eband(iSpin), kWeights(ii) * (filling(jj, ii, iSpin)&
                 & * eigenvals(jj, ii, iSpin)), compensateBND)
 
