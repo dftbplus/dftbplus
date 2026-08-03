@@ -14,7 +14,9 @@
 module dftbp_dftb_etemp
   use dftbp_common_accuracy, only : dp, elecTol, elecTolMax, mExpArg, rsp
   use dftbp_common_constants, only : pi
+  use dftbp_derivs_fermihelper, only : theta
   use dftbp_io_message, only : error
+  use dftbp_math_binarysearch, only : search_asc_real_gt, search_asc_real_geq
   use dftbp_math_errorfunction, only : erfcwrap
   use dftbp_math_factorial, only : fact
   use dftbp_math_hermite, only : hx
@@ -44,6 +46,13 @@ module dftbp_dftb_etemp
 
   !> Twice the machine precision
   real(dp), parameter :: epsilon2 = 2.0_dp * epsilon(1.0_dp)
+
+  !> Fermi-broadening function decays to effective zero (double precision)
+  real(dp), parameter :: fermiWidth = 36.0_dp
+
+  !> Gauss-broadening function decays to effective zero (double precision)
+  real(dp), parameter :: gaussianWidth = 6.0_dp
+
 
 contains
 
@@ -216,7 +225,8 @@ contains
     real(dp), intent(in) :: kWeight(:)
 
     real(dp), allocatable :: A(:), hermites(:)
-    integer ii, jj , kk, ll, MPorder, iSpin
+    integer ii, jj , kk, MPorder, iSpin
+    integer :: nLastFully, nLastPartially
     real(dp) :: beta, occ, comp, x
 
     beta = 1.0_dp / kT
@@ -232,28 +242,23 @@ contains
       do iSpin = 1, size(eigenvals,dim=3)
         do ii = 1, size(kWeight)
 
-          lpFilled: do jj = 1, size(eigenvals, dim=1)
-            if (eigenvals(jj, ii, iSpin) > Ef - 3.0_dp * beta) then
-              ! Should find with bisection insead of an if statements inside a loop
-              exit lpFilled
-            else
-              call Kahan(electronCount, kWeight(ii), comp)
-            end if
-          end do lpFilled
+          call search_asc_real_geq(nLastFully, eigenvals(:, ii, iSpin), Ef - gaussianWidth * kT)
+          nLastFully = max(nLastFully, 1)
+          call search_asc_real_geq(nLastPartially, eigenvals(:, ii, iSpin), Ef + gaussianWidth * kT)
+          nLastPartially = min(nLastPartially + 1, size(eigenvals, dim=1))
 
-          lpPartially: do kk = jj, size(eigenvals, dim=1)
-            if (eigenvals(kk, ii, iSpin) > Ef + 3.0_dp * beta) then
-              ! Likewise, find with bisection, not an if test
-              exit lpPartially
-            end if
-            x = (eigenvals(kk, ii, iSpin) - Ef) * beta
+          ! Count fully filled states
+          call kahan(electronCount, kWeight(ii) * real(nLastFully-1,dp), comp)
+
+          do jj = nLastFully, nLastPartially
+            x = (eigenvals(jj, ii, iSpin) - Ef) * beta
             call hX(hermites, MPorder*2, x)
             occ = 0.5_dp * erfcwrap(x)
-            do ll = 1, MPorder
-              occ = occ + A(ll) * hermites(2 * ll - 1) * exp(-x**2)
+            do kk = 1, MPorder
+              occ = occ + A(kk) * hermites(2 * kk - 1) * exp(-x**2)
             end do
             call kahan(electronCount, occ * kWeight(ii), comp)
-          end do lpPartially
+          end do
 
         end do
       end do
@@ -263,18 +268,19 @@ contains
       ! Fermi function
       do iSpin = 1, size(eigenvals, dim=3)
         do ii = 1, size(kWeight)
-          do jj = 1, size(eigenvals, dim=1)
-            x = ( eigenvals(jj, ii, iSpin) - Ef ) * beta
-            ! Where the compiler does not handle inf gracefully, trap the exponential function for
-            ! small input values
-          #:if EXP_TRAP
-            if (x <= mExpArg) then
-              call kahan(electronCount, kWeight(ii) / (1.0_dp + exp(x)), comp)
-            end if
-          #:else
-            call kahan(electronCount, kWeight(ii) / (1.0_dp + exp(x)), comp)
-          #:endif
+
+          call search_asc_real_geq(nLastFully, eigenvals(:, ii, iSpin), Ef - fermiWidth * kT)
+          nLastFully = max(nLastFully, 1)
+          call search_asc_real_geq(nLastPartially, eigenvals(:, ii, iSpin), Ef + fermiWidth * kT)
+          nLastPartially = min(nLastPartially + 1, size(eigenvals, dim=1))
+
+          ! Count fully filled states
+          call kahan(electronCount, kWeight(ii) * real(nLastFully-1,dp), comp)
+
+          do jj = nLastFully, nLastPartially
+            call kahan(electronCount, kWeight(ii) * theta(eigenvals(jj, ii, iSpin), Ef, beta), comp)
           end do
+
         end do
       end do
 
@@ -299,7 +305,7 @@ contains
     !> Electron occupancies
     real(dp), intent(out) :: filling(:,:,:)
 
-    !> Entropy * temperature
+    !> Entropy times temperature
     real(dp), intent(out) :: TS(:)
 
     !> Band structure energy extrapolated to T=0K
@@ -315,16 +321,16 @@ contains
     real(dp), intent(in) :: kT
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
-    !! supported. The flags are defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
+    !! supported. The MP order is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
     !! scheme
     integer, intent(in) :: distrib
 
     !> The k-point weightings
     real(dp), intent(in) :: kWeights(:)
 
-    integer :: ii, iSpin, jj , kk, ll, MPorder, nKpts
+    integer :: ii, iSpin, jj , kk, MPorder, nKpts, nLastFully, nLastPartially
     real(dp), allocatable :: A(:), hermites(:)
-    real(dp) :: beta, compBND, compTS, occ, x
+    real(dp) :: beta, compensateBND, compensateTS, occ, x
 
     @:ASSERT(size(filling, dim=3) == size(Eband))
     @:ASSERT(size(filling, dim=3) == size(TS))
@@ -333,13 +339,15 @@ contains
     nKpts = size(kWeights)
 
     beta = 1.0_dp / kT
+
     Eband(:) = 0.0_dp
     TS(:) = 0.0_dp
     filling(:,:,:) = 0.0_dp
     E0(:) = 0.0_dp
 
-    ! The Gaussian and Methfessel-Paxton broadening functions first
     if (distrib /= fillingTypes%Fermi) then
+      ! The Gaussian and Methfessel-Paxton broadening functions first
+
       MPorder = distrib - fillingTypes%Methfessel
       allocate(A(0:MPorder))
       allocate(hermites(0 : 2 * MPorder))
@@ -347,57 +355,58 @@ contains
 
       do iSpin = 1, size(eigenvals,dim=3)
 
-        compBND = 0.0_dp
-        compTS = 0.0_dp
+        compensateBND = 0.0_dp
+        compensateTS = 0.0_dp
+
         do ii = 1, nKpts
 
-          lpFilled: do jj = 1, size(eigenvals, dim=1)
-            ! Should find with bisection
-            if (eigenvals(jj, ii, iSpin) > Ef - 3.0_dp * beta) then
-              exit lpFilled
-            else
-              filling(jj, ii, iSpin) = 1.0_dp
-              call kahan(Eband(iSpin), eigenvals(jj, ii, iSpin), compBND)
-            end if
-          end do lpFilled
+          call search_asc_real_geq(nLastFully, eigenvals(:, ii, iSpin), Ef - gaussianWidth * kT)
+          nLastFully = max(nLastFully, 1)
+          call search_asc_real_geq(nLastPartially, eigenvals(:, ii, iSpin), Ef + gaussianWidth * kT)
+          nLastPartially = min(nLastPartially + 1, size(eigenvals, dim=1))
 
-          lpPartially: do kk = jj, size(eigenvals, dim=1)
+          filling(:nLastFully - 1, ii, iSpin) = 1.0_dp
 
-            ! Should find with bisection
-            if (eigenvals(kk, ii, iSpin) > Ef + 3.0_dp * beta) then
-              exit lpPartially
-            end if
-            x = (eigenvals(kk, ii, iSpin) - Ef) * beta
+          do jj = 1, nLastFully - 1
+            call kahan(Eband(iSpin), kWeights(ii) * (filling(jj, ii, iSpin)&
+                & * eigenvals(jj, ii, iSpin)), compensateBND)
+          end do
+
+          do jj = nLastFully, nLastPartially
+
+            x = (eigenvals(jj, ii, iSpin) - Ef) * beta
             call hX(hermites, MPorder * 2, x)
 
             ! Gauusian broadened occupancy
             occ = 0.5_dp * erfcwrap(x)
 
             ! Gaussian broadening entropy
-            call kahan(TS(iSpin), kWeights(ii) * 0.5_dp * exp(-x**2) / sqrt(pi), compTS)
+            call kahan(TS(iSpin), kWeights(ii) * 0.5_dp * exp(-x**2) / sqrt(pi), compensateTS)
 
             ! Methfessel-Paxton occupation sum
-            do ll = 1, MPorder
-              occ = occ + A(ll) * hermites(2*ll - 1) * exp(-x**2)
+            do kk = 1, MPorder
+              occ = occ + A(kk) * hermites(2 * kk - 1) * exp(-x**2)
             end do
-            filling(kk, ii, iSpin) = occ
+            filling(jj, ii, iSpin) = occ
 
             ! Accumulate the band-structure energy
-            call kahan(Eband(iSpin), kWeights(ii) * filling(kk, ii, iSpin)&
-                & * eigenvals(kk, ii, iSpin), compBND)
+            call kahan(Eband(iSpin), kWeights(ii) * filling(jj, ii, iSpin)&
+                & * eigenvals(jj, ii, iSpin), compensateBND)
 
             ! Methfessel-Paxton broadening entropy
-            do ll = 1, MPorder
-              call kahan(TS(iSpin), kWeights(ii) * 0.5_dp * A(ll) * hermites(2 * ll) * exp(-x**2),&
-                  & compTS)
+            do kk = 1, MPorder
+              call kahan(TS(iSpin), kWeights(ii) * 0.5_dp * A(kk) * hermites(2 * kk) * exp(-x**2),&
+                  & compensateTS)
             end do
 
-          end do lpPartially
+          end do
+
+          filling(nLastPartially +1:, ii, iSpin) = 0.0_dp
 
         end do
 
-        Eband(iSpin) = Eband(iSpin) + compBND
-        TS(iSpin) = TS(iSpin) + compTS
+        Eband(iSpin) = Eband(iSpin) + compensateBND
+        TS(iSpin) = TS(iSpin) + compensateTS
 
       end do
 
@@ -409,41 +418,49 @@ contains
       ! Fermi function
       do iSpin = 1, size(eigenvals, dim=3)
 
-        compBND = 0.0_dp
-        compTS = 0.0_dp
+        compensateBND = 0.0_dp
+        compensateTS = 0.0_dp
 
         do ii = 1, nKpts
-          lpLevels: do jj = 1, size(eigenvals, dim=1)
-            x = (eigenvals(jj, ii, iSpin) - Ef) * beta
-            ! Where the compiler does not handle inf gracefully, trap the exponential function for
-            ! small values
-          #:if EXP_TRAP
-            if (x > mExpArg) then
-              filling(jj, ii, iSpin) = 0.0_dp
-            else
-              filling(jj, ii, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-            endif
-          #:else
-            filling(jj, ii, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-          #:endif
-            if (filling(jj, ii, iSpin) <= elecTol) exit lpLevels
+
+          call search_asc_real_geq(nLastFully, eigenvals(:, ii, iSpin), Ef - fermiWidth * kT)
+          nLastFully = max(nLastFully, 1)
+          call search_asc_real_geq(nLastPartially, eigenvals(:, ii, iSpin), Ef + fermiWidth * kT)
+          nLastPartially = min(nLastPartially + 1, size(eigenvals, dim=1))
+
+          filling(:nLastFully - 1, ii, iSpin) = 1.0_dp
+
+          do jj = 1, nLastFully - 1
+            call kahan(Eband(iSpin), kWeights(ii) * (filling(jj, ii, iSpin)&
+                & * eigenvals(jj, ii, iSpin)), compensateBND)
+          end do
+
+          do jj = nLastFully, nLastPartially
+
+            filling(jj, ii, iSpin) = theta(eigenvals(jj, ii, iSpin), Ef, beta)
+            call kahan(Eband(iSpin), kWeights(ii) * (filling(jj, ii, iSpin)&
+                & * eigenvals(jj, ii, iSpin)), compensateBND)
+
             if (filling(jj, ii, iSpin) > epsilon(0.0_dp) .and.&
                 & filling(jj, ii, iSpin) < (1.0_dp - epsilon(1.0_dp))) then
-              ! Fermi-Dirac entropy :
+              ! Fermi-Dirac entropy
               call kahan(TS(iSpin),&
                   & - kWeights(ii) * (filling(jj, ii, iSpin) * log(filling(jj, ii, iSpin))&
                   & + (1.0_dp - filling(jj, ii, iSpin)) * log(1.0_dp - filling(jj, ii, iSpin))),&
-                  & compTS)
+                  & compensateTS)
             end if
-            call kahan(Eband(iSpin), kWeights(ii) * (filling(jj, ii, iSpin)&
-                & * eigenvals(jj, ii, iSpin)), compBND)
-          end do lpLevels
+
+          end do
+
+          filling(nLastPartially +1:, ii, iSpin) = 0.0_dp
+
         end do
 
-        Eband(iSpin) = Eband(iSpin) + compBND
-        TS(iSpin) = TS(iSpin) + compTS
+        Eband(iSpin) = Eband(iSpin) + compensateBND
+        TS(iSpin) = TS(iSpin) + compensateTS
 
       end do
+
       TS(:) = TS * kT
       E0(:) = Eband - 0.5_dp * TS
 
