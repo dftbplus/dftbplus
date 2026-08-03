@@ -53,7 +53,7 @@ contains
   !> Calculate the derivative of density matrix from derivative of hamiltonian at q=0, k=0
   subroutine dRhoReal(env, dHam, dOver, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eCiReal, eigVals, filling, Ef,&
-      & tempElec, orb, dRhoSparse, dRhoSqr, hybridXc, over, nNeighbourCam, degenTransform, species,&
+      & beta, orb, dRhoSparse, dRhoSqr, hybridXc, over, nNeighbourCam, degenTransform, species,&
       & dEi, dPsi, coord, errStatus, omega, isHelical, eta, maxFill)
 
     !> Environment settings
@@ -107,8 +107,8 @@ contains
     !> First (partly) empty level in each spin channel
     integer, intent(in) :: nEmpty(:, :)
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -322,7 +322,7 @@ contains
 
         ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
         ! the elements
-        call weightMatrix(env, desc, cWorkLocal, workLocal, nFilled, nEmpty, eigVals, tempElec, iS,&
+        call weightMatrix(env, desc, cWorkLocal, workLocal, nFilled, nEmpty, eigVals, beta, iS,&
             & iK, Ef, iSignOmega * omega + eta)
 
         ! Derivatives of eigenvectors
@@ -363,7 +363,7 @@ contains
 
       ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
       ! the elements
-      call weightMatrix(env, desc, workLocal, workLocal, nFilled, nEmpty, eigVals, tempElec, iS, 1,&
+      call weightMatrix(env, desc, workLocal, workLocal, nFilled, nEmpty, eigVals, beta, iS, 1,&
           & Ef)
 
       ! Derivatives of eigenvectors
@@ -477,7 +477,7 @@ contains
         ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
         ! the elements at freqency omega
         call weightMatrix(cWorkLocal, workLocal, nFilled, nEmpty, degenTransform, eigVals,&
-            & tempElec, iS, 1, nOrb, Ef, iSignOmega * omega + eta)
+            & beta, iS, 1, nOrb, Ef, iSignOmega * omega + eta)
 
         ! calculate the derivatives of the eigenvectors
         cWorkLocal(:, :nFilled(iS, 1)) =&
@@ -537,7 +537,7 @@ contains
 
       else
 
-        call weightMatrix(workLocal, workLocal, nFilled, nEmpty, degenTransform, eigVals, tempElec,&
+        call weightMatrix(workLocal, workLocal, nFilled, nEmpty, degenTransform, eigVals, beta,&
             & iS, 1, nOrb, Ef)
 
         ! calculate the derivatives of the eigenvectors
@@ -597,7 +597,7 @@ contains
   !! systems
   subroutine dRhoFermiChangeReal(dRhoExtra, env, maxFill, parallelKS, iKS, neighbourList,&
       & nNEighbourSK, img2CentCell, iSparseStart, dE_F, Ef, nFilled, nEmpty, eigVecsReal, orb,&
-      & denseDesc, tempElec, eigVals, dRhoSqr, species, coord, isHelical)
+      & denseDesc, beta, eigVals, dRhoSqr, species, coord, isHelical)
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change
     real(dp), intent(inout) :: dRhoExtra(:)
@@ -647,8 +647,8 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -675,7 +675,6 @@ contains
     integer :: iS
     real(dp) :: workReal(size(eigVecsReal, dim=1), size(eigVecsReal, dim=2))
     logical :: isHelical_
-    real(dp) :: beta
 
   #:if WITH_SCALAPACK
     ! BLACS matrix descriptor
@@ -683,8 +682,6 @@ contains
 
     desc(:) = denseDesc%blacsOrbSqr
   #:endif
-
-    beta = 1.0_dp / tempElec
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -759,7 +756,7 @@ contains
   !> Calculate the derivative of density matrix from derivative of hamiltonian at q=0 but with
   !! k-points
   subroutine dRhoCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
-      & denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec, orb,&
+      & denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, beta, orb,&
       & dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, degenTransform, species, coord, dEi,&
       & dPsi, errStatus, omega, isHelical, eta)
 
@@ -802,8 +799,8 @@ contains
     !> First (partly) empty level in each spin channel
     integer, intent(in) :: nEmpty(:,:)
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -974,7 +971,7 @@ contains
 
       do iSignOmega = -1, 1, 2 ! loop over positive and negative frequencies
 
-        call weightMatrix(env, desc, cWorkLocal, workLocal, nFilled, nEmpty, eigVals, tempElec, iS,&
+        call weightMatrix(env, desc, cWorkLocal, workLocal, nFilled, nEmpty, eigVals, beta, iS,&
             & iK, Ef, iSignOmega * omega + eta)
 
         ! Derivatives of eigenvectors
@@ -1011,7 +1008,7 @@ contains
 
       ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
       ! the elements
-      call weightMatrix(env, desc, workLocal, workLocal, nFilled, nEmpty, eigVals, tempElec, iS,&
+      call weightMatrix(env, desc, workLocal, workLocal, nFilled, nEmpty, eigVals, beta, iS,&
           & iK, Ef)
 
       ! Derivatives of eigenvectors
@@ -1088,7 +1085,7 @@ contains
         ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
         ! the elements at frequency omega
         call weightMatrix(cWorkLocal, workLocal, nFilled, nEmpty, degenTransform, eigVals,&
-            & tempElec, iS, iK, nOrb, Ef, iSignOmega * omega + eta)
+            & beta, iS, iK, nOrb, Ef, iSignOmega * omega + eta)
 
         ! calculate the derivatives of the eigenvectors
         cWorkLocal(:, :nFilled(iS, iK)) =&
@@ -1113,7 +1110,7 @@ contains
 
       ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
       ! weighting the elements
-      call weightMatrix(workLocal, workLocal, nFilled, nEmpty, degenTransform, eigVals, tempElec,&
+      call weightMatrix(workLocal, workLocal, nFilled, nEmpty, degenTransform, eigVals, beta,&
           & iS, iK, nOrb, Ef)
 
       eigvecsTransformed = eigVecsCplx(:,:,iKS)
@@ -1158,7 +1155,7 @@ contains
   !! k-points
   subroutine dRhoFermiChangeCmplx(dRhoExtra, env, maxFill, parallelKS, iKS, kPoint, kWeight,&
       & iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dE_F, Ef,&
-      & nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species, coord, isHelical)
+      & nFilled, nEmpty, eigVecsCplx, orb, denseDesc, beta, eigVals, species, coord, isHelical)
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change,
     real(dp), intent(inout) :: dRhoExtra(:,:)
@@ -1220,8 +1217,8 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1247,7 +1244,6 @@ contains
     complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
   #:endif
     logical :: isHelical_
-    real(dp) :: beta
 
   #:if WITH_SCALAPACK
     ! BLACS matrix descriptor
@@ -1255,8 +1251,6 @@ contains
 
     desc(:) = denseDesc%blacsOrbSqr
   #:endif
-
-    beta = 1.0_dp / tempElec
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -1330,7 +1324,7 @@ contains
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian at q=0
   subroutine dRhoPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
-      & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
+      & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, beta,&
       & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, degenTransform,&
       & species, coord, dEi, dPsi, errStatus, omega, isHelical, eta)
 
@@ -1376,8 +1370,8 @@ contains
     !> First (partly) empty level in each spin channel
     integer, intent(in) :: nEmpty(:,:)
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -1559,7 +1553,7 @@ contains
 
       do iSignOmega = -1, 1, 2 ! loop over positive and negative frequencies
 
-        call weightMatrix(env, desc, cWorkLocal2, cWorkLocal, nFilled, nEmpty, eigVals, tempElec,&
+        call weightMatrix(env, desc, cWorkLocal2, cWorkLocal, nFilled, nEmpty, eigVals, beta,&
             & iS, iK, Ef, iSignOmega * omega + eta)
 
         ! Derivatives of eigenvectors
@@ -1586,7 +1580,7 @@ contains
 
       ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
       ! the elements
-      call weightMatrix(env, desc, cWorkLocal, cWorkLocal, nFilled, nEmpty, eigVals, tempElec, iS,&
+      call weightMatrix(env, desc, cWorkLocal, cWorkLocal, nFilled, nEmpty, eigVals, beta, iS,&
           & iK, Ef)
 
       ! Derivatives of eigenvectors
@@ -1648,7 +1642,7 @@ contains
         ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
         ! weighting the elements at frequency omega
         call weightMatrix(cWorkLocal2, cWorkLocal, nFilled, nEmpty, degenTransform, eigVals,&
-            & tempElec, iS, iK, nOrb, Ef, iSignOmega * omega + eta)
+            & beta, iS, iK, nOrb, Ef, iSignOmega * omega + eta)
 
         ! calculate the derivatives of the eigenvectors
         cWorkLocal2(:, :nFilled(iS, iK)) =&
@@ -1674,7 +1668,7 @@ contains
 
       ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
       ! weighting the elements
-      call weightMatrix(cWorkLocal, cWorkLocal, nFilled, nEmpty, degenTransform, eigVals, tempElec,&
+      call weightMatrix(cWorkLocal, cWorkLocal, nFilled, nEmpty, degenTransform, eigVals, beta,&
           & iS, iK, nOrb, Ef)
 
       eigvecsTransformed = eigVecsCplx(:,:,iKS)
@@ -1729,7 +1723,7 @@ contains
   !> Calculate the change in the density matrix due to shift in the Fermi energy
   subroutine dRhoFermiChangePauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS, kPoint,&
       & kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dE_F,&
-      & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species, coord,&
+      & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, beta, eigVals, species, coord,&
       & errStatus, isHelical)
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change
@@ -1793,8 +1787,8 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1823,7 +1817,6 @@ contains
     complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
   #:endif
     logical :: isHelical_
-    real(dp) :: beta
 
   #:if WITH_SCALAPACK
     ! BLACS matrix descriptor
@@ -1831,8 +1824,6 @@ contains
 
     desc(:) = denseDesc%blacsOrbSqr
   #:endif
-
-    beta = 1.0_dp / tempElec
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -1912,7 +1903,7 @@ contains
 
   !> Weight <c|H|c> by inverse of eigenvalue differences
   subroutine static_${SUFFIX}$_weight(env, desc, workOut, workIn, nFilled, nEmpty, eigVals,&
-      & tempElec, iS, iK, Ef)
+      & beta, iS, iK, Ef)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1935,8 +1926,8 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Spin index
     integer, intent(in) :: iS
@@ -1948,10 +1939,6 @@ contains
     real(dp), intent(in) :: Ef(:)
 
     integer :: jj, jGlob, ii, iGlob
-
-    real(dp) :: beta
-
-    beta = 1.0_dp / tempElec
 
     ! weight matrix with inverse of energy differences
     do jj = 1, size(workIn, dim=2)
@@ -1988,7 +1975,7 @@ contains
 
   !> Weight |c>H<c| by inverse of eigenvalue differences at finite frequency
   subroutine dynamic_${SUFFIX}$_weight(env, desc, workOut, workIn, nFilled, nEmpty, eigVals,&
-      & tempElec, iS, iK, Ef, eta)
+      & beta, iS, iK, Ef, eta)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -2011,8 +1998,8 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Spin index
     integer, intent(in) :: iS
@@ -2027,9 +2014,6 @@ contains
     complex(dp), intent(in) :: eta
 
     integer :: jj, jGlob, ii, iGlob
-    real(dp) :: beta
-
-    beta = 1.0_dp / tempElec
 
     ! weight matrix with inverse of energy differences
     do jj = 1, size(workIn, dim=2)
@@ -2068,7 +2052,7 @@ contains
 
   !> Weight |c>H<c| by inverse of eigenvalue differences
   pure subroutine static_${SUFFIX}$_weight(workOut, workIn, nFilled, nEmpty, degenTransform,&
-      & eigVals, tempElec, iS, iK, nLevels, Ef)
+      & eigVals, beta, iS, iK, nLevels, Ef)
 
     !> |c>H<c| / (ei-ej) matrix
     ${OUTVAR}$(dp), intent(inout) :: workOut(:, :)
@@ -2088,8 +2072,8 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Spin index
     integer, intent(in) :: iS
@@ -2104,9 +2088,7 @@ contains
     real(dp), intent(in) :: Ef(:)
 
     integer :: iFilled, iEmpty
-    real(dp) :: beta
 
-     beta = 1.0_dp / tempElec
     ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
     ! the elements
     do iFilled = 1, nFilled(iS, iK)
@@ -2130,7 +2112,7 @@ contains
 
   !> Weight |c>H<c| by inverse of eigenvalue differences at finite frequency
   pure subroutine dynamic_${SUFFIX}$_weight(workOut, workIn, nFilled, nEmpty, degenTransform,&
-      & eigVals, tempElec, iS, iK, nLevels, Ef, eta)
+      & eigVals, beta, iS, iK, nLevels, Ef, eta)
 
     !> |c>H<c| / (ei-ej) matrix
     ${OUTVAR}$(dp), intent(inout) :: workOut(:, :)
@@ -2150,8 +2132,8 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Inverse electron temperature
+    real(dp), intent(in) :: beta
 
     !> Spin index
     integer, intent(in) :: iS
@@ -2169,9 +2151,7 @@ contains
     real(dp), intent(in) :: Ef(:)
 
     integer :: iFilled, iEmpty
-    real(dp) :: beta
 
-    beta = 1.0_dp / tempElec
     ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
     ! the elements at frequency (plus imaginary constant) eta
     do iFilled = 1, nFilled(iS, iK)

@@ -382,6 +382,10 @@ contains
     !> For transformation in the  case of degeneracies
     type(TRotateDegen), allocatable :: degenTransform(:)
 
+    real(dp) :: beta
+
+    beta = 1.0_dp / tempElec
+
     write(stdOut,*)
     write(stdOut,*)'Perturbation calculation with respect to applied electric field'
     write(stdOut,*)
@@ -390,7 +394,7 @@ contains
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
         & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
         & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
-        & eigvals, tempElec, Ef, kWeight)
+        & eigvals, beta, Ef, kWeight)
 
     tSccCalc = allocated(sccCalc)
 
@@ -464,7 +468,7 @@ contains
               & dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU,&
               & iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals,&
               & degenTransform, dEiTmp, dEfdETmp, filling, Ef, this%isEfFixed, dHam, idHam, dRho,&
-              & idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
+              & idRho, beta, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
               & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, coord, errStatus,&
               & omega(iOmega), dDipole=polarisability(:, iCart, iOmega), eta=this%eta)
         else
@@ -475,7 +479,7 @@ contains
               & dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU,&
               & iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals,&
               & degenTransform, dEiTmp, dEfdETmp, filling, Ef, this%isEfFixed, dHam, idHam, dRho,&
-              & idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
+              & idRho, beta, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
               & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, coord, errStatus,&
               & omega(iOmega), eta=this%eta)
         end if
@@ -724,6 +728,10 @@ contains
 
     type(TFileDescr) :: fd
 
+    real(dp) :: beta
+
+    beta = 1.0_dp / tempElec
+
     if (isRespKernelRPA) then
       nIter = 1
       isSccRequired = .false.
@@ -736,7 +744,7 @@ contains
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
         & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
         & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
-        & eigvals, tempElec, Ef, kWeight)
+        & eigvals, beta, Ef, kWeight)
 
     write(stdOut,*)
     write(stdOut,*)'Perturbation calculation of atomic polarisability kernel'
@@ -805,7 +813,7 @@ contains
             & dqOut, hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut,&
             & nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
             & dqBlockIn, dqBlockOut, eigVals, degenTransform, dEi, dEf, filling, Ef,&
-            & this%isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic, neFermi, nFilled,&
+            & this%isEfFixed, dHam, idHam, dRho, idRho, beta, tMetallic, neFermi, nFilled,&
             & nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx, dPsiReal,&
             & dPsiCmplx, coord, errStatus, omega(iOmega), isHelical=isHelical, eta=this%eta)
           @:PROPAGATE_ERROR(errStatus)
@@ -1126,6 +1134,10 @@ contains
     real(dp), allocatable :: extCoord(:,:), extCharge(:), dgammaQMMM(:,:), blurWidths(:)
     real(dp), allocatable :: dgammaTmp(:,:)
 
+    real(dp) :: beta
+
+    beta = 1.0_dp / tempElec
+
     @:ASSERT(.not.(allocated(wrtWhichCharges) .and. allocated(wrtCombinedCharges)))
     @:ASSERT(allocated(wrtCombinedCharges) .eqv. allocated(nCombinedCharges))
     @:ASSERT(allocated(wrtCombinedCharges) .eqv. allocated(combinedJacobian))
@@ -1175,7 +1187,7 @@ contains
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
         & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
         & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
-        & eigvals, tempElec, Ef, kWeight)
+        & eigvals, beta, Ef, kWeight)
 
     allocate(dqOut(orb%mOrb, nAtom, nSpin))
     allocate(dqNetAtom(nAtom))
@@ -1268,7 +1280,7 @@ contains
               & dqOut, hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut,&
               & nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
               & dqBlockIn, dqBlockOut, eigVals, degenTransform, dEi, dEf, filling, Ef,&
-              & this%isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic, neFermi, nFilled,&
+              & this%isEfFixed, dHam, idHam, dRho, idRho, beta, tMetallic, neFermi, nFilled,&
               & nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx, dPsiReal,&
               & dPsiCmplx, coord, errStatus, omega(iOmega), isHelical=isHelical, eta=this%eta)
           @:PROPAGATE_ERROR(errStatus)
@@ -1617,6 +1629,8 @@ contains
     character(lc) :: tmpStr
     logical :: areChargeDerivsNeeded
 
+    real(dp) :: beta
+
   #:if WITH_SCALAPACK
     ! need distributed matrix descriptors
     integer :: desc(DLEN_), nn
@@ -1630,6 +1644,8 @@ contains
     call blocks%init(env%blacs%orbitalGrid, desc, "c")
 
   #:endif
+
+    beta = 1.0_dp / tempElec
 
     @:ASSERT(.not.(allocated(wrtWhichCharges) .and. allocated(wrtCombinedCharges)))
     @:ASSERT(allocated(wrtCombinedCharges) .eqv. allocated(nCombinedCharges))
@@ -1652,7 +1668,7 @@ contains
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
         & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
         & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
-        & eigvals, tempElec, Ef, kWeight)
+        & eigvals, beta, Ef, kWeight)
 
     if (any(tMetallic)) then
       @:RAISE_ERROR(errStatus, -1, "Atom derivative perturbations are not currently supported for&
@@ -2010,7 +2026,7 @@ contains
               dEiTmp(:,:,:) = 0.0_dp
               call dRhoReal(env, dHam, dOverWork, neighbourList, nNeighbourSK,&
                   & iSparseStart, img2CentCell, denseDesc, iKS, parallelKS, nFilled(:,1:1),&
-                  & nEmpty(:,1:1), eigVecsReal, eCiReal, eigVals, filling, Ef, tempElec, orb,&
+                  & nEmpty(:,1:1), eigVecsReal, eCiReal, eigVals, filling, Ef, beta, orb,&
                   & drho(:,iS), dRhoOutSqr, hybridXc, over, nNeighbourLC, degenTransform(iKS),&
                   & species, dEiTmp, dPsiReal, coord, errStatus, omega, isHelical, maxFill=maxFill)
               @:PROPAGATE_ERROR(errStatus)
@@ -2027,7 +2043,7 @@ contains
 
 !              call dRhoPauli(env, dHam, idHam, dOver(:,igotgotCart), neighbourList, nNeighbourSK,&
 !                  & iSparseStart, img2CentCell, denseDesc, parallelKS, nFilled(:, iK),&
-!                  & nEmpty(:, iK), eigvecsCplx, eigVals, Ef, tempElec, orb, dRho, idRho, kPoint,&
+!                  & nEmpty(:, iK), eigvecsCplx, eigVals, Ef, beta, orb, dRho, idRho, kPoint,&
 !                  & kWeight, iCellVec, cellVec, iKS, iCart,&
 !                #:if WITH_SCALAPACK
 !                  & desc,&
@@ -2379,7 +2395,7 @@ contains
       & hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill,&
       & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut,&
       & eigVals, degenTransform, dEi, dEf, filling, Ef, isEfFixed, dHam, idHam, dRho, idRho,&
-      & tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec,&
+      & beta, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec,&
       & eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, coord, errStatus, omega, dDipole, isHelical,&
       & eta)
 
@@ -2513,8 +2529,8 @@ contains
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Reciprocal electron temperature
+    real(dp), intent(in) :: beta
 
     !> Filling of levels
     real(dp), intent(in) :: filling(:,:,:)
@@ -2754,7 +2770,7 @@ contains
 
           call dRhoReal(env, dHam, dOver, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
               & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eCiReal, eigVals,&
-              & filling, Ef, tempElec, orb, dRho(:,iS), dRhoOutSqr, hybridXc, over, nNeighbourCam,&
+              & filling, Ef, beta, orb, dRho(:,iS), dRhoOutSqr, hybridXc, over, nNeighbourCam,&
               & degenTransform(iKS), species, dEi, dPsiReal, coord, errStatus, omega, isHelical,&
               & eta=eta)
           if (errStatus%hasError()) then
@@ -2771,7 +2787,7 @@ contains
 
           call dRhoPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
               & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
-              & tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec, iKS,&
+              & beta, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec, iKS,&
               & degenTransform(iKS), species, coord, dEi, dPsiCmplx, errStatus, omega, isHelical,&
               & eta=eta)
           if (errStatus%hasError()) then
@@ -2793,7 +2809,7 @@ contains
           iK = parallelKS%localKS(1, iKS)
 
           call dRhoCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
-              & denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef, tempElec, orb,&
+              & denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef, beta, orb,&
               & dRho, kPoint, kWeight, iCellVec, cellVec, iKS, degenTransform(iKS), species,&
               & coord, dEi, dPsiCmplx, errStatus, omega, isHelical, eta=eta)
           if (errStatus%hasError()) then
@@ -2841,7 +2857,7 @@ contains
               ! real case, no k-points
               call dRhoFermiChangeReal(dRhoExtra(:, iS), env, maxFill, parallelKS, iKS,&
                   & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef, nFilled,&
-                  & nEmpty, eigVecsReal, orb, denseDesc, tempElec, eigVals, dRhoOutSqr, species,&
+                  & nEmpty, eigVecsReal, orb, denseDesc, beta, eigVals, dRhoOutSqr, species,&
                   & coord, isHelical)
 
             elseif (nSpin > 2) then
@@ -2850,7 +2866,7 @@ contains
               call dRhoFermiChangePauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
                   & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
                   & img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb,&
-                  & denseDesc, tempElec, eigVals, species, coord, errStatus, isHelical)
+                  & denseDesc, beta, eigVals, species, coord, errStatus, isHelical)
               @:PROPAGATE_ERROR(errStatus)
 
             else
@@ -2858,7 +2874,7 @@ contains
               ! Complex case with k-points
               call dRhoFermiChangeCmplx(dRhoExtra, env, maxFill, parallelKS, iKS, kPoint, kWeight,&
                   & iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart,&
-                  & dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals,&
+                  & dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, beta, eigVals,&
                   & species, coord, isHelical)
 
             end if
@@ -3042,7 +3058,7 @@ contains
       & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
       & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
       & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
-      & eigvals, tempElec, Ef, kWeight)
+      & eigvals, beta, Ef, kWeight)
 
     !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -3146,8 +3162,8 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> Electron temperature
-    real(dp), intent(in) :: tempElec
+    !> Electron inverse temperature
+    real(dp), intent(in) :: beta
 
     !> Fermi level(s)
     real(dp), intent(in) :: Ef(:)
@@ -3156,9 +3172,7 @@ contains
     real(dp), intent(in) :: kWeight(:)
 
     integer :: iS, iK, iLev, ii
-    real(dp) :: beta
 
-    beta = 1.0_dp / tempElec
     nOrbs = size(filling,dim=1)
     nKpts = size(filling,dim=2)
     nSpin = size(ham,dim=2)
@@ -3175,7 +3189,6 @@ contains
     case(2,4)
       maxFill = 1.0_dp
     end select
-
 
     call filledStates(nFilled, filling)
     call emptyStates(nEmpty, filling, maxFill)
