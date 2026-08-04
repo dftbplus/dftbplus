@@ -138,7 +138,7 @@ contains
 
     integer :: iSpin, iAtom, nSpin, nOrbs, nLocRow, nLocCol
     integer :: desc(DLEN_), iLoc, mLoc, iGlb, mGlb, jLoc, jGlb
-    real(dp), allocatable :: maskMat(:,:), workLocal(:,:), workGlobal(:,:,:)
+    real(dp), allocatable :: maskMat(:,:), workLocal(:,:), workGlobal(:,:)
 
   #:endif
 
@@ -178,7 +178,7 @@ contains
 
       allocate(this%qCacheOccVir(this%nAtom, nTrans))
       desc(:) = denseDesc%blacsOrbSqr
-      allocate(workGlobal(nOrb,nOrb,nSpin))
+      allocate(workGlobal(nOrb,nOrb))
       nLocRow = size(grndEigVecs,dim=1)
       nLocCol = size(grndEigVecs,dim=2)
       allocate(workLocal(nLocRow,nLocCol))
@@ -186,7 +186,7 @@ contains
 
       do iSpin = 1, nSpin
         do iAtom = 1, this%nAtom
-          workGlobal(:,:,:) = 0.0_dp
+          workGlobal(:,:) = 0.0_dp
           workLocal(:,:) = 0.0_dp
           maskMat(:,:) = 0.0_dp
 
@@ -208,7 +208,7 @@ contains
             do iLoc = 1, size(grndEigVecs, dim=1)
               iGlb = scalafx_indxl2g(iLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
                   & env%blacs%orbitalGrid%nrow)
-              workGlobal(iGlb,jGlb,iSpin) =  workLocal(iLoc,jLoc)
+              workGlobal(iGlb,jGlb) =  workLocal(iLoc,jLoc)
             enddo
           enddo
 
@@ -222,9 +222,9 @@ contains
 
             if (ss == iSpin) then
               if (kk <= nMatUp) then
-                this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,1)+workGlobal(aa,ii,1))
+                this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa)+workGlobal(aa,ii))
               else
-                this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,2)+workGlobal(aa,ii,2))
+                this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa)+workGlobal(aa,ii))
               end if
             end if
           enddo
@@ -237,9 +237,9 @@ contains
               ss = getij(ij,3)
               if (ss == iSpin) then
                 if(ij <= nXooUD(1)) then
-                  this%qCacheOccOcc(iAtom,ij) =  0.5_dp * (workGlobal(ii,jj,1)+workGlobal(jj,ii,1))
+                  this%qCacheOccOcc(iAtom,ij) =  0.5_dp * (workGlobal(ii,jj)+workGlobal(jj,ii))
                 else
-                  this%qCacheOccOcc(iAtom,ij) =  0.5_dp * (workGlobal(ii,jj,2)+workGlobal(jj,ii,2))
+                  this%qCacheOccOcc(iAtom,ij) =  0.5_dp * (workGlobal(ii,jj)+workGlobal(jj,ii))
                 end if
               end if
             enddo
@@ -250,9 +250,9 @@ contains
               ss = getab(ab,3)
               if (ss == iSpin) then
                 if(ab <= nXvvUD(1)) then
-                  this%qCacheVirVir(iAtom,ab) = 0.5_dp * (workGlobal(aa,bb,1)+workGlobal(bb,aa,1))
+                  this%qCacheVirVir(iAtom,ab) = 0.5_dp * (workGlobal(aa,bb)+workGlobal(bb,aa))
                 else
-                  this%qCacheVirVir(iAtom,ab) = 0.5_dp * (workGlobal(aa,bb,2)+workGlobal(bb,aa,2))
+                  this%qCacheVirVir(iAtom,ab) = 0.5_dp * (workGlobal(aa,bb)+workGlobal(bb,aa))
                 end if
               end if
             end do
