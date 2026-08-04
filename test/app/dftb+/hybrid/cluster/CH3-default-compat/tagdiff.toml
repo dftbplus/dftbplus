@@ -1,9 +1,3 @@
-############################################################################
-#
-# Local config file for the tagdiff utility:
-#
-############################################################################
-
 # NOTE: The tolerances have to distinguish between the results of the
 # 'Thresholded' algorithm with default integral screening, i.e.
 # Screening = Thresholded {Threshold = 1.0E-6}
@@ -11,8 +5,13 @@
 # Screening = MatrixBased {}
 # or
 # Screening = NeighbourBased {}
-.*:real:		@ 1.0e-7
-.*:complex:		@ 1.0e-7
-.*:integer:.*:		@ 0
-.*:logical:             @ 0
 
+[[rule]]
+pattern = ".*:real:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-7, rtol = 0.0}
+
+[[rule]]
+pattern = ".*:complex:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-7, rtol = 0.0}
