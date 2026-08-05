@@ -294,7 +294,7 @@ contains
 
 
   !> Wrapper to call the actual linear response routine for excitation energies
-  subroutine linResp_calcExcitations(env, this, tSpin, denseDesc, eigVec, eigVal, SSqrReal,&
+  subroutine linResp_calcExcitations(env, this, denseDesc, eigVec, eigVal, SSqrReal,&
       & filling, coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb,&
       & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies)
 
@@ -303,9 +303,6 @@ contains
 
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
-
-    !> Is this a spin-polarized calculation
-    logical, intent(in) :: tSpin
 
     !> Indexing array for dense H and S
     type(TDenseDescr), intent(in) :: denseDesc
@@ -371,16 +368,13 @@ contains
 
 
   !> Wrapper to call linear response calculations of excitations and forces in excited states
-  subroutine LinResp_addGradients(env, tSpin, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
+  subroutine LinResp_addGradients(env, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
       & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies, excgradient, nacv, derivator,&
       & rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-
-    !> Is this a spin-polarized calculation
-    logical, intent(in) :: tSpin
 
     !> Data for the actual calculation
     type(TLinResp), intent(inout) :: this
