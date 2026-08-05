@@ -5932,7 +5932,7 @@ contains
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-      call LinResp_addGradients(env, tSpin, linearResponse, denseDesc, eigvecsReal, eigen,&
+      call LinResp_addGradients(env, linearResponse, denseDesc, eigvecsReal, eigen,&
           & work, filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
           & img2CentCell, orb, skHamCont, skOverCont, fdAutotest, taggedWriter, hybridXc,&
           & dftbEnergy%Eexcited, energies, excitedDerivs, naCouplings, nonSccDeriv, rhoSqrReal,&
@@ -5943,7 +5943,7 @@ contains
             & tPrintExcEigvecsTxt, naturalOrbs, work, fileName="excitedOrbs")
       end if
     else
-      call linResp_calcExcitations(env, linearResponse, tSpin, denseDesc, eigvecsReal, eigen, work,&
+      call linResp_calcExcitations(env, linearResponse, denseDesc, eigvecsReal, eigen, work,&
           & filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
           & img2CentCell, orb, fdAutotest, taggedWriter, hybridXc, dftbEnergy%Eexcited, energies)
     end if
