@@ -52,6 +52,10 @@ module dftbp_elecsolvers_elpa
     !> Whether to use the ELSI library for calling ELPA
     logical :: preferElsi = .false.
 
+    !> Number of empty states to solve above the occupied ones, if the eigenspectrum should be
+    !> restricted (negative: solve for all states, requires the ELSI interface otherwise)
+    integer :: nEmptyStates = -1
+
     !> On what fraction of the original number of ranks to redistribute the matrix
     integer :: redistributeFactor = 1
 
@@ -190,6 +194,11 @@ contains
 
     if (env%blacs%rowBlockSize /= env%blacs%columnBlockSize) then
       call error("Error during ELPA initialization: different block sizes for rows and columns")
+    end if
+
+    if (inp%nEmptyStates >= 0) then
+      call error("NrOfEmptyStates is only supported if ELPA is called via the ELSI library&
+          & (set PreferElsi = Yes)")
     end if
 
     status = elpa_init(20220510) ! minimum ELPA version is 2022.05.001

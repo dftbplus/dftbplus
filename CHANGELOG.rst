@@ -38,6 +38,10 @@ Added
   with optional MPI redistribution to a lower number of ranks for all
   ELPA calls
 
+- NrOfEmptyStates option for the ELPA solver (via the ELSI library),
+  restricting the eigenspectrum to the occupied states plus a window
+  of empty states instead of computing all eigenvectors
+
 
 Changed
 -------

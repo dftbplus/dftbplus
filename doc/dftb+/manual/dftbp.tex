@@ -2519,6 +2519,7 @@ It accepts following options
   \kw{AutotuneFile} & s& Autotune = Yes & "elpa\_autotune\_state.out" & \\
   \kw{Gpu}    & l& & No & \\
   \kw{Mode} & i& & 2 & \\
+  \kw{NrOfEmptyStates} & i& & -1 & \\
   \kw{PreferElsi} & l& & No & \\
   \kw{RedistributeFactor} & i& & 1 & \\
   \kw{RedistributeRanks} & p& RedistributeFactor = 1 & \cb & \\
@@ -2535,6 +2536,25 @@ It accepts following options
 \item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
   default: \is{2}). Mode 2 is supposed to be more efficient for large problems.
   Mode 1 is strongly recommended if \is{Gpu = Yes}.
+\item[\is{NrOfEmptyStates}] If set to zero or a positive value, the
+  eigenspectrum solved by ELPA is restricted to the (nominally) occupied
+  states plus this number of empty states above them, instead of computing
+  eigenvectors for all states. As only (partially) occupied states contribute
+  to the density matrix, a sufficiently large window yields the same self
+  consistent results at a reduced solver cost, which can be substantial for
+  large systems. The window must cover all states with non-negligible
+  occupations: for finite electron temperatures (see p.~\pref{sec:dftbp.Filling})
+  enough empty states must be included to also cover the smearing tail of the
+  distribution, and the code stops with an error if states above the window
+  would carry occupations larger than $10^{-7}$. Eigenvalues are still
+  obtained for the full spectrum, but eigenvectors of states above the window
+  are not available and those states are excluded from the density
+  matrix. This option should therefore not be combined with features that
+  require eigenvectors of unoccupied states (for example eigenvector output
+  or response calculations involving empty states). Negative values (default:
+  \is{-1}) compute the full spectrum. This feature is only available if ELPA
+  is included via the ELSI library, using the dense interface (\is{Sparse} =
+  \is{No}).
 \item[\is{PreferElsi}] Whether to call ELPA using the ELSI interface. This
   setting is only relevant if \dftbp{} was built and linked with the ELSI
   library.
