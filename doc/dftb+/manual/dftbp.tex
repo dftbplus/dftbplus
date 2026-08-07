@@ -2517,6 +2517,7 @@ It accepts following options
 \begin{ptable}
   \kw{Autotune} & l& & No & \\
   \kw{AutotuneFile} & s& Autotune = Yes & "elpa\_autotune\_state.out" & \\
+  \kw{EmptyStates} & i& & -1 & \\
   \kw{Gpu}    & l& & No & \\
   \kw{Mode} & i& & 2 & \\
   \kw{PreferElsi} & l& & No & \\
@@ -2530,6 +2531,33 @@ It accepts following options
 \item[\is{AutotuneFile}] The ELPA autotune state is stored in this file.
   If present at startup, the autotuning process is resumed using its previous
   state. (default: \is{elpa\_autotune\_state.out})
+\item[\is{EmptyStates}] Number of empty states to calculate in addition to the
+  states needed to hold the electrons of the system. A negative value (the
+  default) requests the complete spectrum, which is the usual behaviour.
+
+  A positive value switches on partial diagonalisation, where the solver only
+  returns the lowest states. Since the states left out are unoccupied,
+  they do not contribute to the density matrix, and calculating them is
+  avoidable work. The count given here is only a starting value: whenever the
+  highest calculated state is not far enough above the chemical potential for
+  its occupation to be negligible, the number of empty states is doubled and
+  the self-consistent cycle continues, so that the calculation cannot converge
+  while states which might be occupied are missing. The distance required above
+  the chemical potential is the point at which the occupation of a state falls
+  below $10^{-10}$, which is 24 times the broadening width for \is{Fermi}
+  filling and 5 times for the \is{Gaussian} and \is{MethfesselPaxton} schemes.
+
+  This option is currently only available when ELPA is called through the ELSI
+  library (see \is{PreferElsi}), and cannot be combined with calculations which
+  need the states that would be left out. These are excited state and
+  perturbation calculations, electron dynamics, $\Delta$DFTB, custom
+  occupations, non-collinear spin, and writing the eigenvectors. Note also that
+  eigenvalue output above the calculated states is not meaningful.
+
+  The value given should be a sensible guess for the system, rather than the
+  smallest number which happens to work. Starting from too few states costs
+  extra iterations, and for systems with more than one self-consistent solution
+  it can change which of them is found.
 \item[\is{Gpu}] Whether ELPA should use available GPUs (default: \is{No}). Note,
   that you can only enable this option, if \dftbp{} was built with GPU support.
 \item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
