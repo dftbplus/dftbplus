@@ -48,7 +48,7 @@ module dftbp_dftb_hybridxc
 
   implicit none
 
-#! Routine NAME label, main variable TYPE
+#! Routine NAME label, main variable VARTYPE
 #:set FLAVOURS = [('real', 'real'), ('cmplx', 'complex'), ('pauli', 'complex')]
 
   private
@@ -2017,10 +2017,10 @@ contains
 
 #:if WITH_SCALAPACK
 
-#:for NAME, TYPE in FLAVOURS
+#:for NAME, VARTYPE in FLAVOURS
 
 #:set LABEL = 'complex' if NAME == 'cmplx' else 'real'
-#:set CONV = 'cmplx' if TYPE == 'complex' else 'real'
+#:set CONV = 'cmplx' if VARTYPE == 'complex' else 'real'
 
   !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
   !! based algorithm.
@@ -2039,20 +2039,20 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Both triangles of the dense, square, unpacked overlap matrix
-    ${TYPE}$(dp), intent(in) :: sSqr(:,:)
+    ${VARTYPE}$(dp), intent(in) :: sSqr(:,:)
 
     !> Both triangles of the dense, square, unpacked density matrix
-    ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
+    ${VARTYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
     !> Both triangles of the dense, square, unpacked Hamiltonian to add the HFX contributions to
-    ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
+    ${VARTYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
     !! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
-    ${TYPE}$(dp), allocatable :: hamCamSqr(:,:)
+    ${VARTYPE}$(dp), allocatable :: hamCamSqr(:,:)
 
     !! Square matrix filled with orbital-resolved gamma values
     !! Actually, the diatomic gamma elements are just spread to all orbitals
-    ${TYPE}$(dp), allocatable :: camGammaAO(:,:)
+    ${VARTYPE}$(dp), allocatable :: camGammaAO(:,:)
 
     !! Number of local rows and columns
     integer :: nLocRow, nLocCol
@@ -2089,7 +2089,7 @@ contains
       type(TDenseDescr), intent(in) :: denseDesc
 
       !> Both triangles of the orbital-by-orbital CAM gamma matrix
-      ${TYPE}$(dp), intent(out) :: camGammaAO(:,:)
+      ${VARTYPE}$(dp), intent(out) :: camGammaAO(:,:)
 
       !! Auxiliary variables
       integer :: iAt1, iAt2, ii, jj, iOrb1, iOrb2
@@ -2122,19 +2122,19 @@ contains
       integer, intent(in) :: desc(:)
 
       !> Both triangles of the dense, square, unpacked overlap matrix
-      ${TYPE}$(dp), intent(in) :: sSqr(:,:)
+      ${VARTYPE}$(dp), intent(in) :: sSqr(:,:)
 
       !> Both triangles of the dense, square, unpacked density matrix
-      ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
+      ${VARTYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
       !> Both triangles of the orbital-by-orbital CAM gamma matrix
-      ${TYPE}$(dp), intent(in) :: camGammaAO(:,:)
+      ${VARTYPE}$(dp), intent(in) :: camGammaAO(:,:)
 
       !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
-      ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
+      ${VARTYPE}$(dp), intent(out) :: hamCamSqr(:,:)
 
       !! Temporary storage
-      ${TYPE}$(dp), allocatable :: Hmat(:,:), tmpMat(:,:)
+      ${VARTYPE}$(dp), allocatable :: Hmat(:,:), tmpMat(:,:)
 
       !! Size of distributed matrices
       integer :: nRows, nCols
@@ -2178,11 +2178,11 @@ contains
 
 #:else
 
-#:for NAME, TYPE in FLAVOURS
+#:for NAME, VARTYPE in FLAVOURS
 
 #:set LABEL = 'two component' if NAME == 'pauli' else 'complex' if NAME == 'cmplx' else 'real'
-#:set CONV = 'cmplx' if TYPE == 'complex' else 'real'
-#:set MATOP = 'hemm' if TYPE == 'complex' else 'symm'
+#:set CONV = 'cmplx' if VARTYPE == 'complex' else 'real'
+#:set MATOP = 'hemm' if VARTYPE == 'complex' else 'symm'
 
   !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
   !! based algorithm.
@@ -2198,22 +2198,22 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> Dense, square, unpacked overlap matrix
-    ${TYPE}$(dp), intent(in) :: sSqr(:,:)
+    ${VARTYPE}$(dp), intent(in) :: sSqr(:,:)
 
     !> Dense, square, unpacked density matrix
-    ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
+    ${VARTYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
     !> Dense, square, unpacked Hamiltonian to add the HFX contributions to
-    ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
+    ${VARTYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
     !! Both triangles of the dense, square, unpacked overlap matrix
-    ${TYPE}$(dp), allocatable :: sSqrTri(:,:)
+    ${VARTYPE}$(dp), allocatable :: sSqrTri(:,:)
 
     !! Both triangles of the dense, square, unpacked density matrix
-    ${TYPE}$(dp), allocatable :: rhoSqrTri(:,:)
+    ${VARTYPE}$(dp), allocatable :: rhoSqrTri(:,:)
 
     !! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
-    ${TYPE}$(dp), allocatable :: hamCamSqr(:,:)
+    ${VARTYPE}$(dp), allocatable :: hamCamSqr(:,:)
 
     !! Square matrix filled with orbital-resolved gamma values
     !! Actually, the diatomic gamma elements are just spread to all orbitals
@@ -2252,19 +2252,19 @@ contains
       integer, intent(in) :: iSquare(:)
 
       !> Dense, square, unpacked overlap matrix
-      ${TYPE}$(dp), intent(in) :: sSqr(:,:)
+      ${VARTYPE}$(dp), intent(in) :: sSqr(:,:)
 
       !> Dense, square, unpacked density matrix
-      ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
+      ${VARTYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
       !> Dense, square, unpacked Hamiltonian to add the HFX contributions to
-      ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
+      ${VARTYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
       !> Both triangles of the dense, square, unpacked overlap matrix
-      ${TYPE}$(dp), intent(out) :: sSqrTri(:,:)
+      ${VARTYPE}$(dp), intent(out) :: sSqrTri(:,:)
 
       !> Both triangles of the dense, square, unpacked density matrix
-      ${TYPE}$(dp), intent(out) :: rhoSqrTri(:,:)
+      ${VARTYPE}$(dp), intent(out) :: rhoSqrTri(:,:)
 
       !> Both triangles of the orbital-by-orbital CAM gamma matrix
       real(dp), intent(out) :: camGammaAO(:,:)
@@ -2303,19 +2303,19 @@ contains
       class(THybridXcFunc), intent(in) :: this
 
       !> Both triangles of the dense, square, unpacked overlap matrix
-      ${TYPE}$(dp), intent(in) :: sSqrTri(:,:)
+      ${VARTYPE}$(dp), intent(in) :: sSqrTri(:,:)
 
       !> Both triangles of the dense, square, unpacked density matrix
-      ${TYPE}$(dp), intent(in) :: rhoSqrTri(:,:)
+      ${VARTYPE}$(dp), intent(in) :: rhoSqrTri(:,:)
 
       !> Both triangles of the orbital-by-orbital CAM gamma matrix
       real(dp), intent(in) :: camGammaAO(:,:)
 
       !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
-      ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
+      ${VARTYPE}$(dp), intent(out) :: hamCamSqr(:,:)
 
       !! Temporary storage
-      ${TYPE}$(dp), allocatable :: Hmat(:,:), tmpMat(:,:)
+      ${VARTYPE}$(dp), allocatable :: Hmat(:,:), tmpMat(:,:)
 
       !! Number of orbitals in square matrices
       integer :: nOrb
@@ -2353,7 +2353,7 @@ contains
 
   #:if NAME == 'pauli'
 
-    !> Hadamard product C = A * B, allowing for the possibility of 2-component matrices
+    !> Hadamard product C = A * B for a 2-component A matrix and B(*)1
     pure subroutine hadamardProduct(C, A, B)
 
       !> Square matrix to multiply and accumulate into
@@ -2381,10 +2381,10 @@ contains
     pure subroutine hadamardProduct(C, A, B)
 
       !> Square matrix to multiply and accumulate into
-      ${TYPE}$(dp), intent(inout) :: C(:,:)
+      ${VARTYPE}$(dp), intent(inout) :: C(:,:)
 
       !> Square matrix to multiply and accumulate into
-      ${TYPE}$(dp), intent(in) :: A(:,:)
+      ${VARTYPE}$(dp), intent(in) :: A(:,:)
 
       !> Square matrix to multiply
       real(dp), intent(in) :: B(:,:)
@@ -3478,7 +3478,7 @@ contains
   end subroutine getHybridEnergy_kpts
 
 
-#:for NAME, TYPE in FLAVOURS
+#:for NAME, VARTYPE in FLAVOURS
 
 #:set LABEL = 'complex' if NAME == 'cmplx' else 'real'
 
@@ -3492,10 +3492,10 @@ contains
   pure function evaluateEnergy_${NAME}$(hamCamSqr, rhoSqr) result(energy)
 
     !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
-    ${TYPE}$(dp), intent(in) :: hamCamSqr(:,:)
+    ${VARTYPE}$(dp), intent(in) :: hamCamSqr(:,:)
 
     !> Both triangles of the dense, square, unpacked density matrix
-    ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
+    ${VARTYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
     !> Resulting energy due to CAM contribution
     real(dp) :: energy
@@ -6103,9 +6103,13 @@ contains
   end subroutine addCamGradientsMatrix_pauli
 
 
+  !> Split a matrix into the individual Pauli matrix components
   subroutine pauli2components(channels, matrix)
 
+    !> Separate channels
     real(dp), intent(out) :: channels(:,:,:)
+
+    !> Matrix in Pauli form
     complex(dp), intent(in) :: matrix(:,:)
 
     integer :: nOrb
@@ -6166,8 +6170,8 @@ contains
 #:endif
 
 
-  !> Interface routine to add gradients due to CAM range-separated contributions.
-  !! (k-point version)
+  !> Interface routine to add gradients due to CAM range-separated contributions
+  !! (k-point version).
   subroutine addCamGradients_kpts(this, env, denseDesc, ints, orb, skOverCont, derivator,&
       & densityMatrix, neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, cellVec,&
       & iCellVec, iSparseStart, img2CentCell, kPoints, kWeights, gradients, errStatus)
@@ -6258,8 +6262,8 @@ contains
   end subroutine addCamGradients_kpts
 
 
-  !> Adds range-separated contributions to Hamiltonian, using matrix based algorithm.
-  !! (k-point version)
+  !> Adds range-separated contributions to Hamiltonian, using matrix based algorithm
+  !! (k-point version).
   !!
   !! PhD thesis of Tammo van der Heide (2024)
   !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
