@@ -24,15 +24,34 @@ foreach(line IN LISTS dftbplus_tests_raw)
 endforeach()
 
 foreach(test IN LISTS tests)
+  if(EXISTS ${srcdir}/${test}/testecute.toml)
+    set(testecute_toml "${srcdir}/${test}/testecute.toml")
+  else()
+    set(testecute_toml "${srcdir}/testecute.toml")
+  endif()
+  set(tagdiffconfopts "-c ${srcdir}/tagdiff.toml")
+  if(EXISTS ${srcdir}/${test}/tagdiff.toml)
+    set(tagdiffconfopts "-c ${srcdir}/${test}/tagdiff.toml ${tagdiffconfopts}")
+  endif()
+  file(MAKE_DIRECTORY ${builddir}/${test})
   add_test(
     NAME app/dftb+/${test}
-    COMMAND ${srcdir}/bin/autotest2
-        -r ${srcdir} -w ${builddir} -d ${srcdir}/bin/tagdiff
-        -P "${TEST_RUNNER}" -p "$<TARGET_FILE:dftb+>"
-	-G ${srcdir}/bin/globalpostrun.sh
-        -s P,R,C,S ${test})
+    COMMAND
+        ${PYTHON_INTERPRETER} -m testecute
+        -P ${srcdir}/testecute_plugins
+        -D testdir=${srcdir}/${test}
+        -D workdir=${builddir}/${test}
+        -D executable=${TEST_RUNNER}\ $<TARGET_FILE:dftb+>
+        -D paramdir=${PROJECT_SOURCE_DIR}/external
+        -D tagdiff=${srcdir}/bin/tagdiff
+        -D tagdiffconfopts=${tagdiffconfopts}
+        ${testecute_toml}
+  )
   set_tests_properties(
     app/dftb+/${test}
     PROPERTIES
-    ENVIRONMENT "DFTBPLUS_PARAM_DIR=${PROJECT_SOURCE_DIR}/external")
+    WORKING_DIRECTORY
+      ${builddir}/${test}
+    ENVIRONMENT
+      "PYTHONPATH=${PROJECT_SOURCE_DIR}/external/testecute/origin/src")
 endforeach()
