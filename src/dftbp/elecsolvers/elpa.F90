@@ -492,7 +492,7 @@ contains
   end subroutine TElpa_final
 
 
-#:for DTYPE, NAME in [('complex', 'Complex'), ('real', 'Real')]
+#:for DTYPE, NAME, ZERO in [('complex', 'Complex', '(0.0_dp, 0.0_dp)'), ('real', 'Real', '0.0_dp')]
   !> Solve the eigenproblem (${DTYPE}$ case)
   subroutine TElpa_solve${NAME}$(this, HSqr, SSqr, eigenVals, eigenVecs, hasCholesky)
 
@@ -685,7 +685,8 @@ contains
       end if
 
       if (.not. allocated(this%matrix${NAME}$3)) then
-        allocate(this%matrix${NAME}$3(this%matrixLocalRows, this%matrixLocalColumns))
+        allocate(this%matrix${NAME}$3(this%matrixLocalRows, this%matrixLocalColumns),&
+            & source=${ZERO}$)
       end if
 
       if (.not. allocated(this%eigenvectors${NAME}$)) then
