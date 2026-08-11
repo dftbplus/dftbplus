@@ -580,9 +580,9 @@ module dftbp_timedep_timeprop
     !> Potential acting on the system
     type(TPotentials) :: potential
 
-    !> if a time-dependent vector potential is used    
+    !> if a time-dependent vector potential is used
     logical :: tUseVectorPotential
-    
+
     !> If this is an SCC calculation
     logical :: doSCC = .true.
 
@@ -907,7 +907,8 @@ contains
 
     if (this%tKick) then
       if (this%tUseVectorPotential) then
-        @:RAISE_ERROR(errStatus, -1, "The kick perturbation is not implemented with vector potentials yet.")
+        @:RAISE_ERROR(errStatus, -1, "The kick perturbation is not implemented with vector&
+            & potentials yet.")
       end if
       if (inp%polDir == 4) then
         this%polDirs = [1, 2, 3]
@@ -1778,18 +1779,18 @@ contains
           tmp1(iOrb, iOrb) = exp(cmplx(0, -pkick(iSpin) * coord(this%currPolDir, iAt), dp))
           tmp2(iOrb, iOrb) = exp(cmplx(0,  pkick(iSpin) * coord(this%currPolDir, iAt), dp))
         end do
-        call scalafx_addl2g(env%blacs%orbitalGrid, tmp1(1:nOrb, 1:nOrb), this%denseDesc%blacsOrbSqr,&
-            & iOrbStart, iOrbStart, T1(:,:,iKS))
-        call scalafx_addl2g(env%blacs%orbitalGrid, tmp2(1:nOrb, 1:nOrb), this%denseDesc%blacsOrbSqr,&
-            & iOrbStart, iOrbStart, T3(:,:,iKS))
+        call scalafx_addl2g(env%blacs%orbitalGrid, tmp1(1:nOrb, 1:nOrb),&
+            & this%denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, T1(:,:,iKS))
+        call scalafx_addl2g(env%blacs%orbitalGrid, tmp2(1:nOrb, 1:nOrb),&
+            & this%denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, T3(:,:,iKS))
       end do
     end do
 
     deallocate(tmp1, tmp2)
 
     do iKS = 1, this%parallelKS%nLocalKS
-      call pblasfx_pgemm(T1(:,:,iKS), this%denseDesc%blacsOrbSqr, rho(:,:,iKS), this%denseDesc%blacsOrbSqr,&
-          & T2, this%denseDesc%blacsOrbSqr)
+      call pblasfx_pgemm(T1(:,:,iKS), this%denseDesc%blacsOrbSqr, rho(:,:,iKS),&
+          & this%denseDesc%blacsOrbSqr, T2, this%denseDesc%blacsOrbSqr)
       call pblasfx_pgemm(T2, this%denseDesc%blacsOrbSqr, Ssqr(:,:,iKS), this%denseDesc%blacsOrbSqr,&
           & T4, this%denseDesc%blacsOrbSqr, cmplx(1, 0, dp))
       call pblasfx_pgemm(T4, this%denseDesc%blacsOrbSqr, T3(:,:,iKS), this%denseDesc%blacsOrbSqr,&
@@ -1872,12 +1873,14 @@ contains
           this%tdFunction(:, iStep) = tdfun * (Bohr__AA / Hartree__eV)
         end do
       else
-        if (this%tVerboseDyn) then 
+        if (this%tVerboseDyn) then
           call openOutputFile(this, env, laserDat, 'laser.dat')
           if (this%tUseVectorPotential) then
-            write(laserDat%unit, "(A)") "#     time (fs)  |  A_x (eV/(Ha.ang))  | A_y (eV/(Ha.ang)) | A_z (eV/(Ha.ang))"
+            write(laserDat%unit, "(A)") "#     time (fs)  |  A_x (eV/(Ha.ang))  | A_y (eV/(Ha.ang))&
+                & | A_z (eV/(Ha.ang))"
           else
-            write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
+            write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) |&
+                & E_z (eV/ang)"
           end if
         end if
       end if
@@ -1889,7 +1892,8 @@ contains
           envelope = 1.0_dp
         else if (this%envType == envTypes%gaussian) then
           envelope = exp(-4.0_dp*pi*(time-midPulse)**2 / deltaT**2)
-        else if (this%envType == envTypes%sin2 .and. time >= this%time0 .and. time <= this%time1) then
+        else if (this%envType == envTypes%sin2 .and. time >= this%time0 .and. time <= this%time1)&
+            & then
           envelope = sin(pi*(time-this%time0)/deltaT)**2
         else
           envelope = 0.0_dp
@@ -2561,7 +2565,8 @@ contains
         if (this%tRealHS) then
           call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), eigvecsReal(:,:,iKS))
         else
-          call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), eigvecsCplx=eigvecsCplx(:,:,iKS))
+          call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS),&
+              & eigvecsCplx=eigvecsCplx(:,:,iKS))
         end if
       end do
     end if
@@ -2994,8 +2999,8 @@ contains
           write(strK,'(i0.6)')iK
           call openOutputFile(this, env, populDat(iKS),&
               & 'molpopul' // trim(strSpin) // '-' // trim(strK) // '.dat')
-          write(populDat(iKS)%unit, "(A,A,A,A,A,3(F8.6,2x))") "#  GS molecular orbital populations, spin channel : ",&
-              & trim(strSpin), ", k-point number: ", trim(strK), &
+          write(populDat(iKS)%unit, "(A,A,A,A,A,3(F8.6,2x))") "#  GS molecular orbital populations,&
+              & spin channel : ", trim(strSpin), ", k-point number: ", trim(strK), &
               & ", k-point coordinate: ", this%kPoint(:,iK)
           write(populDat(iKS)%unit, "(A)", advance = "NO")"#          time (fs)            |"
           write(populDat(iKS)%unit, "(A)", advance = "NO")"   population (orb 1)       |"
@@ -3194,8 +3199,8 @@ contains
         & iSpin=1, this%nSpin)
 
     if (this%tdWriteExtras) then
-      write(energyDat%unit, '(11F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
-          & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
+      write(energyDat%unit, '(11F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC,&
+          & energy%eSCC, energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
     end if
 
     if (mod(iStep, this%writeFreq) == 0) then
@@ -4035,7 +4040,8 @@ contains
             & iSquare, iSparseStart, img2CentCell)
         call gemm(T1C, rho(:,:,iKS), H1(:,:,iKS))
         call her2k(T2C, Sinv(:,:,iKS), T1C, (0.5_dp,0.0_dp))
-        !FIXME: definition of ErhoPrim in unfolded space when implementing Ehrenfest for periodic systems
+        ! FIXME: definition of ErhoPrim in unfolded space when implementing Ehrenfest for periodic
+        !        systems
         call packHS(ErhoPrim, T2C, this%kPoint(:,iK), this%kWeight(iK), neighbourList%iNeighbour,&
             & nNeighbourSK, orb%mOrb, this%iCellVec, this%cellVec, iSquare, iSparseStart,&
             & img2CentCell)
@@ -4448,10 +4454,12 @@ contains
       ! I = -4*e/hbar (H Im(\rho) - S*Im(E)), the minus sign is already included
       ! and e = hbar = 1
       this%orbCurrents(:,:) = this%orbCurrents(:,:) +  this%kWeight(iK) * 4.0_dp * &
-          & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS)) * aimag(T2(:,:)))
+          & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS))&
+          & * aimag(T2(:,:)))
     end do
 
-    !$OMP PARALLEL DO PRIVATE(iAt1,iStart1,iEnd1,iAt2,iStart2,iEnd2) DEFAULT(SHARED) SCHEDULE(RUNTIME)
+    !$OMP PARALLEL DO PRIVATE(iAt1,iStart1,iEnd1,iAt2,iStart2,iEnd2) DEFAULT(SHARED)&
+    !$OMP& SCHEDULE(RUNTIME)
     do iAt1 = 1, this%nAtom
       do iAt2 = 1, this%nAtom
         iStart1 = iSquare(iAt1)
@@ -4459,7 +4467,7 @@ contains
         iStart2 = iSquare(iAt2)
         iEnd2 = iSquare(iAt2+1)-1
         ! for the atomCurrent only the contribution with iK = 1
-        this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2)) 
+        this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2))
       end do
     end do
     !$OMP END PARALLEL DO
@@ -5077,7 +5085,8 @@ contains
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
-      if (this%tIons .or. (.not. this%tRealHS) .or. this%isHybridXc .or. this%tUseVectorPotential) then
+      if (this%tIons .or. (.not. this%tRealHS) .or. this%isHybridXc .or. this%tUseVectorPotential)&
+          & then
         this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
 
         if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
@@ -5128,7 +5137,8 @@ contains
     if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
       call writeTDOutputs(this, env, this%dipoleDat, this%qDat, this%energyDat, this%forceDat,&
           & this%coorDat, this%fdBondPopul, this%fdBondEnergy, this%atomEnergyDat, this%currentDat,&
-          & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce, iStep)
+          & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord,&
+          & this%totalForce, iStep)
     end if
 
     if (this%tWriteRestart .and. iStep > 0 .and. mod(iStep, max(this%restartFreq,1)) == 0) then
