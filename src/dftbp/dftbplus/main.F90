@@ -1547,6 +1547,13 @@ contains
             & tStopScc, errStatus)
         if (errStatus%hasError()) call error(errStatus%message)
 
+        if (.not. this%electronicSolver%partialDiag%isSufficient) then
+          ! the states calculated so far do not reach high enough above the chemical potential for
+          ! the fillings to be reliable, so more of them are needed before this can converge
+          call growPartialDiag(this)
+          tConverged = .false.
+        end if
+
         if (allocated(this%dispersion) .and. .not. tConverged) then
           call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
               & this%species0, tConverged)
@@ -3329,7 +3336,7 @@ contains
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
-    integer :: nSpin
+    integer :: nSpin, nState
 
     nSpin = size(ints%hamiltonian, dim=2)
     call env%globalTimer%startTimer(globalTimers%diagonalization)
@@ -3359,8 +3366,19 @@ contains
     end if
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
-    call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-        & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb)
+    if (electronicSolver%partialDiag%isActive) then
+      ! only the lowest states were calculated, the rest are empty by construction
+      nState = electronicSolver%partialDiag%getNState()
+      filling(:,:,:) = 0.0_dp
+    else
+      nState = size(eigen, dim=1)
+    end if
+
+    call getFillingsAndBandEnergies(eigen(:nState,:,:), nEl, nSpin, tempElec, kWeight,&
+        & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, filling(:nState,:,:), energy%Eband,&
+        & energy%TS, energy%E0, deltaDftb)
+
+    call electronicSolver%partialDiag%check(eigen(:nState,:,:), Ef, tempElec, iDistribFn)
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
@@ -3392,6 +3410,27 @@ contains
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
   end subroutine getDensityFromDenseDiag
+
+
+  !> Asks the solver for more empty states, after the last diagonalisation was found not to have
+  !! returned enough of them.
+  !!
+  !! The charge mixer keeps its history. It was built from densities which were missing states, but
+  !! those are converging towards the same fixed point, and restarting the mixer instead was found
+  !! to cost iterations without changing the result.
+  subroutine growPartialDiag(this)
+
+    !> Instance
+    class(TDftbPlusMain), intent(inout) :: this
+
+    call this%electronicSolver%partialDiag%grow()
+    call this%electronicSolver%setNState(this%electronicSolver%partialDiag%getNState())
+
+    write(stdOut, "(1X,A,I0,A,I0,A)") "Too few empty states, increasing to ",&
+        & this%electronicSolver%partialDiag%nEmpty, " (",&
+        & this%electronicSolver%partialDiag%getNState(), " states in total)"
+
+  end subroutine growPartialDiag
 
 
   !> Builds and diagonalises dense Hamiltonians.
