@@ -1186,7 +1186,22 @@ contains
   #:endif
 
     if (this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
-      call resetChargeMixer(this)
+      if (this%isHybridXc) then
+        if (withMpi .and. this%tRealHS&
+            & .and. this%hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
+          if (this%t2Component) then
+            call this%chrgMixerCmplx%reset(this%nOrb**2)
+          else
+            call this%chrgMixerReal%reset(this%nOrb**2 * this%nSpin)
+          end if
+        elseif (allocated(this%chrgMixerCmplx)) then
+          call this%chrgMixerCmplx%reset(this%nMixElements)
+        else
+          call this%chrgMixerReal%reset(this%nMixElements)
+        end if
+      else
+        call this%chrgMixerReal%reset(this%nMixElements)
+      end if
     end if
 
     if (this%electronicSolver%isElsiSolver .and. isFirstDet .and. .not. this%tLargeDenseMatrices)&
@@ -1533,7 +1548,7 @@ contains
         if (errStatus%hasError()) call error(errStatus%message)
 
         if (.not. this%electronicSolver%partialDiag%isSufficient) then
-          ! the states calculated so far do not reach far enough above the chemical potential for
+          ! the states calculated so far do not reach high enough above the chemical potential for
           ! the fillings to be reliable, so more of them are needed before this can converge
           call growPartialDiag(this)
           tConverged = .false.
@@ -3398,11 +3413,11 @@ contains
 
 
   !> Asks the solver for more empty states, after the last diagonalisation was found not to have
-  !> returned enough of them.
-  !>
-  !> The charge mixer is restarted as well: its history was built from densities which were missing
-  !> states, so it would otherwise extrapolate from residuals that are not comparable with the ones
-  !> which follow.
+  !! returned enough of them.
+  !!
+  !! The charge mixer keeps its history. It was built from densities which were missing states, but
+  !! those are converging towards the same fixed point, and restarting the mixer instead was found
+  !! to cost iterations without changing the result.
   subroutine growPartialDiag(this)
 
     !> Instance
@@ -3410,39 +3425,12 @@ contains
 
     call this%electronicSolver%partialDiag%grow()
     call this%electronicSolver%setNState(this%electronicSolver%partialDiag%getNState())
-    call resetChargeMixer(this)
 
     write(stdOut, "(1X,A,I0,A,I0,A)") "Too few empty states, increasing to ",&
         & this%electronicSolver%partialDiag%nEmpty, " (",&
         & this%electronicSolver%partialDiag%getNState(), " states in total)"
 
   end subroutine growPartialDiag
-
-
-  !> Restarts the charge mixer, discarding the history of previous iterations.
-  subroutine resetChargeMixer(this)
-
-    !> Instance
-    class(TDftbPlusMain), intent(inout) :: this
-
-    if (this%isHybridXc) then
-      if (withMpi .and. this%tRealHS&
-          & .and. this%hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
-        if (this%t2Component) then
-          call this%chrgMixerCmplx%reset(this%nOrb**2)
-        else
-          call this%chrgMixerReal%reset(this%nOrb**2 * this%nSpin)
-        end if
-      elseif (allocated(this%chrgMixerCmplx)) then
-        call this%chrgMixerCmplx%reset(this%nMixElements)
-      else
-        call this%chrgMixerReal%reset(this%nMixElements)
-      end if
-    else
-      call this%chrgMixerReal%reset(this%nMixElements)
-    end if
-
-  end subroutine resetChargeMixer
 
 
   !> Builds and diagonalises dense Hamiltonians.

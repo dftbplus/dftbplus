@@ -53,7 +53,7 @@ module dftbp_elecsolvers_elpa
     logical :: preferElsi = .false.
 
     !> Number of empty states to start a partial diagonalisation from, negative for a full
-    !> diagonalisation
+    !! diagonalisation
     integer :: nEmptyStates = -1
 
     !> On what fraction of the original number of ranks to redistribute the matrix

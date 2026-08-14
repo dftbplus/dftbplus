@@ -7602,7 +7602,7 @@ contains
 
 
   !> Sets up the state counting for a partial diagonalisation, checking that the requested
-  !> calculation does not need the states which would be left out.
+  !! calculation does not need the states which would be left out in partial diagonalisation.
   subroutine initPartialDiag_(partialDiag, ctrl, nOrb, nEl, nSpin, isEigenSolver)
 
     !> State counting to initialise
@@ -7631,6 +7631,10 @@ contains
     end if
 
     if (nEmpty >= 0) then
+      if (.not. ctrl%tScc) then
+        call error("The number of states of a partial diagonalisation is adjusted during the&
+            & self-consistent cycle, so it is not available for non-SCC calculations")
+      end if
       if (nSpin == 4) then
         call error("Partial diagonalisation is not available for non-collinear spin")
       end if
@@ -7659,6 +7663,15 @@ contains
       end if
       if (ctrl%tPrintEigVecs .or. ctrl%tPrintEigVecsTxt) then
         call error("Writing the eigenvectors requires all of them to be calculated, so is not&
+            & compatible with a partial diagonalisation")
+      end if
+      if (ctrl%tProjEigenvecs) then
+        call error("Projecting the eigenstates onto regions requires all of them to be calculated,&
+            & so is not compatible with a partial diagonalisation")
+      end if
+      if (ctrl%tFillKSep) then
+        call error("Filling the k-points separately gives a chemical potential for each of them,&
+            & while the test for enough empty states only receives the average, so it is not&
             & compatible with a partial diagonalisation")
       end if
     end if
