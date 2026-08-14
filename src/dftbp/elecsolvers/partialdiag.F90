@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 !> Bookkeeping for partial diagonalisation, where the eigensolver is only asked for the occupied
-!> states together with a limited number of empty states.
-!>
-!> The number of empty states is chosen by the user as a starting value and then increased during
-!> the self-consistent cycle whenever the states obtained are found to be insufficient. The test for
-!> sufficiency is that the highest calculated state lies far enough above the chemical potential for
-!> its occupation to be numerically negligible, the distance being a multiple of the broadening
-!> width of the filling function in use.
+!! states together with a limited number of empty states.
+!!
+!! The number of empty states is chosen by the user as a starting value and then increased during
+!! the self-consistent cycle whenever the states obtained are found to be insufficient. The test for
+!! sufficiency is that the highest calculated state lies far enough above the chemical potential for
+!! its occupation to be numerically negligible, the distance being a multiple of the broadening
+!! width of the filling function in use.
 module dftbp_elecsolvers_partialdiag
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_etemp, only : fillingTypes
@@ -26,17 +26,19 @@ module dftbp_elecsolvers_partialdiag
 
 
   !> Occupation small enough to be neglected when deciding whether a state is empty. It has to be
-  !> well below the accuracy to which the charges are converged, as the neglected states would
-  !> otherwise leave a systematic error behind which the self-consistent cycle cannot remove.
+  !! well below the accuracy to which the charges are converged, as the neglected states would
+  !! otherwise leave a systematic error behind which the self-consistent cycle cannot remove.
   real(dp), parameter :: negligibleFilling = 1.0e-10_dp
 
   !> Multiple of the broadening width above the chemical potential at which the Fermi-Dirac
-  !> occupation 1 / (1 + exp(x)) falls below negligibleFilling, which is ln(1 / f - 1) = 23.0,
-  !> rounded up.
+  !! occupation 1 / (1 + exp(x)) falls below negligibleFilling, which is ln(1 / f - 1) = 23.0,
+  !! rounded up.
   real(dp), parameter :: nWidthsFermi = 24.0_dp
 
-  !> Same for the Gaussian and Methfessel-Paxton schemes, where the occupation follows
-  !> erfc(x) / 2, reaching negligibleFilling at 4.6 widths.
+  !> Same for the Gaussian and Methfessel-Paxton schemes. Their occupations are integrals of the
+  !! broadening function of the level, so the point where the broadening function exp(-x**2) itself
+  !! falls below negligibleFilling is sufficient, which is sqrt(ln(1 / f)) = 4.8, rounded up. The
+  !! Gaussian is the slowest decaying member of the family, so this covers the higher orders too.
   real(dp), parameter :: nWidthsGaussian = 5.0_dp
 
 
@@ -116,10 +118,10 @@ contains
 
 
   !> Tests whether the calculated states extend far enough above the chemical potential that the
-  !> states which were not calculated are certainly empty.
-  !>
-  !> The test is applied to the highest calculated state of every k-point and spin channel, as the
-  !> spectra of these are independent of each other.
+  !! states which were not calculated are certainly empty.
+  !!
+  !! The test is applied to the highest calculated state of every k-point and spin channel, as the
+  !! spectra of these are independent of each other.
   subroutine TPartialDiag_check(this, eigvals, Ef, tempElec, iDistribFn)
 
     !> Instance
@@ -173,7 +175,7 @@ contains
 
 
   !> Distance above the chemical potential beyond which the occupation of a state is numerically
-  !> negligible for the given filling function.
+  !! negligible for the given filling function.
   pure function getEmptyStateWindow(iDistribFn, tempElec) result(window)
 
     !> Filling function in use
@@ -195,11 +197,11 @@ contains
 
 
   !> Number of states required to hold the electrons of the system.
-  !>
-  !> For collinear spin the two channels are diagonalised separately, so the larger of the two
-  !> channels determines the count. Where the Fermi level is shared between the channels, electrons
-  !> can move between them during the self-consistent cycle, which the adaptive increase of the
-  !> number of empty states takes care of.
+  !!
+  !! For collinear spin the two channels are diagonalised separately, so the larger of the two
+  !! channels determines the count. Where the Fermi level is shared between the channels, electrons
+  !! can move between them during the self-consistent cycle, which the adaptive increase of the
+  !! number of empty states takes care of.
   pure function getNOccupied(nEl, nSpin) result(nOccupied)
 
     !> Number of electrons, per spin channel where these are separate

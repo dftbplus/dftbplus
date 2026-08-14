@@ -76,7 +76,7 @@ Driver = {}
 Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1.0E-10 # Extremely small!
-  Eigensolver = ELPA {
+  Solver = ELPA {
     Mode = 2
     PreferElsi = Yes
     EmptyStates = 1
@@ -89,6 +89,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 2000.0
   }
   SlaterKosterFiles = {
+    Prefix = {slakos/origin/pbc-0-3/}
     Si-Si = "./Si-Si.skf"
     Si-C = "./Si-C.skf"
     C-Si = "./C-Si.skf"
@@ -100,7 +101,7 @@ Hamiltonian = DFTB {
 }
 
 Analysis = {
-  CalculateForces = Yes
+  PrintForces = Yes
 }
 
 Options = {
@@ -108,7 +109,7 @@ Options = {
 }
 
 ParserOptions = {
-  ParserVersion = 5
+  ParserVersion = 14
 }
 
 Parallel = {

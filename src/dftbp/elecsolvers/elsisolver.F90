@@ -213,6 +213,9 @@ module dftbp_elecsolvers_elsisolver
     !> If Meth-Paxton, order of scheme
     integer :: muMpOrder
 
+    !> Electronic temperature last passed to the library, negative before the first one
+    real(dp) :: muBroadenWidth = -1.0_dp
+
     !> Whether solver had been already initialised
     logical :: tSolverInitialised = .false.
 
@@ -332,7 +335,7 @@ contains
     integer, intent(in) :: nBasisFn
 
     !> number of states the eigensolver should return, which is smaller than the number of orbitals
-    !> for a partial diagonalisation
+    !! for a partial diagonalisation
     integer, intent(in) :: nState
 
     !> number of electrons
@@ -611,10 +614,10 @@ contains
 
 
   !> Changes the number of states the solver returns.
-  !>
-  !> The number of states is fixed when the ELSI handle is created, so the handle has to be
-  !> discarded and built again. This is only expected to happen a few times during a calculation,
-  !> as the number of empty states is doubled whenever it is found to be insufficient.
+  !!
+  !! The number of states is fixed when the ELSI handle is created, so the handle has to be
+  !! discarded and built again. This is only expected to happen a few times during a calculation,
+  !! as the number of empty states is doubled whenever it is found to be insufficient.
   subroutine TElsiSolver_setNState(this, nState)
 
     !> Instance
@@ -652,8 +655,9 @@ contains
     !> Instance
     class(TElsiSolver), intent(inout) :: this
 
-
   #:if WITH_ELSI
+
+    real(dp) :: muBroadenWidth
 
     if (this%tSolverInitialised) then
 
@@ -792,6 +796,12 @@ contains
       if (this%OutputLevel == 3) then
         call elsi_set_output_log(this%handle, 1)
       end if
+      if (this%muBroadenWidth >= 0.0_dp) then
+        ! a new handle starts from the library defaults, so the broadening of an earlier one has to
+        ! be applied again. This happens when the number of states changes during a calculation.
+        muBroadenWidth = this%muBroadenWidth
+        call this%updateElectronicTemp(muBroadenWidth)
+      end if
       this%tSolverInitialised = .true.
     end if
 
@@ -858,6 +868,7 @@ contains
 
   #:if WITH_ELSI
 
+    this%muBroadenWidth = tempElec
     call elsi_set_mu_broaden_scheme(this%handle, this%muBroadenScheme)
     if (this%muBroadenScheme == 2) then
       call elsi_set_mu_mp_order(this%handle, this%muMpOrder)
