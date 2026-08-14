@@ -3362,6 +3362,12 @@ contains
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb)
 
+    if (electronicSolver%isElsiSolver) then
+      ! If only part of the eigenspectrum was computed, states above the solved window must not
+      ! contribute to the density matrix
+      call electronicSolver%elsi%truncateFillings(filling)
+    end if
+
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
       if (tRealHS) then
