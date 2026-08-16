@@ -105,6 +105,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_math_randomgenpool, only : init, TRandomGenPool
   use dftbp_math_ranlux, only : getRandom, TRanlux
   use dftbp_math_simplealgebra, only : determinant33, diagonal, invert33
+  use dftbp_math_summation, only : kahanSum
   use dftbp_md_thermostats, only : createThermostat, thermostatTypes, TThermostat
   use dftbp_md_mdcommon, only : init, TMDCommon, TMDOutput
   use dftbp_md_mdintegrator, only : init, TMDIntegrator
@@ -1539,7 +1540,8 @@ contains
       if (sum(input%ctrl%kWeight) < epsilon(1.0_dp)) then
         call error("Sum of k-point weights should be greater than zero!")
       end if
-      this%kWeight(:) = input%ctrl%kWeight / sum(input%ctrl%kWeight)
+
+      this%kWeight(:) = input%ctrl%kWeight / kahanSum(input%ctrl%kWeight)
       if (this%tHelical) then
         if (any(abs(this%kPoint(2,:) * nint(this%latVec(3,1)) - nint(this%kPoint(2,:) *&
             & nint(this%latVec(3,1)))) > input%ctrl%helicalSymTol)) then
