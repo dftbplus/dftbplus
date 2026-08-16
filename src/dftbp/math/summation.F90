@@ -11,13 +11,13 @@ module dftbp_math_summation
   implicit none
 
   private
-  public :: kahan
+  public :: kahan, kahanSum
 
 contains
 
   !> Kahan–Babušk compensated summation with Neumaier improvement
   !! Note, compiler should not be allowed to optimise this out
-  pure subroutine kahan(summation, input, compensator)
+  subroutine kahan(summation, input, compensator)
 
     !> Value being accumulated over sum
     real(dp), intent(inout) :: summation
@@ -28,7 +28,7 @@ contains
     !> Compensator for underflow
     real(dp), intent(inout) :: compensator
 
-    real(dp) :: tmp
+    real(dp), volatile :: tmp
 
     tmp = summation + input
     ! Neumaier improvement
@@ -40,5 +40,27 @@ contains
     summation = tmp
 
   end subroutine kahan
+
+
+  !> Sum function for a 1D array
+  function kahanSum(input)
+
+    !> Array to total up
+    real(dp), intent(in) :: input(:)
+
+    !> Function result
+    real(dp) :: kahanSum
+
+    real(dp) :: compensator
+    integer :: ii
+
+    compensator = 0.0_dp
+    kahanSum = 0.0_dp
+    do ii = 1, size(input)
+      call kahan(kahanSum, input(ii), compensator)
+    end do
+    kahanSum = kahanSum + compensator
+
+  end function kahanSum
 
 end module dftbp_math_summation
