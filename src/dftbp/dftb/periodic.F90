@@ -25,7 +25,7 @@ module dftbp_dftb_periodic
   use dftbp_math_binarysearch, only : search_asc_real_geq
   use dftbp_math_quaternions, only : rotate3
   use dftbp_math_simplealgebra, only : determinant33, invert33
-  use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_math_sorting, only : index_heap_sort, merge_multikey
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
   use dftbp_type_linkedlist, only : append, asArray, destruct, init, len, TListRealR1
 
@@ -1046,7 +1046,7 @@ contains
     if (cutoff > neigh%cutoff) then
 99010 format ('Cutoff (', E16.6, ') greater than last cutoff ', '(', E13.6,&
           & ') passed to updateNeighbourList!')
-      write (strError, 99010) cutoff, neigh%cutoff
+      write(strError, 99010) cutoff, neigh%cutoff
       call warning(strError)
     end if
 
@@ -1167,13 +1167,14 @@ contains
     !> If points equivalent by inversion should be reduced.
     logical, intent(in), optional :: reduceByInversion
 
-    real(dp), allocatable :: allKPoints(:,:), allKWeights(:)
+    real(dp), allocatable :: allKPoints(:,:), allKWeights(:), tmpKPoints(:,:)
     logical, allocatable :: irreducible(:)
     logical :: tReduce
     real(dp) :: invCoeffs(3,3), rr(3)
     integer :: imgRange(2,3), itmp3(3)
     integer :: nAllKPoint, nKPoint
-    integer :: i1, i2, i3
+    integer :: i1, i2, i3, i4
+    integer, allocatable :: indx(:)
     type(TListRealR1) :: lr1
 
     real(dp), parameter :: tol = 1e-4_dp
@@ -1229,32 +1230,33 @@ contains
       call error("Monkhorst-Pack routine failed to find all K-points.")
     end if
 
+    allocate(allKWeights(nAllKPoint), source=1.0_dp / real(nAllKPoint, dp))
     allocate(allKPoints(3, nAllKPoint))
-    allocate(allKWeights(nAllKPoint))
     call asArray(lr1, allKPoints)
     call destruct(lr1)
     allKPoints = modulo(allKPoints, 1.0_dp)
-    allKWeights = 1.0_dp / real(nAllKPoint, dp)
 
     ! Reduce by inversion if needed
     if (tReduce) then
-      allocate(irreducible(nAllKPoint))
-      irreducible(:) = .true.
-      do i1 = 1, nAllKPoint
-        if (.not. irreducible(i1)) then
-          cycle
-        end if
-        rr(:) = modulo(-1.0_dp * allKPoints(:,i1), 1.0_dp)
-        do i2 = i1 + 1, nAllKPoint
-          if (.not. irreducible(i2)) then
-            cycle
-          end if
-          if (all(abs(allKPoints(:,i2) - rr(:)) < tol)) then
-            irreducible(i2) = .false.
-            allKWeights(i1) = allKWeights(i1) + allKWeights(i2)
+      allocate(irreducible(nAllKPoint), source=.true.)
+      allocate(indx(nAllKPoint))
+      tmpKPoints = abs(allKPoints - 0.5_dp) ! fold with respect to zone centre
+      call merge_multikey(indx, tmpKPoints, tol*[1,1,1])
+      deallocate(tmpKPoints)
+      lpI1 : do i1 = 1, nAllKPoint
+        i2 = indx(i1)
+        if (.not. irreducible(i2)) cycle lpI1
+        rr(:) = modulo(-1.0_dp * allKPoints(:,i2), 1.0_dp)
+        do i3 = i1 + 1, min(i1 + 7, nAllKPoint) ! up to 2^3 possible equivalent points
+          i4 = indx(i3)
+          if (.not. irreducible(i4)) cycle
+          if (all(abs(allKPoints(:,i4) - rr(:)) < tol)) then
+            irreducible(i4) = .false.
+            allKWeights(i2) = allKWeights(i2) + allKWeights(i4)
+            cycle lpI1
           end if
         end do
-      end do
+      end do lpI1
       nKPoint = count(irreducible)
       allocate(kPoints(3, nKPoint))
       allocate(kWeights(nKPoint))
@@ -1269,10 +1271,8 @@ contains
         i1 = i1 + 1
       end do
     else
-      allocate(kPoints(3, nAllKPoint))
-      allocate(kWeights(nAllKPoint))
-      kPoints(:,:) = allKPoints
-      kWeights(:) = allKWeights
+      kPoints = allKPoints
+      kWeights = allKWeights
     end if
 
   end subroutine getSuperSampling

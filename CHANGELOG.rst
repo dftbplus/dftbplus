@@ -53,6 +53,7 @@ Changed
   now called dftbp_api. Bumped the API version to 0.6.0 as this
   renaming is a breaking change.
 
+- Better scaling algorithm for k-point inversion folding
 
 Fixed
 -----
