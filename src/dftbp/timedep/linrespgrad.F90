@@ -766,9 +766,9 @@ contains
           #:if WITH_SCALAPACK
             allocate(VecGlb(norb,norb))
             call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
-                & grndEigVecs(:,:,iSpin), VecGlb(:,:))
+                & grndEigVecs(:,:,iSpin), VecGlb)
 
-            call makeSimilarityTrans(pc(:,:,iSpin), VecGlb(:,:))
+            call makeSimilarityTrans(pc(:,:,iSpin), VecGlb)
 
             call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr, VecGlb)
 
