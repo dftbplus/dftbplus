@@ -249,18 +249,6 @@ contains
       call error("ELPA error: elpa_setup failed")
     end if
 
-    if (inp%gpu) then
-      call this%setConfig("nvidia-gpu", 1)
-
-    #:if ELPA_HAS_SETUP_GPU
-      status = this%handle%setup_gpu()
-      if (status /= ELPA_OK) then
-        call error("ELPA error: elpa_setup_gpu failed")
-      end if
-    #:endif
-      this%gpu = .true.
-    end if
-
     if (inp%autotune) then
       this%autotuning = .true.
       this%autotuneFile = inp%autotuneFile
@@ -273,6 +261,18 @@ contains
         case default
           call error("Invalid solver choice for ELPA")
       end select
+    end if
+
+    if (inp%gpu) then
+      call this%setConfig("amd-gpu", 1)
+
+    #:if ELPA_HAS_SETUP_GPU
+      status = this%handle%setup_gpu()
+      if (status /= ELPA_OK) then
+        call error("ELPA error: elpa_setup_gpu failed")
+      end if
+    #:endif
+      this%gpu = .true.
     end if
 
   #:else
