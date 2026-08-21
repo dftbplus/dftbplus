@@ -224,6 +224,79 @@ module dftbp_extlibs_lapack
 
 
   interface
+  #:for LAPACK_ROUTINE, KIND in [("ssygvx", "rsp"), ("dsygvx", "rdp")]
+
+    !> Real symmetric generalized eigensolver
+    subroutine ${LAPACK_ROUTINE}$(itype, jobz, range, uplo, nn, aa, lda, bb, ldb, vl, vu, il, iu,&
+        & abstol, m, ww, zz, ldz, work, lwork, iwork, ifail, info)
+      import :: ${KIND}$
+      integer, intent(in) :: itype
+      character, intent(in) :: jobz
+      character, intent(in) :: range
+      character, intent(in) :: uplo
+      integer, intent(in) :: nn
+      real(${KIND}$), intent(inout) :: aa(lda, *)
+      integer, intent(in) :: lda
+      real(${KIND}$), intent(inout) :: bb(ldb, *)
+      integer, intent(in) :: ldb
+      real(${KIND}$), intent(in) :: vl
+      real(${KIND}$), intent(in) :: vu
+      integer, intent(in) :: il
+      integer, intent(in) :: iu
+      real(${KIND}$), intent(in) :: abstol
+      integer, intent(out) :: m
+      real(${KIND}$), intent(out) :: ww(*)
+      real(${KIND}$), intent(out) :: zz(ldz, *)
+      integer, intent(in) :: ldz
+      real(${KIND}$), intent(out) :: work(*)
+      integer, intent(in) :: lwork
+      integer, intent(out) :: iwork(*)
+      integer, intent(out) :: ifail(*)
+      integer, intent(out) :: info
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
+
+
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("chegvx", "rsp"), ("zhegvx", "rdp")]
+
+    !> Complex hermitian generalized eigensolver
+    subroutine ${LAPACK_ROUTINE}$(itype, jobz, range, uplo, nn, aa, lda, bb, ldb, vl, vu, il, iu,&
+        & abstol, m, ww, zz, ldz, work, lwork, rwork, iwork, ifail, info)
+      import :: ${KIND}$
+      integer, intent(in) :: itype
+      character, intent(in) :: jobz
+      character, intent(in) :: range
+      character, intent(in) :: uplo
+      integer, intent(in) :: nn
+      complex(${KIND}$), intent(inout) :: aa(lda, *)
+      integer, intent(in) :: lda
+      complex(${KIND}$), intent(inout) :: bb(ldb, *)
+      integer, intent(in) :: ldb
+      real(${KIND}$), intent(in) :: vl
+      real(${KIND}$), intent(in) :: vu
+      integer, intent(in) :: il
+      integer, intent(in) :: iu
+      real(${KIND}$), intent(in) :: abstol
+      integer, intent(out) :: m
+      real(${KIND}$), intent(out) :: ww(*)
+      complex(${KIND}$), intent(out) :: zz(ldz, *)
+      integer, intent(in) :: ldz
+      complex(${KIND}$), intent(out) :: work(*)
+      integer, intent(in) :: lwork
+      real(${KIND}$), intent(out) :: rwork(*)
+      integer, intent(out) :: iwork(*)
+      integer, intent(out) :: ifail(*)
+      integer, intent(out) :: info
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
+
+
+  interface
     #:for LAPACK_ROUTINE, KIND in [("ssygvd", "rsp"), ("dsygvd", "rdp")]
 
     !> Real symmetric generalized eigensolver (divide and conquer)
