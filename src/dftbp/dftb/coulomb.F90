@@ -156,11 +156,10 @@ module dftbp_dftb_coulomb
     !> Get the variables relate to periodic information
     procedure :: getPeriodicInfo
 
-    !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
-    !! storing anything.
+    !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case
     procedure :: addInvRPrimeClusterMat
 
-    !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
+    !> Calculates the -1/R**2 deriv contribution for the periodic case
     procedure :: addInvRPrimePeriodicMat
 
     !> Sums up the potential at specified coordinates due to charges at other positions
@@ -2591,7 +2590,7 @@ contains
     ! Real space part of the Ewald sum
     pNeighList => neighList
     call distributeRangeInChunks(env, 1, nAtom, iFirst, iLast)
-    localStress = 0.0_dp
+    localStress(:,:) = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) REDUCTION(+:localStress) SCHEDULE(RUNTIME)
     do iAtom1 = iFirst, iLast
       call addNeighbourContribsStress(iAtom1, pNeighList, coord, alpha, Q, localStress)
@@ -2649,8 +2648,7 @@ contains
   end subroutine addNeighbourContribsStress
 
 
-  !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
-  !! storing anything.
+  !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case
   subroutine addInvRPrimeClusterMat(this, env, coord, invRDeriv)
 
     !> Data structure
@@ -2720,7 +2718,7 @@ contains
   end subroutine invRPrimeCluster
 
 
-  !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
+  !> Calculates the -1/R**2 deriv contribution for the periodic case
   subroutine addInvRPrimePeriodicMat(this, env, coord, invRDeriv)
 
     !> Instance
@@ -2737,8 +2735,7 @@ contains
 
     type(TDynNeighList), pointer :: pNeighList
     real(dp) :: r(3)
-    integer :: nAtom, iAtom1, iAtom2
-    integer :: iAtFirst, iAtLast
+    integer :: iAtFirst, iAtLast, nAtom, iAtom1, iAtom2
 
     nAtom = size(invRDeriv,dim=1)
     pNeighList => this%neighList_
