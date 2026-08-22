@@ -13,7 +13,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum
+  use dftbp_geometry_boundarycond, only : boundaryCondsEnum
   use dftbp_dftb_periodic, only : setNeighbourListOrig => setNeighbourList
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_initprogram, only : initElectronNumber, initReferenceCharges, TDftbPlusMain,&

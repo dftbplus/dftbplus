@@ -16,7 +16,7 @@ module dftbp_dftb_periodic
   use dftbp_common_memman, only : incrmntOfArray, TAlignedArray
   use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks, getChunkRanges
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_boundarycond, only : zAxis, TBoundaryConds
+  use dftbp_geometry_boundarycond, only : zAxis, TBoundaryConds
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : MPI_LOR, MPI_MAX, mpifx_allgather, mpifx_allreduceip,&
       & MPIFX_SIZE_T, mpifx_win

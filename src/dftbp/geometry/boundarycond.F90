@@ -9,7 +9,7 @@
 #:include 'error.fypp'
 
 !> Contains geometrical boundary condition information on the calculation
-module dftbp_dftb_boundarycond
+module dftbp_geometry_boundarycond
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_status, only : TStatus
@@ -442,4 +442,4 @@ contains
 
   end subroutine handleBoundaryChanges
 
-end module dftbp_dftb_boundarycond
+end module dftbp_geometry_boundarycond
