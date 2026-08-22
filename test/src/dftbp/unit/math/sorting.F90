@@ -8,7 +8,7 @@
 #:include "fortuno_serial.fypp"
 module test_math_sorting
   use dftbp_common_accuracy, only : dp, rsp
-  use dftbp_math_sorting, only : merge_sort
+  use dftbp_math_sorting, only : merge_sort, merge_multikey
   use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
@@ -20,9 +20,8 @@ contains
 
 
   $:TEST("mergesort_real")
-    integer :: nn
+    integer :: ii, nn
     integer, allocatable :: indx(:)
-    integer :: ii
     logical :: isSorted, isStable
     real(dp), parameter :: tol = real(epsilon(0.0_rsp),dp)
 
@@ -73,6 +72,39 @@ contains
 
     @:ASSERT(isSorted)
     @:ASSERT(isStable)
+
+  $:END_TEST()
+
+
+  $:TEST("mergesort_multiple")
+    integer :: ii, jj, kk, nn
+    integer, allocatable :: indx(:)
+    logical :: isSorted
+    real(dp), parameter :: data(2,9) = reshape([2,1,1,3,2,4,1,4,2,3,2,2,1,1,1,2,1,1], [2,9])
+    real(dp), parameter :: tol(size(data, dim=1)) = real(epsilon(0.0_rsp),dp)
+
+    nn = size(data, dim=2)
+    allocate(indx(nn), source=0)
+    call merge_multikey(indx, data, tol)
+    write(*,*)
+    do ii = 1, nn
+      write(*,*)indx(ii), ':', data(:,indx(ii))
+    end do
+
+    isSorted = .true.
+    do ii = 2, nn
+      jj = indx(ii)
+      kk = indx(ii-1)
+      if (data(1,kk) - data(1,jj) > tol(1)) then
+        isSorted = .false.
+        exit
+      end if
+      if (data(2,kk) - data(2,jj) > tol(2) .and. abs(data(1,jj) - data(1,kk)) < tol(1)) then
+        isSorted = .false.
+        exit
+      end if
+    end do
+    @:ASSERT(isSorted)
 
   $:END_TEST()
 
