@@ -19,7 +19,7 @@ module waveplot_initwaveplot
   use dftbp_common_release, only : releaseYear
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
+  use dftbp_geometry_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
       & TBoundaryConds_init
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_extlibs_xmlf90, only : char, destroyNode, fnode, fNodeList, getItem1, getLength,&

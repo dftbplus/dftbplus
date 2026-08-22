@@ -22,7 +22,7 @@ module dftbp_derivs_perturb
       & dRhoFermiChangeReal, dRhoPauli, dRhoReal
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
+  use dftbp_geometry_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_coulomb, only : calcInvRPrimeAsymm
   use dftbp_dftb_dftbplusu, only : plusUFunctionals, TDftbU
   use dftbp_dftb_hybridxc, only : THybridXcFunc

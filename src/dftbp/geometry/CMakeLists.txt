@@ -1,6 +1,7 @@
 set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
+  ${curdir}/boundarycond.F90
   ${curdir}/control.F90
   ${curdir}/projectvectors.F90)
 

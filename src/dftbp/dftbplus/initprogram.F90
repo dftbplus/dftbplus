@@ -25,7 +25,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_derivs_numderivs2, only : create, TNumDerivs
   use dftbp_derivs_perturb, only : responseSolverTypes, TResponse, TResponse_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
+  use dftbp_geometry_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
       & TBoundaryConds_init
   use dftbp_dftb_coulomb, only : TCoulombInput
   use dftbp_dftb_dense, only : buildSquaredAtomIndex
