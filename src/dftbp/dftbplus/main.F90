@@ -20,7 +20,7 @@ module dftbp_dftbplus_main
   use dftbp_derivs_numderivs2, only : dipoleAdd, getHessianMatrix, next, polAdd, TNumderivs
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo, getPairWiseMayer
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
+  use dftbp_geometry_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_densitymatrix, only : TDensityMatrix, transformDualSpaceToBvKRealSpace
   use dftbp_dftb_determinants, only : determinants, TDftbDeterminants
   use dftbp_dftb_dftbplusu, only : TDftbU
