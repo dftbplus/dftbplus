@@ -93,3 +93,5 @@ contributed to DFTB+ :
 * Bo Thomsen (Japan Atomic Energy Agency, Japan)
 
 * Victor Yu (Duke University, USA)
+
+* Samuel Zheng (National Tsing Hua University, Taiwan)

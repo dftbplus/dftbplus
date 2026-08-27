@@ -2751,6 +2751,17 @@ contains
               & the GPU acceleration for the ELPA solver")
         end if
       #:endif
+      call getChildValue(value1, "SinglePrecisionCycles", ctrl%solver%elpa%nSinglePrecCycles, 0,&
+          & child=child)
+      if (ctrl%solver%elpa%nSinglePrecCycles < 0) then
+        call detailedError(child, "SinglePrecisionCycles must not be negative")
+      end if
+      #:if not WITH_ELSI
+        if (ctrl%solver%elpa%nSinglePrecCycles /= 0) then
+          call detailedError(child, "Single precision cycles are only possible if ELPA is&
+              & included via the ELSI library")
+        end if
+      #:endif
       call getChildValue(value1, "RedistributeFactor", ctrl%solver%elpa%redistributeFactor, 1,&
           & child=child)
       #:if not WITH_ELPA
