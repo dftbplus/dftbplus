@@ -9,7 +9,7 @@
 
 !> Contains the interface to the ELSI solvers
 module dftbp_elecsolvers_elsisolver
-  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_accuracy, only : dp, elecTolMax, lc
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_version, only : TVersion
@@ -299,6 +299,7 @@ module dftbp_elecsolvers_elsisolver
     procedure :: reset => TElsiSolver_reset
     procedure :: updateGeometry => TElsiSolver_updateGeometry
     procedure :: updateElectronicTemp => TElsiSolver_updateElectronicTemp
+    procedure :: truncateFillings => TElsiSolver_truncateFillings
     procedure :: getDensity => TElsiSolver_getDensity
     procedure :: getEDensity => TElsiSolver_getEDensity
     procedure :: initPexsiDeltaVRanges => TElsiSolver_initPexsiDeltaVRanges
@@ -361,6 +362,7 @@ contains
 
     character(lc) :: buffer
     integer :: version(3)
+    integer :: nOccupied
 
     call elsi_get_version(version(1), version(2), version(3))
     call supportedVersionNumber(TVersion(version(1), version(2), version(3)))
@@ -371,8 +373,21 @@ contains
 
     case (electronicSolverTypes%elpa)
       this%solver = elsiEnum%ELPA_SOLVER
-      ! ELPA is asked for all states
+      ! By default ELPA is asked for all states
       this%nState = nBasisFn
+      if (allocated(inpElpa)) then
+        if (inpElpa%nEmptyStates >= 0) then
+          ! Restrict the eigenspectrum to the occupied states and a window of empty states
+          ! above them. The same window is used for all spin channels and k-points, so for
+          ! spin polarised cases the occupied states of both channels are counted.
+          if (nSpin == 1) then
+            nOccupied = ceiling(sum(nEl) * 0.5_dp)
+          else
+            nOccupied = ceiling(sum(nEl))
+          end if
+          this%nState = min(nBasisFn, max(1, nOccupied + inpElpa%nEmptyStates))
+        end if
+      end if
 
     case (electronicSolverTypes%omm)
       this%solver = elsiEnum%OMM_SOLVER
@@ -835,6 +850,48 @@ contains
   #:endif
 
   end subroutine TElsiSolver_updateElectronicTemp
+
+
+  !> Removes any occupation from states above the eigenspectrum window solved by ELPA.
+  !>
+  !> If the solver was asked for a part of the eigenspectrum only, the states above the solved
+  !> window have no eigenvectors available and must not contribute to the density matrix. The
+  !> routine stops with an error, if those states would carry a non-negligible occupation, as
+  !> the requested window is too small in that case.
+  subroutine TElsiSolver_truncateFillings(this, fillings)
+
+    !> Instance
+    class(TElsiSolver), intent(in) :: this
+
+    !> Occupations of the states (state, k-point, spin), as obtained for the full spectrum
+    real(dp), intent(inout) :: fillings(:,:,:)
+
+  #:if WITH_ELSI
+
+    character(lc) :: buffer
+    real(dp) :: maxTailFilling
+
+    if (this%iSolver /= electronicSolverTypes%elpa .or. this%nState >= this%nBasis) then
+      return
+    end if
+
+    maxTailFilling = maxval(abs(fillings(this%nState + 1 :, :, :)))
+    if (maxTailFilling > elecTolMax) then
+      write(buffer, "(A,ES10.2,A)") "States above the eigenspectrum window solved by ELPA would&
+          & carry occupations up to ", maxTailFilling, ". Increase NrOfEmptyStates, so that all&
+          & (partially) occupied states are covered by the window."
+      call error(trim(buffer))
+    end if
+    fillings(this%nState + 1 :, :, :) = 0.0_dp
+
+  #:else
+
+    call error("Internal error: TElsiSolver_truncateFillings() called despite missing ELSI&
+        & support")
+
+  #:endif
+
+  end subroutine TElsiSolver_truncateFillings
 
 
   !> Returns the density matrix using ELSI non-diagonalisation routines.
