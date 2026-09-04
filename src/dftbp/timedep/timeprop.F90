@@ -2350,7 +2350,7 @@ contains
     real(dp), intent(in) :: H0(:)
 
     !> Local sparse storage for non-SCC hamiltonian
-    real(dp), allocatable, intent(out) :: ham0(:)
+    real(dp), allocatable, intent(inout) :: ham0(:)
 
     !> Square dipole matrix
     complex(dp), intent(inout), optional :: Dsqr(:,:,:,:)
@@ -2450,8 +2450,7 @@ contains
     allocate(rhoPrim(size(ints%hamiltonian, dim=1), this%nSpin))
     allocate(ErhoPrim(size(ints%hamiltonian, dim=1)))
     this%sparseSize = size(H0)
-    allocate(ham0(size(H0)))
-    ham0(:) = H0
+
 
   #:if WITH_SCALAPACK
     nLocalRows = size(eigvecsReal, dim=1)
@@ -2469,6 +2468,13 @@ contains
     end if
 
     if (.not. this%tReadRestart) then
+      ! ham0 should only be allocated when the calculation is not restarted from a previous run,
+      ! otherwise it is calculated from the coordinates read from restart and it should not be
+      ! overriden
+      if (.not. allocated(ham0)) then
+        allocate(ham0(size(H0)))
+      end if
+      ham0(:) = H0
       Ssqr(:,:,:) = 0.0_dp
       Sinv(:,:,:) = 0.0_dp
 
@@ -4741,6 +4747,18 @@ contains
       this%tdFunction(:,:) = 0.0_dp                       !so H1 = H_gs
       this%tdFunction(this%currPolDir,:) = -c * this%field
     end if
+
+  #:block DEBUG_CODE
+    if (this%tReadRestart) then
+      @:ASSERT(allocated(this%ham0))
+    else
+      if (this%iCall == 1) then
+        @:ASSERT(.not.allocated(this%ham0))
+      else
+        @:ASSERT(allocated(this%ham0))
+      end if
+    end if
+  #:endblock DEBUG_CODE
 
     call initializeTDVariables(this, env, densityMatrix, this%trho, this%H1, this%Ssqr, this%Sinv,&
         & H0, this%ham0, this%Dsqr, this%Qsqr, ints, eigvecsReal, filling, orb, this%rhoPrim,&
