@@ -73,6 +73,9 @@ Fixed
   XYZ files containing both atomic populations and noncolinear spin
   vectors.
 
+- Kick calculations with Ehrenfest ion dynamics for pump-probe simulations
+  now work correctly.
+
 
 25.1 (2025-12-18)
 =================
