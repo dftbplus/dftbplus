@@ -52,7 +52,7 @@ module dftbp_dftb_extfields
     real(dp), allocatable :: atomicPotential(:)
 
     !> Is this an onsite (net charge related, so diagonal elements of hamiltonian) or not
-    !> (gross/Mulliken charge related, so incluing off diagonal coupling)
+    !! (gross/Mulliken charge related, so incluing off diagonal coupling)
     logical, allocatable :: atomicOnSite(:)
 
   end type TEField
@@ -132,7 +132,7 @@ contains
         eField%absEfield = sqrt(sum(eField%Efield**2))
         if (tPeriodic) then
           isBoundaryCrossed = .false.
-          do iAt1 = 1, nAtom
+          lpAtom: do iAt1 = 1, nAtom
             do iNeigh = 1, nNeighbourSK(iAt1)
               iAt2 = neighbourList%iNeighbour(iNeigh, iAt1)
               ! overlap between atom in central cell and non-central cell
@@ -141,10 +141,11 @@ contains
                 if (abs(dot_product(cellVec(:, iCellVec(iAt2)), eField%EfieldVector))&
                     & > epsilon(1.0_dp)) then
                   isBoundaryCrossed = .true.
+                  exit lpAtom
                 end if
               end if
             end do
-          end do
+          end do lpAtom
           if (isBoundaryCrossed) then
             call warning("Interactions between atoms cross the saw-tooth discontinuity in the&
                 & electric field")
