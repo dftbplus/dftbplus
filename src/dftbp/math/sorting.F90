@@ -13,7 +13,7 @@ module dftbp_math_sorting
   implicit none
 
   private
-  public :: heap_sort, index_heap_sort, merge_sort
+  public :: heap_sort, index_heap_sort, merge_sort, merge_multikey
 
 
   !> Heap sort algorithm - O(N log(N)) time performance and in place, but not 'stable' in order of
@@ -224,7 +224,6 @@ contains
 
     integer :: n, ii
     integer, allocatable :: work(:)
-    real(dp) :: tol
 
     n = size(arr)
     @:ASSERT(size(indx) >= n)
@@ -280,7 +279,7 @@ contains
   end subroutine merge_sort_index_track
 
 
-  !> Merges two sorted sub-segments using tolerance logic safely
+  !> Merges two sorted sub-segments using tolerance
   subroutine merge_index(arr, indx, work, left, midpoint, right, tol)
 
     !> Data array to sort
@@ -360,5 +359,194 @@ contains
 
   end subroutine merge_index
 
+
+  !> Merge sort algorithm wrapper for multiple keys, sorting keys ordered by increasing first index
+  subroutine merge_multikey(indx, arr, tolerance)
+
+    !> Output index array
+    integer, intent(out) :: indx(:)
+
+    !> Data array to sort
+    real(dp), intent(in) :: arr(:, :)
+
+    !> Comparison equality tolerance between values
+    real(dp), intent(in) :: tolerance(:)
+
+    integer :: n, ii
+    integer, allocatable :: work(:)
+
+    n = size(arr,dim=2)
+    @:ASSERT(size(indx) >= n)
+    @:ASSERT(size(arr,dim=1) == size(tolerance))
+
+    ! Initialize an index array
+    forall (ii = 1:n) indx(ii) = ii
+
+    if (n > 1) then
+      allocate(work(n))
+      call merge_sort_index_multikey(indx, arr, work, 1, n, tolerance)
+      deallocate(work)
+    end if
+
+  end subroutine merge_multikey
+
+
+  !> Recursive splitting of the index array
+  recursive subroutine merge_sort_index_multikey(indx, arr, work, left, right, tol)
+
+    !> Indexing array for data
+    integer, intent(inout) :: indx(:)
+
+    !> Data array to sort
+    real(dp), intent(in) :: arr(:, :)
+
+    !> Work array
+    integer, intent(inout) :: work(:)
+
+    !> Start of range
+    integer, intent(in) :: left
+
+    !> End of range
+    integer, intent(in) :: right
+
+    !> Tolerance for numerical comparisions
+    real(dp), intent(in) :: tol(:)
+
+    integer :: midpoint
+
+    if (left < right) then
+
+      midpoint = left + (right - left) / 2 ! Overflow protected
+
+      ! Recursively sort left and right parts
+      call merge_sort_index_multikey(indx, arr, work, left, midpoint, tol)
+      call merge_sort_index_multikey(indx, arr, work, midpoint + 1, right, tol)
+
+      ! Merge the two sorted index segments
+      call merge_index_multikey(arr, indx, work, left, midpoint, right, tol)
+
+    end if
+
+  end subroutine merge_sort_index_multikey
+
+
+  !> Merges two sorted sub-segments using tolerance
+  subroutine merge_index_multikey(arr, indx, work, left, midpoint, right, tol)
+
+    !> Data array to sort
+    real(dp), intent(in) :: arr(:, :)
+
+    !> Indexing array for data
+    integer, intent(inout) :: indx(:)
+
+    !> Work array
+    integer, intent(inout) :: work(:)
+
+    !> Start of range
+    integer, intent(in) :: left
+
+    !> Middle of range
+    integer, intent(in) :: midpoint
+
+    !> End of range
+    integer, intent(in) :: right
+
+    !> Tolerance for numerical comparisions
+    real(dp), intent(in) :: tol(:)
+
+    integer :: ii, jj, kk, nn
+    real(dp) :: val_i(size(tol)), val_j(size(tol))
+
+    ! Cache the current segment of array index into temporary workspace
+    work(left:right) = indx(left:right)
+
+    ii = left
+    jj = midpoint + 1
+    kk = left
+
+    ! Merge back into indx()
+    do while (ii <= midpoint .and. jj <= right)
+
+      val_i(:) = arr(:, work(ii))
+      val_j(:) = arr(:, work(jj))
+
+      if (multicompare(val_j, val_i, tol)) then
+        ! element ii is significantly smaller than element jj
+
+        indx(kk) = work(ii)
+        ii = ii + 1
+
+      else if (multicompare(val_i, val_j, tol)) then
+        ! element jj is significantly smaller than element ii
+
+        indx(kk) = work(jj)
+        jj = jj + 1
+
+      else
+        ! elements are equal within tolerance -> enforce stability
+
+        if (work(ii) <= work(jj)) then
+          indx(kk) = work(ii)
+          ii = ii + 1
+        else
+          indx(kk) = work(jj)
+          jj = jj + 1
+        end if
+
+      end if
+
+      kk = kk + 1
+
+    end do
+
+    ! Copy remaining elements from the left segment
+    nn = midpoint - ii
+    indx(kk:kk+nn) = work(ii:ii+nn)
+    kk = kk + nn + 1
+
+    ! Copy remaining elements from the right segment
+    nn = right - jj
+    indx(kk:kk+nn) = work(jj:jj+nn)
+
+  end subroutine merge_index_multikey
+
+
+  !> Compare multi-dimensional keys, higer significance to lower index value. Is key1 significantly
+  !! (> tol) larger than key2
+  function multicompare(key1, key2, tol)
+
+    !> First key
+    real(dp), intent(in) :: key1(:)
+
+    !> Second key
+    real(dp), intent(in) :: key2(:)
+
+    !> Tolerance for each index
+    real(dp), intent(in) :: tol(:)
+
+    !> Resulting test for whether key1 is larger than key2
+    logical :: multicompare
+
+    integer :: ii
+
+    @:ASSERT(size(key1) == size(key2))
+    @:ASSERT(size(key1) == size(tol))
+
+    do ii = 1, size(tol)
+
+      if (key1(ii) - key2(ii) > tol(ii)) then ! key1 significantly larger at this place
+        multicompare = .true.
+        return
+      end if
+      if (key2(ii) - key1(ii) > tol(ii)) then ! key2 significantly larger at this place
+        multicompare = .false.
+        return
+      end if
+
+    end do
+
+    multicompare = .false.
+
+  end function multicompare
 
 end module dftbp_math_sorting
