@@ -2792,7 +2792,6 @@ contains
     call getRandom(randomInit, rTmp)
     this%runId = int(real(huge(this%runId) - 1, dp) * rTmp) + 1
 
-
     ! MD stuff
     if (this%geometryChanges%tMd) then
       ! Create MD framework.
@@ -2803,7 +2802,7 @@ contains
       call TempProfile_init(this%temperatureProfile, input%ctrl%tempProfileInp)
       pTempProfile => this%temperatureProfile
 
-      ! Create thermostat
+      ! Create a thermostat
       call createThermostat(thermostat, input%ctrl%thermostatInp, this%mass(this%indMovedAtom),&
           & randomThermostat, this%pMDFrame, pTempProfile, this%deltaT)
 
@@ -2829,42 +2828,38 @@ contains
       end if
       allocate(this%pMDIntegrator)
       call init(this%pMDIntegrator, pVelocityVerlet)
+
     end if
 
     call this%initPlumed(env, input%ctrl%tPlumed, this%geometryChanges%tMd, this%plumedCalc)
 
-    ! Check for extended Born-Oppenheimer MD
-    if (this%isXlbomd) then
-      if (input%ctrl%thermostatInp%thermostatType /= thermostatTypes%none) then
-        call error("XLBOMD does not work with thermostats yet")
-      elseif (this%geometryChanges%tBarostat) then
-        call error("XLBOMD does not work with barostats yet")
-      elseif (this%nSpin /= 1 .or. allocated(this%dftbU) .or. allocated(this%onSiteElements)) then
-        call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
-      elseif (this%forceType /= forceTypes%dynamicT0 .and. this%forceType /=&
-          & forceTypes%dynamicTFinite) then
-        call error("Force evaluation method incompatible with XLBOMD")
-      elseif (this%iDistribFn /= fillingTypes%Fermi) then
-        call error("Choice of filling function incompatible with XLBOMD")
-      end if
-      if (this%tExtChrg .or. this%isExtField) then
-        call error("External fields currently disabled for XLBOMD calculations")
-      end if
-      if (this%hamiltonianType /= hamiltonianTypes%dftb) then
-        call error("XLBOMD calculations currently only supported for the DFTB hamiltonian")
-      end if
-      if (allocated(this%solvation)) then
-        call error("XLBOMD does not work with solvation models yet!")
-      end if
-      allocate(this%xlbomdIntegrator)
-      call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
-    end if
-
     this%minSccIter = getMinSccIters(this%tSccCalc, allocated(this%dftbU), this%nSpin)
     this%minSccIter = min(this%minSccIter, this%maxSccIter)
+
+    ! Check for extended Born-Oppenheimer MD
     if (this%isXlbomd) then
+
+      if (.not.any(input%ctrl%thermostatInp%thermostatType == [thermostatTypes%none,&
+          & thermostatTypes%langevin])) call error("XLBOMD does not work with this thermostat yet")
+      if (this%geometryChanges%tBarostat) call error("XLBOMD does not work with barostats yet")
+      if (this%nSpin /= 1 .or. allocated(this%dftbU) .or. allocated(this%onSiteElements))&
+          & call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
+      if (this%forceType /= forceTypes%dynamicT0 .and. this%forceType /= forceTypes%dynamicTFinite)&
+          & call error("Force evaluation method incompatible with XLBOMD")
+      if (this%iDistribFn /= fillingTypes%Fermi) call error("Choice of filling function&
+          & incompatible with XLBOMD")
+      if (this%tExtChrg .or. this%isExtField) call error("External fields currently disabled for&
+          & XLBOMD calculations")
+      if (this%hamiltonianType /= hamiltonianTypes%dftb) call error("XLBOMD calculations currently&
+          & only supported for the DFTB hamiltonian")
+      if (allocated(this%solvation)) call error("XLBOMD does not work with solvation models yet!")
+
+      allocate(this%xlbomdIntegrator)
+      call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
+
       call this%xlbomdIntegrator%setDefaultSCCParameters(this%minSccIter, this%maxSccIter,&
           & this%sccTol)
+
     end if
 
     if (this%geometryChanges%tDerivs) then
@@ -3445,6 +3440,14 @@ contains
           write(stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with scaling of velocities according to temperature",&
               & "(a.k.a. 'not' NVT ensemble using Berendsen thermostating)"
+        end if
+      case(thermostatTypes%langevin)
+        if (this%geometryChanges%tBarostat) then
+          write(stdOut, "('Mode:',T30,A)")&
+              & "MD with NVP ensemble using Langevin thermostating and barostat"
+        else
+          write(stdOut, "('Mode:',T30,A)")&
+              & "MD with NVT Langevin thermostating"
         end if
       case(thermostatTypes%nhc)
         if (this%geometryChanges%tBarostat) then

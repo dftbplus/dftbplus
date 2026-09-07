@@ -5,6 +5,7 @@ set(sources-fpp
   ${curdir}/berendsentherm.F90
   ${curdir}/notherm.F90
   ${curdir}/extlagrangian.F90
+  ${curdir}/langevintherm.F90
   ${curdir}/mdcommon.F90
   ${curdir}/mdintegrator.F90
   ${curdir}/nhctherm.F90
