@@ -16,6 +16,3 @@ target_compile_options(
   PRIVATE
   "$<$<Fortran_COMPILER_ID:GNU>:-fall-intrinsics>"
 )
-
-add_library(tblite::tblite INTERFACE IMPORTED GLOBAL)
-target_link_libraries(tblite::tblite INTERFACE tblite)
