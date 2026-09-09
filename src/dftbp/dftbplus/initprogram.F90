@@ -19,7 +19,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_file, only : clearFile, setDefaultBinaryAccess, TFileDescr
-  use dftbp_common_globalenv, only : stdOut, withMpi
+  use dftbp_common_globalenv, only : withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : create, TNumDerivs
@@ -1369,10 +1369,10 @@ contains
   #:endif
 
     @:ASSERT(input%tInitialized)
-    write(stdOut, "(/, A)") "Starting initialization..."
-    write(stdOut, "(A80)") repeat("-", 80)
+    write(env%stdOut, "(/, A)") "Starting initialization..."
+    write(env%stdOut, "(A80)") repeat("-", 80)
 
-    call env%initGlobalTimer(input%ctrl%timingLevel, "DFTB+ running times", stdOut)
+    call env%initGlobalTimer(input%ctrl%timingLevel, "DFTB+ running times", env%stdOut)
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
@@ -1487,7 +1487,7 @@ contains
           allocate(eiTmp, mold=input%slako%skOcc)
           eiTmp(:,:) = 0.0_dp
           call this%tblite%getReferenceEi(this%species0, eiTmp)
-          write(stdOut, *) "Non-shell-resolved spin coupling constants from parameters for"
+          write(env%stdOut, *) "Non-shell-resolved spin coupling constants from parameters for"
         end if
         do iSp = 1, this%nType
           iElem = symbolToNumber(this%speciesName(iSp))
@@ -1508,7 +1508,7 @@ contains
             ! Use HOAO value
             ish = maxloc(eiTmp(:,iSp), dim=1, mask=input%slako%skOcc(:,iSp) > 0.0_dp)
             il = this%orb%angShell(iSh,iSp)
-            write(stdOut,"(1X,A,T6,A,A)")trim(this%speciesName(iSp)), ' : ', shellnames(il+1)
+            write(env%stdOut,"(1X,A,T6,A,A)")trim(this%speciesName(iSp)), ' : ', shellnames(il+1)
             input%ctrl%spinW(:this%orb%nShell(iSp), :this%orb%nShell(iSp), iSp) =&
                 & tmpSpinW(spindx(il, il))
           end if
@@ -1530,7 +1530,7 @@ contains
     ! Brillouin zone sampling
     if (this%tPeriodic .or. this%tHelical) then
       if (input%ctrl%poorKSampling) then
-        call warning("The suplied k-points are probably not accurate for properties requiring&
+        call warning(env%stdOut, "The suplied k-points are probably not accurate for properties requiring&
             & integration over the Brillouin zone")
       end if
       this%nKPoint = input%ctrl%nKPoint
@@ -1545,7 +1545,7 @@ contains
       if (this%tHelical) then
         if (any(abs(this%kPoint(2,:) * nint(this%latVec(3,1)) - nint(this%kPoint(2,:) *&
             & nint(this%latVec(3,1)))) > input%ctrl%helicalSymTol)) then
-          call warning("Specified k-value(s) incommensurate with C_n symmetry operation.")
+          call warning(env%stdOut, "Specified k-value(s) incommensurate with C_n symmetry operation.")
         end if
       end if
     else
@@ -1568,7 +1568,7 @@ contains
   #:if WITH_MPI
     if (input%ctrl%parallelOpts%nGroup > this%nIndepSpin * this%nKPoint&
         & .and. (.not. (this%isHybridXc .and. (.not. this%tRealHS)))) then
-      write(stdOut, *) "Parallel groups only relevant for tasks split over sufficient spins and/or&
+      write(env%stdOut, *) "Parallel groups only relevant for tasks split over sufficient spins and/or&
           & k-points"
       write(tmpStr,"('Nr. groups:',I4,', Nr. indepdendent spins times k-points:',I4)")&
           & input%ctrl%parallelOpts%nGroup, this%nIndepSpin * this%nKPoint
@@ -1622,7 +1622,7 @@ contains
         & errStatus)
     if (errStatus%hasError()) then
       if (errStatus%code == -1) then
-        call warning("Insufficient atoms for this number of MPI processors")
+        call warning(env%stdOut, "Insufficient atoms for this number of MPI processors")
       end if
       call error(errStatus%message)
     end if
@@ -1762,8 +1762,8 @@ contains
     call initElectronFilling_(input, this%nSpin, this%Ef, this%iDistribFn, this%tempElec,&
         & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
-        & this%nIndepSpin, this%tempElec, input%ctrl%isASICallbackEnabled)
+    call ensureSolverCompatibility(env, input%ctrl%solver%iSolver, this%kPoint,&
+        & input%ctrl%parallelOpts, this%nIndepSpin, this%tempElec, input%ctrl%isASICallbackEnabled)
     nBufferedCholesky = countBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver, nBufferedCholesky)
 
@@ -1781,7 +1781,7 @@ contains
         & .and. .not. (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport&
         & .and. .not. this%tSccCalc)
     if (this%tUpload) then
-      call initUploadArrays_(input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
+      call initUploadArrays_(env, input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
           & this%shiftPerLUp, this%chargeUp, this%blockUp)
       if (input%transpar%ncont < 1) then
         call error("At least one contact is required for an UploadContacts task")
@@ -1894,7 +1894,8 @@ contains
         call error("Halogen correction only fitted for 3rd order models")
       end if
       if (this%tPeriodic) then
-        call warning("Halogen correction was not fitted for periodic systems in original paper")
+        call warning(env%stdOut, "Halogen correction was not fitted for periodic systems in&
+            & original paper")
       end if
       allocate(this%halogenXCorrection)
       call THalogenX_init(this%halogenXCorrection, this%species0, this%speciesName)
@@ -2186,7 +2187,7 @@ contains
       end if
 
       allocate(this%filter)
-      call TFilter_init(this%filter, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
+      call TFilter_init(this%filter, env%stdOut, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
       call createOptimizer(input%ctrl%geoOpt%optimiser, this%filter%getDimension(), this%geoOpt)
       this%optTol = input%ctrl%geoOpt%tolerance
       allocate(this%gcurr(this%filter%getDimension()))
@@ -2389,10 +2390,10 @@ contains
           end if
           call TDispMbd_init(mbd, inp, input%geom, isPostHoc=.true.)
         end associate
-        call mbd%checkError()
+        call mbd%checkError(env)
         call move_alloc(mbd, this%dispersion)
         if (input%ctrl%dispInp%mbd%method == 'ts' .and. this%tForces) then
-          call warning("Forces for the TS-dispersion model are calculated by finite differences&
+          call warning(env%stdOut, "Forces for the TS-dispersion model are calculated by finite differences&
               & which may result in long gradient calculation times for large systems")
         end if
     #:endif
@@ -2451,7 +2452,7 @@ contains
       areNeighboursSymmetric = areNeighboursSymmetric .or. this%areSolventNeighboursSym
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%solvation%getRCutOff())
 
-      call init_TScaleExtEField(this%eFieldScaling, this%solvation,&
+      call init_TScaleExtEField(this%eFieldScaling, env%stdOut, this%solvation,&
           & input%ctrl%isSolvatedFieldRescaled)
 
       if (allocated(this%eField)) then
@@ -2479,11 +2480,11 @@ contains
         logical :: isDipoleDefined
         isDipoleDefined = .true.
         if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
-          call warning("Dipole printed for a charged system : origin dependent quantity")
+          call warning(env%stdOut, "Dipole printed for a charged system : origin dependent quantity")
           isDipoleDefined = .false.
         end if
         if (this%tPeriodic .or. this%tHelical) then
-          call warning("Dipole printed for extended system : value printed is not well defined")
+          call warning(env%stdOut, "Dipole printed for extended system : value printed is not well defined")
           isDipoleDefined = .false.
         end if
         if (.not. isDipoleDefined) then
@@ -2589,8 +2590,8 @@ contains
           call error("Coordinate derivative perturbations do not yet work with hybrid functionals")
         end if
         if (this%tempElec > minTemp) then
-          call warning("Fractional occupation is not yet supported for coordinate derivative&
-              & perturbations, so may halt with finite temperatures")
+          call warning(env%stdOut, "Fractional occupation is not yet supported for coordinate&
+              & derivative perturbations, so may halt with finite temperatures")
         end if
         if (this%nSpin > 1) then
           call error("Spin polarised calculations are not yet supported for coordinate derivative&
@@ -2655,8 +2656,8 @@ contains
         if (this%boundaryCond%iBoundaryCondition == boundaryCondsEnum%cluster) then
           allocate(this%polarisability(3, 3, size(this%dynRespEFreq)), source=0.0_dp)
         else
-          call warning("Electric field polarisability not currently available for this boundary&
-              & condition")
+          call warning(env%stdOut, "Electric field polarisability not currently available for this&
+              & boundary condition")
         end if
         if (input%ctrl%tWriteBandDat) then
           ! only one frequency at the moment if dynamic!
@@ -2687,7 +2688,7 @@ contains
       end if
       isOnsiteCorrected = allocated(this%onSiteElements)
 
-      call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
+      call ensureLinRespConditions(env%stdOut, this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isHybLinResp, this%nSpin,&
           & this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
           & isOnsiteCorrected, input)
@@ -2732,7 +2733,7 @@ contains
             & corrections")
       end if
 
-      call LinResp_init(this%linearResponse, input%ctrl%lrespini, this%nAtom, this%nEl(1),&
+      call LinResp_init(this%linearResponse, env, input%ctrl%lrespini, this%nAtom, this%nEl(1),&
           & this%nSpin, this%onSiteElements, isIoProc)
 
     end if
@@ -2741,7 +2742,7 @@ contains
     if (allocated(input%ctrl%ppRPA)) then
 
       if (abs(input%ctrl%nrChrg - 2.0_dp) > elecTolMax) then
-        call warning("Particle-particle RPA should be for a reference system with a charge of +2.")
+        call warning(env%stdOut, "Particle-particle RPA should be for a reference system with a charge of +2.")
       end if
 
     #:for VAR, ERR in [("this%tSpinOrbit","spin orbit coupling"), &
@@ -2774,9 +2775,9 @@ contains
     #:endif
 
       if (this%geometryChanges%isGeoOpt .or. this%geometryChanges%tMd .or. this%tSocket) then
-        call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
-            & the (N-2) electron ground state system do not match the targeted system for the&
-            & excited states")
+        call warning (env%stdOut, "Geometry optimisation with ppRPA is probably not what you want -&
+            & forces in the (N-2) electron ground state system do not match the targeted system for&
+            & the excited states")
       end if
 
       call move_alloc(input%ctrl%ppRPA, this%ppRPA)
@@ -2857,7 +2858,7 @@ contains
         call error("XLBOMD does not work with solvation models yet!")
       end if
       allocate(this%xlbomdIntegrator)
-      call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
+      call Xlbomd_init(this%xlbomdIntegrator, env, input%ctrl%xlbomd, this%nIneqOrb)
     end if
 
     this%minSccIter = getMinSccIters(this%tSccCalc, allocated(this%dftbU), this%nSpin)
@@ -2956,7 +2957,7 @@ contains
 
     end if
 
-    call this%initializeCharges(errStatus, initialSpins=input%ctrl%initialSpins,&
+    call this%initializeCharges(env, errStatus, initialSpins=input%ctrl%initialSpins,&
         & initialCharges=input%ctrl%initialCharges, hybridXcAlg=this%hybridXcAlg)
     if (errStatus%hasError()) call error(errStatus%message)
 
@@ -3158,9 +3159,10 @@ contains
       if (allocated(input%ctrl%atomicExtPotential)) then
         if (allocated(input%ctrl%atomicExtPotential%iAtOnSite)) then
           if (any(input%ctrl%atomicExtPotential%iAtOnSite > size(this%iAtInCentralRegion))) then
-            call warning("Some net potential atoms outside the range of atoms in device region.")
-            call warning("Chopping net potential atoms to fit within the range of atoms in central&
+            call warning(env%stdOut, "Some net potential atoms outside the range of atoms in device&
                 & region.")
+            call warning(env%stdOut, "Chopping net potential atoms to fit within the range of atoms&
+                & in central region.")
 
             allocate(iAtTmp(size(this%iAtInCentralRegion)))
             allocate(VextTmp(size(this%iAtInCentralRegion)))
@@ -3185,9 +3187,10 @@ contains
         end if
         if (allocated(input%ctrl%atomicExtPotential%iAt)) then
           if (any(input%ctrl%atomicExtPotential%iAt > size(this%iAtInCentralRegion))) then
-            call warning("Some gross potential atoms outside the range of atoms in device regoin.")
-            call warning("Chopping gross potential atoms to fit within the range of atoms in&
-                & central region.")
+            call warning(env%stdOut, "Some gross potential atoms outside the range of atoms in&
+                & device region.")
+            call warning(env%stdOut, "Chopping gross potential atoms to fit within the range of&
+                & atoms in central region.")
             allocate(iAtTmp(size(this%iAtInCentralRegion)))
             allocate(VextTmp(size(this%iAtInCentralRegion)))
             iCount = 0
@@ -3378,71 +3381,71 @@ contains
 
   #:if WITH_MPI
     if (env%mpi%nGroup > 1) then
-      write(stdOut, "('MPI processes: ',T30,I0,' (split into ',I0,' groups)')")&
+      write(env%stdOut, "('MPI processes: ',T30,I0,' (split into ',I0,' groups)')")&
           & env%mpi%globalComm%size, env%mpi%nGroup
     else
-      write(stdOut, "('MPI processes:',T30,I0)") env%mpi%globalComm%size
+      write(env%stdOut, "('MPI processes:',T30,I0)") env%mpi%globalComm%size
     end if
   #:endif
 
   #:if WITH_OMP
-    write(stdOut, "('OpenMP threads: ', T30, I0)") omp_get_max_threads()
+    write(env%stdOut, "('OpenMP threads: ', T30, I0)") omp_get_max_threads()
   #:endif
 
   #:if WITH_MPI and WITH_OMP
     if (omp_get_max_threads() > 1 .and. .not. input%ctrl%parallelOpts%tOmpThreads) then
-      write(stdOut, *)
+      write(env%stdOut, *)
       call error("You must explicitely enable OpenMP threads (UseOmpThreads = Yes) if you wish to&
           & run an MPI-parallelised binary with OpenMP threads. If not, make sure that the&
           & environment variable OMP_NUM_THREADS is set to 1.")
-      write(stdOut, *)
+      write(env%stdOut, *)
     end if
   #:endif
 
   #:if WITH_SCALAPACK
     if (.not. (this%isHybridXc .and. this%tRealHS .and. this%tPeriodic)) then
-      write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)")env%blacs%orbitalGrid%nRow,&
+      write(env%stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)")env%blacs%orbitalGrid%nRow,&
           & env%blacs%orbitalGrid%nCol
-      write(stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)")env%blacs%atomGrid%nRow,&
+      write(env%stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)")env%blacs%atomGrid%nRow,&
           & env%blacs%atomGrid%nCol
     end if
   #:endif
 
     if (tRandomSeed) then
-      write(stdOut, "(A,':',T30,I0)") "Chosen random seed", iSeed
+      write(env%stdOut, "(A,':',T30,I0)") "Chosen random seed", iSeed
     else
-      write(stdOut, "(A,':',T30,I0)") "Specified random seed", iSeed
+      write(env%stdOut, "(A,':',T30,I0)") "Specified random seed", iSeed
     end if
 
-    call checkStackSize(env)
+    call checkStackSize(env%stdOut)
 
     if (input%ctrl%tMd) then
       select case(input%ctrl%thermostatInp%thermostatType)
       case (thermostatTypes%none)
         if (this%geometryChanges%tBarostat) then
-          write(stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of velocities',&
+          write(env%stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of velocities',&
               & '(a.k.a. "NPE" ensemble)'
         else
-          write(stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of velocities',&
+          write(env%stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of velocities',&
               & '(a.k.a. NVE ensemble)'
         end if
       case (thermostatTypes%andersen)
         if (this%geometryChanges%tBarostat) then
-          write(stdOut, "('Mode:',T30,A,/,T30,A)")&
+          write(env%stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with re-selection of velocities according to temperature",&
               & "(a.k.a. NPT ensemble using Andersen thermostating + Berensen barostat)"
         else
-          write(stdOut, "('Mode:',T30,A,/,T30,A)")&
+          write(env%stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with re-selection of velocities according to temperature",&
               & "(a.k.a. NVT ensemble using Andersen thermostating)"
         end if
       case(thermostatTypes%berendsen)
         if (this%geometryChanges%tBarostat) then
-          write(stdOut, "('Mode:',T30,A,/,T30,A)")&
+          write(env%stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with scaling of velocities according to temperature",&
               & "(a.k.a. 'not' NVP ensemble using Berendsen thermostating and barostat)"
         else
-          write(stdOut, "('Mode:',T30,A,/,T30,A)")&
+          write(env%stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with scaling of velocities according to temperature",&
               & "(a.k.a. 'not' NVT ensemble using Berendsen thermostating)"
         end if
@@ -3456,10 +3459,10 @@ contains
         end if
       case(thermostatTypes%nhc)
         if (this%geometryChanges%tBarostat) then
-          write(stdOut, "('Mode:',T30,A,/,T30,A)")"MD with scaling of velocities according to",&
+          write(env%stdOut, "('Mode:',T30,A,/,T30,A)")"MD with scaling of velocities according to",&
               & "Nose-Hoover-Chain thermostat + Berensen barostat"
         else
-          write(stdOut, "('Mode:',T30,A,/,T30,A)")"MD with scaling of velocities according to",&
+          write(env%stdOut, "('Mode:',T30,A,/,T30,A)")"MD with scaling of velocities according to",&
               & "Nose-Hoover-Chain thermostat"
         end if
 
@@ -3477,80 +3480,80 @@ contains
       tGeoOptRequiresEgy = .true.
       select case (input%ctrl%iGeoOpt)
       case (geoOptTypes%steepestDesc)
-        write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
+        write(env%stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
       case (geoOptTypes%conjugateGrad)
-        write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
+        write(env%stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
       case (geoOptTypes%diis)
-        write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
+        write(env%stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
         tGeoOptRequiresEgy = .false.
       case (geoOptTypes%lbfgs)
-        write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
+        write(env%stdOut, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case (geoOptTypes%fire)
-        write(stdout, "('Mode:',T30,A)") 'FIRE relaxation' // trim(strTmp)
+        write(env%stdOut, "('Mode:',T30,A)") 'FIRE relaxation' // trim(strTmp)
         tGeoOptRequiresEgy = .false.
       case (geoOptTypes%geometryoptimisation)
-        write(stdout, "('Mode:',T30,A)") 'Geometry optimisation relaxation'
+        write(env%stdout, "('Mode:',T30,A)") 'Geometry optimisation relaxation'
       case default
         call error("Unknown optimisation mode")
       end select
       if (tGeoOptRequiresEgy .neqv. this%electronicSolver%providesFreeEnergy) then
-        call warning("This geometry optimisation method requires force related energies for&
+        call warning(env%stdOut, "This geometry optimisation method requires force related energies for&
             & accurate minimisation.")
       end if
     elseif (this%geometryChanges%tDerivs) then
-      write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
-      write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
-      write(stdOut, *) this%indDerivAtom
+      write(env%stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
+      write(env%stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
+      write(env%stdOut, *) this%indDerivAtom
       if (size(this%indDerivAtom) > size(this%indMovedAtom)) then
-        write(stdOut, "('Mode:',T30,A)") "Moved atoms:"
-        write(stdOut, *) this%indMovedAtom
+        write(env%stdOut, "('Mode:',T30,A)") "Moved atoms:"
+        write(env%stdOut, *) this%indMovedAtom
       end if
     elseif (this%tSocket) then
-      write(stdOut, "('Mode:',T30,A)") "Socket controlled calculation"
+      write(env%stdOut, "('Mode:',T30,A)") "Socket controlled calculation"
     else
-      write(stdOut, "('Mode:',T30,A)") "Static calculation"
+      write(env%stdOut, "('Mode:',T30,A)") "Static calculation"
     end if
 
     if (this%tSccCalc) then
       if (.not. this%tRestartNoSC) then
-        write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
-        write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", this%sccTol
-        write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", this%maxSccIter
+        write(env%stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
+        write(env%stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", this%sccTol
+        write(env%stdOut, "(A,':',T30,I14)") "Max. scc iterations", this%maxSccIter
       end if
       !if (this%tPeriodic) then
-      !  write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", this%scc%getEwaldPar()
+      !  write(env%stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", this%scc%getEwaldPar()
       !end if
       if (this%isMdftb) then
-        write(stdOut, "(A,':',T30,A)") "Multipole expansion", "Yes"
+        write(env%stdOut, "(A,':',T30,A)") "Multipole expansion", "Yes"
       end if
       if (input%ctrl%tShellResolved) then
-         write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
+         write(env%stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
-         write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
+         write(env%stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
       end if
       if (allocated(this%dftbU)) then
-        write(stdOut, "(A,':',T35,A)")"Orbitally dependant functional", "Yes"
-        write(stdOut, "(A,':',T30,A)")"Orbital functional", this%dftbU%funcName()
+        write(env%stdOut, "(A,':',T35,A)")"Orbitally dependant functional", "Yes"
+        write(env%stdOut, "(A,':',T30,A)")"Orbital functional", this%dftbU%funcName()
       end if
       if (allocated(this%onSiteElements)) then
-        write(stdOut, "(A,':',T35,A)")"On-site corrections", "Yes"
+        write(env%stdOut, "(A,':',T35,A)")"On-site corrections", "Yes"
       end if
     else
-      write(stdOut, "(A,':',T30,A)") "Self consistent charges", "No"
+      write(env%stdOut, "(A,':',T30,A)") "Self consistent charges", "No"
     end if
 
     if (allocated(this%reks)) then
-      write(stdOut, "(A,':',T30,A)") "Spin polarisation", "No"
-      write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
+      write(env%stdOut, "(A,':',T30,A)") "Spin polarisation", "No"
+      write(env%stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
           & 0.5_dp*this%nEl(1), "Nr. of down electrons", 0.5_dp*this%nEl(1)
     else
       select case (this%nSpin)
       case(1)
-        write(stdOut, "(A,':',T30,A)") "Spin polarisation", "No"
+        write(env%stdOut, "(A,':',T30,A)") "Spin polarisation", "No"
       case(2)
-        write(stdOut, "(A,':',T30,A)") "Spin polarisation", "Yes"
+        write(env%stdOut, "(A,':',T30,A)") "Spin polarisation", "Yes"
       case(4)
-        write(stdOut, "(A,':',T30,A)") "Non-collinear calculation", "Yes"
+        write(env%stdOut, "(A,':',T30,A)") "Non-collinear calculation", "Yes"
       end select
       if (any(this%electronicSolver%iSolver ==&
           & [electronicSolverTypes%GF,electronicSolverTypes%onlyTransport]) .or. this%tFixEf) then
@@ -3558,44 +3561,44 @@ contains
       else
         select case (this%nSpin)
         case(1)
-          write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
+          write(env%stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
               & 0.5_dp*this%nEl(1), "Nr. of down electrons", 0.5_dp*this%nEl(1)
         case(2)
           if (this%tSpinSharedEf) then
-            write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Initial nr. of up electrons",&
+            write(env%stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Initial nr. of up electrons",&
                 & this%nEl(1), "Initial Nr. of down electrons", this%nEl(2)
           else
-            write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
+            write(env%stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
                 & this%nEl(1), "Nr. of down electrons", this%nEl(2)
           end if
         case(4)
-          write(stdOut, "(A,':',T30,F12.6)") "Nr. of electrons", this%nEl(1)
+          write(env%stdOut, "(A,':',T30,F12.6)") "Nr. of electrons", this%nEl(1)
         end select
       end if
     end if
 
     if (this%tPeriodic) then
-      write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "Yes"
+      write(env%stdOut, "(A,':',T30,A)") "Periodic boundaries", "Yes"
       if (this%geometryChanges%tLatOpt) then
-        write(stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
-        write(stdOut, "(A,':',T30,f12.6)") "Pressure", this%extPressure
+        write(env%stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
+        write(env%stdOut, "(A,':',T30,f12.6)") "Pressure", this%extPressure
       end if
     else if (this%tHelical) then
-      write (stdOut, "(A,':',T30,A)") "Helical boundaries", "Yes"
+      write (env%stdOut, "(A,':',T30,A)") "Helical boundaries", "Yes"
       if (this%geometryChanges%tLatOpt) then
-        write (stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
+        write (env%stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
       end if
     else
-      write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "No"
+      write(env%stdOut, "(A,':',T30,A)") "Periodic boundaries", "No"
     end if
 
     if (.not.this%tRestartNoSC) then
-      write(stdOut, "(A,':',T30,A)") "Electronic solver", this%electronicSolver%getSolverName()
+      write(env%stdOut, "(A,':',T30,A)") "Electronic solver", this%electronicSolver%getSolverName()
     end if
 
     if (this%electronicSolver%iSolver == electronicSolverTypes%magmaGvd) then
       #:if WITH_MAGMA
-        call env%initGpu()
+        call env%initGpu(env%stdOut)
       #:else
         call error("Magma-solver selected, but program was compiled without MAGMA")
       #:endif
@@ -3606,9 +3609,9 @@ contains
       case (linrespSolverTypes%None)
         call error("Casida solver has not been selected")
       case (linrespSolverTypes%Arpack)
-        write(stdOut, "(A,':',T30,A)") "Casida solver", "Arpack"
+        write(env%stdOut, "(A,':',T30,A)") "Casida solver", "Arpack"
       case (linrespSolverTypes%Stratmann)
-        write(stdOut, "(A,':',T30,A,i4)") "Casida solver", "Stratmann, SubSpace: ",&
+        write(env%stdOut, "(A,':',T30,A,i4)") "Casida solver", "Stratmann, SubSpace: ",&
             & input%ctrl%lrespini%subSpaceFactorStratmann
       case default
         call error("Unknown Casida solver")
@@ -3619,42 +3622,42 @@ contains
       if (.not. allocated(this%reks)) then
         associate (inp => input%ctrl%mixerInp)
           if (allocated(inp%simpleMixerInp)) then
-              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Simple", "mixer"
-              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%simpleMixerInp%mixParam
+              write(env%stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Simple", "mixer"
+              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%simpleMixerInp%mixParam
             else if (allocated(inp%andersonMixerInp)) then
-              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Anderson", "mixer"
-              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%andersonMixerInp%mixParam
-              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix",&
+              write(env%stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Anderson", "mixer"
+              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%andersonMixerInp%mixParam
+              write(env%stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix",&
                   & inp%andersonMixerInp%iGenerations
             else if (allocated(inp%broydenMixerInp)) then
-              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Broyden", "mixer"
-              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%broydenMixerInp%mixParam
-              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
+              write(env%stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Broyden", "mixer"
+              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%broydenMixerInp%mixParam
+              write(env%stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
             else if (allocated(inp%diisMixerInp)) then
-              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "DIIS", "mixer"
-              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%diisMixerInp%initMixParam
-              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix",&
+              write(env%stdOut, "(A,':',T30,A,' ',A)") "Mixer", "DIIS", "mixer"
+              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%diisMixerInp%initMixParam
+              write(env%stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix",&
                   & inp%diisMixerInp%iGenerations
           end if
         end associate
       end if
-      write(stdOut, "(A,':',T30,I14)") "Max. SCC-cycles", this%maxSccIter
+      write(env%stdOut, "(A,':',T30,I14)") "Max. SCC-cycles", this%maxSccIter
     end if
 
     if (this%geometryChanges%tCoordOpt) then
-      write(stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", this%nMovedAtom
+      write(env%stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", this%nMovedAtom
     end if
     if (this%geometryChanges%isGeoOpt .or. allocated(this%geoOpt)) then
       if (this%nGeoSteps == hugeIterations) then
-        write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", -1
+        write(env%stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", -1
       else
-        write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps
+        write(env%stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps
       end if
     end if
     if (this%geometryChanges%isGeoOpt) then
-      write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
+      write(env%stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
       if (input%ctrl%iGeoOpt == geoOptTypes%steepestDesc) then
-        write(stdOut, "(A,':',T30,E14.6)") "Step size", this%deltaT
+        write(env%stdOut, "(A,':',T30,E14.6)") "Step size", this%deltaT
       end if
     end if
 
@@ -3669,7 +3672,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(stdOut, "(A,T30,'At',I4,': ',3F10.6)") trim(strTmp), ii, (this%conVec(kk,jj),&
+            write(env%stdOut, "(A,T30,'At',I4,': ',3F10.6)") trim(strTmp), ii, (this%conVec(kk,jj),&
                 & kk=1,3)
           end if
         end do
@@ -3677,23 +3680,23 @@ contains
     end if
 
     if (allocated(this%tblite)) then
-      call writeTBLiteInfo(stdOut, this%tblite)
+      call writeTBLiteInfo(env%stdOut, this%tblite)
     end if
 
     if (.not. allocated(this%reks) .and. .not.this%tRestartNoSC) then
       if (.not.input%ctrl%tSetFillingTemp) then
-        write(stdOut, format2Ue) "Electronic temperature", this%tempElec, 'H',&
+        write(env%stdOut, format2Ue) "Electronic temperature", this%tempElec, 'H',&
             & Hartree__eV * this%tempElec, 'eV'
       end if
     end if
     if (this%geometryChanges%tMd) then
-      write(stdOut, "(A,':',T30,E14.6)") "Time step", this%deltaT
+      write(env%stdOut, "(A,':',T30,E14.6)") "Time step", this%deltaT
       if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%none&
           & .and. .not.input%ctrl%tReadMDVelocities) then
-        write(stdOut, "(A,':',T30,E14.6)") "Temperature", input%ctrl%tempProfileInp%tempValues(1)
+        write(env%stdOut, "(A,':',T30,E14.6)") "Temperature", input%ctrl%tempProfileInp%tempValues(1)
       end if
       if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%andersen) then
-        write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability",&
+        write(env%stdOut, "(A,':',T30,E14.6)") "Rescaling probability",&
             & input%ctrl%thermostatInp%andersen%rescaleProb
       end if
     end if
@@ -3704,7 +3707,7 @@ contains
       else
         write (strTmp, "(A,E11.3,A)") "Set automatically (system chrg: ", input%ctrl%nrChrg, ")"
       end if
-      write(stdOut, "(A,':',T30,A)") "Initial charges", trim(strTmp)
+      write(env%stdOut, "(A,':',T30,A)") "Initial charges", trim(strTmp)
     end if
 
     do iSp = 1, this%nType
@@ -3721,13 +3724,13 @@ contains
           strTmp2 = trim(strTmp2) // ", " // trim(shellNamesTmp(jj))
         end if
       end do
-      write(stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(this%speciesName(iSp)), trim(strTmp2)
+      write(env%stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(this%speciesName(iSp)), trim(strTmp2)
       deallocate(shellNamesTmp)
     end do
 
     if (this%tMulliken) then
       if (allocated(input%ctrl%customOccAtoms)) then
-        call printCustomReferenceOccupations(this%orb, input%geom%species, &
+        call printCustomReferenceOccupations(env%stdOut, this%orb, input%geom%species, &
             & input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
       end if
     end if
@@ -3739,20 +3742,20 @@ contains
         else
           write(strTmp, "(A)") ""
         end if
-        write(stdOut, "(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii,&
+        write(env%stdOut, "(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii,&
             & (this%kPoint(jj, ii), jj=1, 3), this%kWeight(ii)
       end do
-      write(stdout,*)
+      write(env%stdOut,*)
       do ii = 1, this%nKPoint
         if (ii == 1) then
           write(strTmp, "(A,':')") "K-points in absolute space"
         else
           write(strTmp, "(A)") ""
         end if
-        write(stdout, "(A,T28,I6,':',3F10.6)") trim(strTmp), ii,&
+        write(env%stdOut, "(A,T28,I6,':',3F10.6)") trim(strTmp), ii,&
             & matmul(this%invLatVec,this%kPoint(:,ii))
       end do
-      write(stdout, *)
+      write(env%stdOut, *)
     end if
 
     if (this%tHelical) then
@@ -3762,7 +3765,7 @@ contains
         else
           write(strTmp, "(A)") ""
         end if
-        write(stdOut,"(A,T28,I6,':',2F10.6,3X,F10.6)") trim(strTmp), ii, this%kPoint(:, ii),&
+        write(env%stdOut,"(A,T28,I6,':',2F10.6,3X,F10.6)") trim(strTmp), ii, this%kPoint(:, ii),&
             & this%kWeight(ii)
       end do
     end if
@@ -3770,18 +3773,18 @@ contains
     if (allocated(this%dispersion)) then
       select type (o=>this%dispersion)
       type is (TDispSlaKirk)
-        write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
+        write(env%stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
       type is (TDispUff)
-        write(stdOut, "(A)") "Using Lennard-Jones dispersion corrections"
+        write(env%stdOut, "(A)") "Using Lennard-Jones dispersion corrections"
       type is (TSDFTD3)
-        call writeSDFTD3Info(stdout, o)
+        call writeSDFTD3Info(env%stdOut, o)
       type is (TSimpleDftD3)
-        write(stdOut, "(A)") "Using simple DFT-D3 dispersion corrections"
+        write(env%stdOut, "(A)") "Using simple DFT-D3 dispersion corrections"
       type is (TDispDftD4)
-        call writeDftD4Info(stdOut, o)
+        call writeDftD4Info(env%stdOut, o)
     #:if WITH_MBD
       type is (TDispMbd)
-        call writeMbdInfo(input%ctrl%dispInp%mbd)
+        call writeMbdInfo(env%stdOut, input%ctrl%dispInp%mbd)
     #:endif
       class default
         call error("Unknown dispersion model - this should not happen!")
@@ -3789,11 +3792,11 @@ contains
     end if
 
     if (allocated(this%solvation)) then
-      call writeSolvationInfo(stdOut, this%solvation)
+      call writeSolvationInfo(env%stdOut, this%solvation)
       if (this%eFieldScaling%isRescaled) then
-        write(stdOut, "(A,':',T30,A)")"Solvated fields rescaled", "Yes"
+        write(env%stdOut, "(A,':',T30,A)")"Solvated fields rescaled", "Yes"
       else
-        write(stdOut, "(A,':',T30,A)")"Solvated fields rescaled", "No"
+        write(env%stdOut, "(A,':',T30,A)")"Solvated fields rescaled", "No"
       end if
     end if
 
@@ -3813,7 +3816,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp),&
+            write(env%stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp),&
                 & this%speciesName(iSp), jj, shellNames(this%orb%angShell(jj, iSp)+1),&
                 & hubbU(jj, iSp)
           end do
@@ -3833,12 +3836,12 @@ contains
               write(strTmp, "(A)") ""
             end if
             if (allocated(this%reks)) then
-              write(stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
+              write(env%stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
                   & this%speciesName(iSp), jj, shellNames(this%orb%angShell(jj, iSp)+1), kk,&
                   & shellNames(this%orb%angShell(kk, iSp)+1), this%spinW(kk, jj, iSp) /&
                   & this%reks%Tuning(iSp)
             else
-              write(stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
+              write(env%stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
                   & this%speciesName(iSp), jj, shellNames(this%orb%angShell(jj, iSp)+1), kk,&
                   & shellNames(this%orb%angShell(kk, iSp)+1), this%spinW(kk, jj, iSp)
             end if
@@ -3850,7 +3853,7 @@ contains
     tFirst = .true.
     if (this%tSpinOrbit) then
       if (this%tDualSpinOrbit) then
-        write(stdOut, "(A)")"Dual representation spin orbit"
+        write(env%stdOut, "(A)")"Dual representation spin orbit"
       end if
       do iSp = 1, this%nType
         do jj = 1, this%orb%nShell(iSp)
@@ -3860,7 +3863,7 @@ contains
           else
             write(strTmp, "(A)") ""
           end if
-          write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)")trim(strTmp), this%speciesName(iSp),&
+          write(env%stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)")trim(strTmp), this%speciesName(iSp),&
                 & jj, shellNames(this%orb%angShell(jj, iSp)+1), this%xi(jj, iSp)
           if (this%xi(jj, iSp) /= 0.0_dp .and. this%orb%angShell(jj, iSp) == 0) then
             call error("Program halt due to non-zero s-orbital spin-orbit coupling constant!")
@@ -3871,149 +3874,149 @@ contains
 
     if (this%tSccCalc) then
       if (this%t3rdFull) then
-        write(stdOut, "(A,T30,A)") "Full 3rd order correction", "Yes"
+        write(env%stdOut, "(A,T30,A)") "Full 3rd order correction", "Yes"
         if (input%ctrl%tShellResolved) then
-          write(stdOut, "(A,T30,A)") "Shell-resolved 3rd order", "Yes"
-          write(stdOut, "(A30)") "Shell-resolved Hubbard derivs:"
-          write(stdOut, "(A)") "        s-shell   p-shell   d-shell   f-shell"
+          write(env%stdOut, "(A,T30,A)") "Shell-resolved 3rd order", "Yes"
+          write(env%stdOut, "(A30)") "Shell-resolved Hubbard derivs:"
+          write(env%stdOut, "(A)") "        s-shell   p-shell   d-shell   f-shell"
           do iSp = 1, this%nType
-            write(stdOut, "(A3,A3,4F10.4)") "  ", trim(this%speciesName(iSp)),&
+            write(env%stdOut, "(A3,A3,4F10.4)") "  ", trim(this%speciesName(iSp)),&
                 & input%ctrl%hubDerivs(:this%orb%nShell(iSp),iSp)
           end do
         end if
       end if
       if (allocated(this%scc)) then
         if (any(shortGammaDamp%isDamped)) then
-          write(stdOut, "(A,T30,A)") "Damped SCC", "Yes"
+          write(env%stdOut, "(A,T30,A)") "Damped SCC", "Yes"
           ii = count(shortGammaDamp%isDamped)
           write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
-          write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName,&
+          write(env%stdOut, strTmp) "Damped species(s):", pack(this%speciesName,&
               & shortGammaDamp%isDamped)
         end if
       end if
 
       if (allocated(input%ctrl%h5Input)) then
-        write(stdOut, "(A,T30,A)") "H-bond correction:", "H5"
+        write(env%stdOut, "(A,T30,A)") "H-bond correction:", "H5"
       end if
       if (tHHRepulsion) then
-        write(stdOut, "(A,T30,A)") "H-H repulsion correction:", "H5"
+        write(env%stdOut, "(A,T30,A)") "H-H repulsion correction:", "H5"
       end if
     end if
 
     if (this%isHybridXc) then
       if (input%ctrl%hybridXcInp%hybridXcType == hybridXcFunc%hyb) then
-        write(stdOut, "(A,':',T30,A)") "Global hybrid", "Yes"
-        write(stdOut, "(2X,A,':',T30,E14.6)") "Fraction of exchange",&
+        write(env%stdOut, "(A,':',T30,A)") "Global hybrid", "Yes"
+        write(env%stdOut, "(2X,A,':',T30,E14.6)") "Fraction of exchange",&
             & input%ctrl%hybridXcInp%camAlpha
       elseif (input%ctrl%hybridXcInp%hybridXcType == hybridXcFunc%lc) then
-        write(stdOut, "(A,':',T30,A)") "Long-range corrected hybrid", "Yes"
-        write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
+        write(env%stdOut, "(A,':',T30,A)") "Long-range corrected hybrid", "Yes"
+        write(env%stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
             & input%ctrl%hybridXcInp%omega
       elseif (input%ctrl%hybridXcInp%hybridXcType == hybridXcFunc%cam) then
-        write(stdOut, "(A,':',T30,A)") "CAM range-separated hybrid", "Yes"
-        write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
+        write(env%stdOut, "(A,':',T30,A)") "CAM range-separated hybrid", "Yes"
+        write(env%stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
             & input%ctrl%hybridXcInp%omega
-        write(stdOut, "(2X,A,':',T30,E14.6,E14.6)") "CAM parameters alpha/beta",&
+        write(env%stdOut, "(2X,A,':',T30,E14.6,E14.6)") "CAM parameters alpha/beta",&
             & input%ctrl%hybridXcInp%camAlpha, input%ctrl%hybridXcInp%camBeta
       end if
       if (this%tPeriodic) then
         if (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%full) then
-          write(stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "full"
+          write(env%stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "full"
         elseif (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%mic) then
-          write(stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "minimum image convention"
-          write(stdOut, "(2X,A,':',T30,2X,I0,A)") "Wigner-Seitz cell reduction",&
+          write(env%stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "minimum image convention"
+          write(env%stdOut, "(2X,A,':',T30,2X,I0,A)") "Wigner-Seitz cell reduction",&
               & this%cutOff%wignerSeitzReduction, " primitive cell(s)"
         elseif (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%truncated) then
-          write(stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "truncated"
+          write(env%stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "truncated"
         elseif (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%truncatedAndDamped) then
-          write(stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "truncated+poly5zero"
+          write(env%stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "truncated+poly5zero"
         end if
         if (input%ctrl%hybridXcInp%gammaType /= hybridXcGammaTypes%mic) then
-          write(stdOut, "(2X,A,':',T30,E14.6,A)") "G-Summation Cutoff",&
+          write(env%stdOut, "(2X,A,':',T30,E14.6,A)") "G-Summation Cutoff",&
               & this%cutOff%gSummationCutoff, " Bohr"
         end if
         if (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%truncated&
             & .or. input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%truncatedAndDamped) then
-          write(stdOut, "(2X,A,':',T30,E14.6,A)") "Coulomb Truncation",&
+          write(env%stdOut, "(2X,A,':',T30,E14.6,A)") "Coulomb Truncation",&
               & this%cutOff%gammaCutoff, " Bohr"
         end if
       end if
 
       select case(input%ctrl%hybridXcInp%hybridXcAlg)
       case (hybridXcAlgo%neighbourBased)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "NeighbourBased"
-        write(stdOut, "(2X,A,':',T30,E14.6,A)") "Reduce neighlist cutoff by",&
+        write(env%stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "NeighbourBased"
+        write(env%stdOut, "(2X,A,':',T30,E14.6,A)") "Reduce neighlist cutoff by",&
             & input%ctrl%hybridXcInp%cutoffRed * Bohr__AA, " A"
         if (this%tPeriodic) then
-          write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
+          write(env%stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
               & input%ctrl%hybridXcInp%screeningThreshold
         end if
       case (hybridXcAlgo%thresholdBased)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "Thresholded"
-        write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
+        write(env%stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "Thresholded"
+        write(env%stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
             & input%ctrl%hybridXcInp%screeningThreshold
       case (hybridXcAlgo%matrixBased)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "MatrixBased"
+        write(env%stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "MatrixBased"
       case default
         call error("Unknown hybrid xc-functional screening algorithm")
       end select
     end if
 
-    write(stdOut, "(A,':')") "Extra options"
+    write(env%stdOut, "(A,':')") "Extra options"
     if (this%tPrintMulliken) then
-      write(stdOut, "(T30,A)") "Mulliken analysis"
+      write(env%stdOut, "(T30,A)") "Mulliken analysis"
     end if
     if (this%tPrintForces .and. .not. (this%geometryChanges%tMd .or. this%geometryChanges%isGeoOpt&
         & .or. this%geometryChanges%tDerivs)) then
-      write(stdOut, "(T30,A)") "Force calculation"
+      write(env%stdOut, "(T30,A)") "Force calculation"
     end if
     if (this%tForces) then
       select case (this%forceType)
       case(forceTypes%orig)
-        write(stdOut, "(A,T30,A)") "Force type", "original"
+        write(env%stdOut, "(A,T30,A)") "Force type", "original"
       case(forceTypes%dynamicT0)
-        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalised eigenvalues"
-        write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
+        write(env%stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalised eigenvalues"
+        write(env%stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
       case(forceTypes%dynamicTFinite)
-        write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
+        write(env%stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
       end select
     end if
     if (this%tPrintEigVecs) then
-      write(stdOut, "(T30,A)") "Eigenvector printing"
+      write(env%stdOut, "(T30,A)") "Eigenvector printing"
     end if
     if (this%tExtChrg) then
-      write(stdOut, "(T30,A)") "External charges specified"
+      write(env%stdOut, "(T30,A)") "External charges specified"
     end if
 
     if (this%isExtField) then
 
       if (allocated(this%eField%EFieldStrength)) then
         if (this%eField%isTDEfield) then
-          write(stdOut, "(T30,A)") "External electric field specified"
-          write(stdOut, "(A,':',T30,E14.6)") "Angular frequency", this%eField%EfieldOmega
+          write(env%stdOut, "(T30,A)") "External electric field specified"
+          write(env%stdOut, "(A,':',T30,E14.6)") "Angular frequency", this%eField%EfieldOmega
         else
-          write(stdOut, "(T30,A)") "External static electric field specified"
+          write(env%stdOut, "(T30,A)") "External static electric field specified"
         end if
-        write(stdOut, "(A,':',T30,E14.6)") "Field strength", this%eField%EFieldStrength
-        write(stdOut, "(A,':',T30,3F9.6)") "Direction", this%eField%EfieldVector
+        write(env%stdOut, "(A,':',T30,E14.6)") "Field strength", this%eField%EFieldStrength
+        write(env%stdOut, "(A,':',T30,3F9.6)") "Direction", this%eField%EfieldVector
         if (this%tPeriodic) then
-          call warning("Saw tooth potential used for periodic geometry - make sure there is a&
+          call warning(env%stdOut, "Saw tooth potential used for periodic geometry - make sure there is a&
               & vacuum region!")
         end if
       end if
 
       if (allocated(input%ctrl%atomicExtPotential)) then
         if (allocated(input%ctrl%atomicExtPotential%iAtOnSite)) then
-          write(stdOut, "(A)")'Net on-site potentials at atoms (/ H)'
+          write(env%stdOut, "(A)")'Net on-site potentials at atoms (/ H)'
           do ii = 1, size(input%ctrl%atomicExtPotential%iAtOnSite)
-            write(stdOut,"(1X,I6,' : ',E14.6)")input%ctrl%atomicExtPotential%iAtOnSite(ii),&
+            write(env%stdOut,"(1X,I6,' : ',E14.6)")input%ctrl%atomicExtPotential%iAtOnSite(ii),&
                 & input%ctrl%atomicExtPotential%VextOnSite(ii)
           end do
         end if
         if (allocated(input%ctrl%atomicExtPotential%iAt)) then
-          write(stdOut, "(A)")'Gross on-site potentials at atoms (/ H)'
+          write(env%stdOut, "(A)")'Gross on-site potentials at atoms (/ H)'
           do ii = 1, size(input%ctrl%atomicExtPotential%iAt)
-            write(stdOut,"(1X,I6,' : ',E14.6)")input%ctrl%atomicExtPotential%iAt(ii),&
+            write(env%stdOut,"(1X,I6,' : ',E14.6)")input%ctrl%atomicExtPotential%iAt(ii),&
                 & input%ctrl%atomicExtPotential%Vext(ii)
           end do
         end if
@@ -4025,10 +4028,10 @@ contains
       do iSp = 1, this%nType
         if (this%dftbU%nUJ(iSp)>0) then
           write(strTmp, "(A,':')") "U-J coupling constants"
-          write(stdOut, "(A,T25,A2)")trim(strTmp), this%speciesName(iSp)
+          write(env%stdOut, "(A,T25,A2)")trim(strTmp), this%speciesName(iSp)
           do jj = 1, this%dftbU%nUJ(iSp)
             write(strTmp, "(A,I1,A)")'(A,',this%dftbU%niUJ(jj,iSp),'I2,T25,A,F6.4)'
-            write(stdOut, trim(strTmp)) 'Shells:',&
+            write(env%stdOut, trim(strTmp)) 'Shells:',&
                 & this%dftbU%iUJ(1:this%dftbU%niUJ(jj,iSp),jj,iSp), 'UJ:', this%dftbU%UJ(jj,iSp)
           end do
         end if
@@ -4052,7 +4055,7 @@ contains
               else
                 write(strTmp, "(A)") ""
               end if
-              write(stdOut, "(A,T30,A5,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
+              write(env%stdOut, "(A,T30,A5,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
                   & trim(this%speciesName(iSp))//trim(strTmp2), jj,&
                   & shellNames(this%orb%angShell(jj, iSp)+1), kk,&
                   & shellNames(this%orb%angShell(kk, iSp)+1),&
@@ -4069,21 +4072,21 @@ contains
           ! As this needs assurances that the DM is actually being read by the external code,
           ! leading to the external code making changes in the hamiltonian, otherwise SCC never
           ! converges.
-          call warning("ASI callback with model modification enabled does not support&
+          call warning(env%stdOut, "ASI callback with model modification enabled does not support&
               & self-consistent calculations at present")
           this%dangerousChanges%hamiltonian = .true.
         end if
         if (this%tForces) then
           ! Since if H and/or S is modified, the derivatives are not available via ASI at the
           ! moment.
-          call warning("ASI callback with model modification enabled does not support forces at&
-              & present")
+          call warning(env%stdOut, "ASI callback with model modification enabled does not support&
+              & forces at present")
           this%dangerousChanges%hamiltonian = .true.
           this%dangerousChanges%overlap = .true.
         end if
         if (this%tMulliken) then
-          call warning("ASI callback with model modification enabled does not support Mulliken&
-              & population analysis at present")
+          call warning(env%stdOut, "ASI callback with model modification enabled does not support&
+              & Mulliken population analysis at present")
           this%dangerousChanges%overlap = .true.
         end if
       end if
@@ -4287,7 +4290,7 @@ contains
 
       allocate(this%electronDynamics)
 
-      call TElecDynamics_init(this%electronDynamics, input%ctrl%elecDynInp, this%species0,&
+      call TElecDynamics_init(this%electronDynamics, env, input%ctrl%elecDynInp, this%species0,&
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%cutOff,&
           & this%mass, this%nAtom, this%atomEigVal, this%dispersion, this%nonSccDeriv,&
           & this%tPeriodic, this%parallelKS, this%tRealHS, this%kPoint, this%kWeight,&
@@ -4298,7 +4301,7 @@ contains
     end if
 
     if (allocated(this%reks)) then
-      call printReksInitInfo(this%reks, this%orb, this%speciesName, this%nType)
+      call printReksInitInfo(env%stdOut, this%reks, this%orb, this%speciesName, this%nType)
     end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
@@ -4524,10 +4527,13 @@ contains
 
 
   !> Initialise partial charges
-  subroutine initializeCharges(this, errStatus, initialSpins, initialCharges, hybridXcAlg)
+  subroutine initializeCharges(this, env, errStatus, initialSpins, initialCharges, hybridXcAlg)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Error status
     type(TStatus), intent(out) :: errStatus
@@ -4622,7 +4628,7 @@ contains
 
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
-        call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+        call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
             & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
             & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
             & coeffsAndShifts=this%supercellFoldingMatrix)
@@ -4630,14 +4636,14 @@ contains
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
-          call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+          call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
               & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
               & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
               & coeffsAndShifts=this%supercellFoldingMatrix)
           @:PROPAGATE_ERROR(errStatus)
         else
           ! check magnetisation in addition
-          call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+          call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
               & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
               & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp,&
               & hybridXcAlg=hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix)
@@ -4679,7 +4685,7 @@ contains
           write(message, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match&
               & specified total charge. (", sum(initialCharges), " vs. ", this%nrChrg, ") ",&
               & "Your initial charge distribution will be rescaled."
-          call warning(message)
+          call warning(env%stdOut, message)
         end if
         call initQFromAtomChrg(this%qInput, initialCharges, this%referenceN0, this%species0,&
             & this%speciesName, this%orb)
@@ -5192,9 +5198,9 @@ contains
     logical :: isStopRequested
 
     if (env%tGlobalLead) then
-      write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
+      write(env%stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
-      this%socket = IpiSocketComm(socketInput)
+      this%socket = IpiSocketComm(env, socketInput)
     end if
     call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec,&
         & this%tCoordsChanged, this%tLatticeChanged, isStopRequested)
@@ -5313,7 +5319,7 @@ contains
     end associate
 
     if (tNegf) then
-      write(stdOut,*) 'init negf'
+      write(env%stdOut,*) 'init negf'
 
       ! Some checks and initialization of GDFTB/NEGF
       call TNegfInt_init(negfInt, input%transpar, env, input%ginfo%greendens,&
@@ -5513,9 +5519,9 @@ contains
           end if
           this%isCIopt = this%linearResponse%isCIopt
           ! Currently always using Bearpark algorithm:
-          write(stdOut, "('Conical Intersection finder:',T30,A)") 'Bearpark'
-          write(stdOut, format2Ue) "CI finder level shift", this%linearResponse%energyShiftCI, 'H',&
-              & Hartree__eV * this%linearResponse%energyShiftCI, 'eV'
+          write(env%stdOut, "('Conical Intersection finder:',T30,A)") 'Bearpark'
+          write(env%stdOut, format2Ue) "CI finder level shift", this%linearResponse%energyShiftCI,&
+              & 'H', Hartree__eV * this%linearResponse%energyShiftCI, 'eV'
         end if
       end if
     end if
@@ -5655,8 +5661,11 @@ contains
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
-  subroutine initUploadArrays_(transpar, orb, nSpin, hasBlockCharges, shiftPerLUp, chargeUp,&
+  subroutine initUploadArrays_(env, transpar, orb, nSpin, hasBlockCharges, shiftPerLUp, chargeUp,&
       & blockUp)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Transport calculation parameters
     type(TTransPar), intent(inout) :: transpar
@@ -5687,7 +5696,7 @@ contains
     if (hasBlockCharges) then
       allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
     end if
-    call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, blockUp)
+    call readContactShifts(env%stdOut, shiftPerLUp, chargeUp, transpar, orb, blockUp)
 
   end subroutine initUploadArrays_
 
@@ -5865,21 +5874,24 @@ contains
 
 #:if WITH_MBD
   !> Writes MBD-related info
-  subroutine writeMbdInfo(input)
+  subroutine writeMbdInfo(output, input)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> MBD input parameters
     type(TDispMbdInp), intent(in) :: input
 
     character(lc) :: tmpStr
 
-    write(stdOut, "(A)") ''
+    write(output, "(A)") ''
     select case (input%method)
     case ('ts')
-      write(stdOut, "(A)") "Using TS dispersion corrections [Phys. Rev. B 80, 205414 (2009)]"
-      write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
+      write(output, "(A)") "Using TS dispersion corrections [Phys. Rev. B 80, 205414 (2009)]"
+      write(output, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
     case ('mbd-rsscs')
-      write(stdOut,"(A)") "Using MBD dispersion corrections [Phys. Rev. Lett. 108, 236402 (2012)]"
-      write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
+      write(output,"(A)") "Using MBD dispersion corrections [Phys. Rev. Lett. 108, 236402 (2012)]"
+      write(output,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
     end select
     select case (trim(input%vdw_params_kind))
     case ('tssurf')
@@ -5889,23 +5901,26 @@ contains
     end select
     select case (input%method)
     case ('mbd-rsscs')
-      write(stdOut, "(A,T30,A)") "  Parameters", tmpStr
+      write(output, "(A,T30,A)") "  Parameters", tmpStr
       write(tmpStr, "(3(I3,1X))") input%k_grid
-      write(stdOut,"(A,T30,A)") "  MBD k-Grid", trim(adjustl(tmpStr))
+      write(output,"(A,T30,A)") "  MBD k-Grid", trim(adjustl(tmpStr))
       write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
-      write(stdOut,"(A,T30,A)") "  MBD k-Grid shift", trim(adjustl(tmpStr))
+      write(output,"(A,T30,A)") "  MBD k-Grid shift", trim(adjustl(tmpStr))
       write(tmpStr, "(I3)") input%n_omega_grid
-      write(stdOut, "(A,T30,A)") "  Gridsize (frequencies)", trim(adjustl(tmpStr))
+      write(output, "(A,T30,A)") "  Gridsize (frequencies)", trim(adjustl(tmpStr))
     end select
-    write(stdOut,"(A)") ""
+    write(output,"(A)") ""
 
   end subroutine writeMbdInfo
 #:endif
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepSpin, tempElec,&
+  subroutine ensureSolverCompatibility(env, iSolver, kPoints, parallelOpts, nIndepSpin, tempElec,&
       & isCallBackApiEnabled)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Solver number (see dftbp_elecsolvers_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -5930,7 +5945,7 @@ contains
 
     ! Temporary error test for PEXSI bug (July 2019)
     if (iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)) then
-      call warning("A temporary PEXSI bug may prevent correct evaluation at general k-points.&
+      call warning(env%stdOut, "A temporary PEXSI bug may prevent correct evaluation at general k-points.&
           & This should be fixed soon.")
     end if
 
@@ -6018,7 +6033,10 @@ contains
 
 
   !> Print out the reference occupations for atoms
-  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, customOccFillings)
+  subroutine printCustomReferenceOccupations(output, orb, species, customOccAtoms, customOccFillings)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -6040,7 +6058,7 @@ contains
     if (nCustomBlock == 0) then
       return
     end if
-    write(stdout, "(A)") "Custom defined reference occupations:"
+    write(output, "(A)") "Custom defined reference occupations:"
     do iCustomBlock = 1, size(customOccAtoms)
       nAtom = size(customOccAtoms(iCustomBlock)%data)
       if (nAtom == 1) then
@@ -6049,7 +6067,7 @@ contains
         write(outStr, "(A)") "Atoms:"
       end if
       write(formstr, "(I0,A)") nAtom, "(I0,1X))"
-      write(stdout, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
+      write(output, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
       iSp = species(customOccAtoms(iCustomBlock)%data(1))
       nShell = orb%nShell(iSp)
       call getShellNames(iSp, orb, shellNamesTmp)
@@ -6061,7 +6079,7 @@ contains
         write(outStr,"(A,1X,A,F8.4)")trim(outStr), trim(shellNamesTmp(iSh)),&
             & customOccFillings(iSh, iCustomBlock)
       end do
-      write(stdout,"(A,T29,A)")"Fillings:",trim(outStr)
+      write(output,"(A,T29,A)")"Fillings:",trim(outStr)
       deallocate(shellNamesTmp)
     end do
   end subroutine printCustomReferenceOccupations
@@ -6233,8 +6251,11 @@ contains
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !! features.
-  subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
+  subroutine ensureLinRespConditions(output, tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
       & isHybLinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected, input)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -6320,7 +6341,7 @@ contains
     if (tempElec > minTemp .and. tCasidaForces) then
       write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
           & occupations, kT=", tempElec/Boltzmann,"K"
-      call warning(tmpStr)
+      call warning(output, tmpStr)
     end if
 
     if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%tNaCoupling)) then
@@ -6368,10 +6389,10 @@ contains
         call error("hybrid functional excited states not available for window options.")
       end if
       if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
-        call warning("hybrid functional excited states not well tested for triplet excited states!")
+        call warning(output, "hybrid functional excited states not well tested for triplet excited states!")
       end if
       if (input%ctrl%tSpin) then
-        call warning("hybrid functional excited states not well tested for spin-polarized systems!")
+        call warning(output, "hybrid functional excited states not well tested for spin-polarized systems!")
       end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
@@ -6665,7 +6686,7 @@ contains
       write(strTmp, "(A,I0,A)") "PLUMED interface has not been tested with PLUMED API version < ",&
           & minApiVersion, ". Your PLUMED library provides API version ", apiVersion, ". Check your&
           & results carefully and consider to use a more recent PLUMED library if in doubt!"
-      call warning(strTmp)
+      call warning(env%stdOut, strTmp)
     end if
     call plumedCalc%sendCmdVal("setNatoms", this%nAtom)
     call plumedCalc%sendCmdVal("setPlumedDat", "plumed.dat")
@@ -6923,7 +6944,10 @@ contains
 
 
   !> Print information about a REKS calculation
-  subroutine printReksInitInfo(reks, orb, speciesName, nType)
+  subroutine printReksInitInfo(output, reks, orb, speciesName, nType)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Data type for REKS
     type(TReksCalc), intent(in) :: reks
@@ -6940,51 +6964,51 @@ contains
     integer :: ii, iType
     character(lc) :: strTmp
 
-    write(stdOut,*)
-    write(stdOut,*)
-    write(stdOut, "(A,':',T30,A)") "REKS Calculation", "Yes"
+    write(output,*)
+    write(output,*)
+    write(output, "(A,':',T30,A)") "REKS Calculation", "Yes"
 
     select case (reks%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      write(stdOut, "(A,':',T30,A)") "SSR(2,2) Calculation", "Yes"
+      write(output, "(A,':',T30,A)") "SSR(2,2) Calculation", "Yes"
       if (reks%Efunction == 1) then
-        write(stdOut, "(A,':',T30,A)") "Energy Functional", "PPS"
+        write(output, "(A,':',T30,A)") "Energy Functional", "PPS"
       else if (reks%Efunction == 2) then
-        write(stdOut, "(A,':',T30,A)") "Energy Functional", "(PPS+OSS)/2"
+        write(output, "(A,':',T30,A)") "Energy Functional", "(PPS+OSS)/2"
       end if
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
 
-    write(stdOut, "(A,':',T30,I14)") "Number of Core Orbitals", reks%Nc
-    write(stdOut, "(A,':',T30,I14)") "Number of Active Orbitals", reks%Na
-    write(stdOut, "(A,':',T30,I14)") "Number of Basis", orb%nOrb
-    write(stdOut, "(A,':',T30,I14)") "Number of States", reks%nstates
+    write(output, "(A,':',T30,I14)") "Number of Core Orbitals", reks%Nc
+    write(output, "(A,':',T30,I14)") "Number of Active Orbitals", reks%Na
+    write(output, "(A,':',T30,I14)") "Number of Basis", orb%nOrb
+    write(output, "(A,':',T30,I14)") "Number of States", reks%nstates
     do ii = 1, reks%SAstates
       if (ii == 1) then
         write(strTmp, "(A,':')") "State-Averaging Weight"
       else
         write(strTmp, "(A)") ""
       end if
-      write(stdOut, "(A,T30,F12.6)") trim(strTmp), reks%SAweight(ii)
+      write(output, "(A,T30,F12.6)") trim(strTmp), reks%SAweight(ii)
     end do
-    write(stdOut, "(A,':',T30,I14)") "State of Interest", reks%rstate
+    write(output, "(A,':',T30,I14)") "State of Interest", reks%rstate
 
     if (reks%tReadMO) then
-      write(stdOut, "(A,':',T30,A)") "Initial Guess", "Read Eigenvec.bin file"
+      write(output, "(A,':',T30,A)") "Initial Guess", "Read Eigenvec.bin file"
     else
-      write(stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalise H0 matrix"
+      write(output, "(A,':',T30,A)") "Initial Guess", "Diagonalise H0 matrix"
     end if
 
-    write(stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
-    write(stdOut, "(A,':',T30,I14)") "NR max. Iterations", reks%FonMaxIter
+    write(output, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
+    write(output, "(A,':',T30,I14)") "NR max. Iterations", reks%FonMaxIter
     if (reks%shift > epsilon(1.0_dp)) then
-      write(stdOut, "(A,':',T30,A)") "Level Shifting", "Yes"
+      write(output, "(A,':',T30,A)") "Level Shifting", "Yes"
     else
-      write(stdOut, "(A,':',T30,A)") "Level Shifting", "No"
+      write(output, "(A,':',T30,A)") "Level Shifting", "No"
     end if
-    write(stdOut, "(A,':',T30,F12.6)") "Shift Value", reks%shift
+    write(output, "(A,':',T30,F12.6)") "Shift Value", reks%shift
 
     do iType = 1, nType
       if (iType == 1) then
@@ -6992,53 +7016,53 @@ contains
       else
         write(strTmp, "(A)") ""
       end if
-      write(stdOut, "(A,T30,A3,'=',F12.6)") trim(strTmp), speciesName(iType), reks%Tuning(iType)
+      write(output, "(A,T30,A3,'=',F12.6)") trim(strTmp), speciesName(iType), reks%Tuning(iType)
     end do
 
     if (reks%tTDP) then
-      write(stdOut, "(A,':',T30,A)") "Transition Dipole", "Yes"
+      write(output, "(A,':',T30,A)") "Transition Dipole", "Yes"
     else
-      write(stdOut, "(A,':',T30,A)") "Transition Dipole", "No"
+      write(output, "(A,':',T30,A)") "Transition Dipole", "No"
     end if
 
     if (reks%tForces) then
 
       if (reks%Lstate > 0) then
-        write(stdOut, "(A,':',T30,A)") "Gradient of Microstate", "Yes"
-        write(stdOut, "(A,':',T30,I14)") "Index of Interest", reks%Lstate
+        write(output, "(A,':',T30,A)") "Gradient of Microstate", "Yes"
+        write(output, "(A,':',T30,I14)") "Index of Interest", reks%Lstate
       else
-        write(stdOut, "(A,':',T30,A)") "Gradient of Microstate", "No"
+        write(output, "(A,':',T30,A)") "Gradient of Microstate", "No"
       end if
 
       if (reks%Efunction /= 1) then
         if (reks%Glevel == 1) then
-          write(stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Preconditioned Conjugate-Gradient"
-          write(stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
-          write(stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
+          write(output, "(A,':',T30,A)") "CP-REKS Solver", "Preconditioned Conjugate-Gradient"
+          write(output, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
+          write(output, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
           if (reks%tSaveMem) then
-            write(stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
+            write(output, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
           else
-            write(stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
+            write(output, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
           end if
         elseif (reks%Glevel == 2) then
-          write(stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Conjugate-Gradient"
-          write(stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
-          write(stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
+          write(output, "(A,':',T30,A)") "CP-REKS Solver", "Conjugate-Gradient"
+          write(output, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
+          write(output, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
           if (reks%tSaveMem) then
-            write(stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
+            write(output, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
           else
-            write(stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
+            write(output, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
           end if
         elseif (reks%Glevel == 3) then
-          write(stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Direct Matrix Multiplication"
+          write(output, "(A,':',T30,A)") "CP-REKS Solver", "Direct Matrix Multiplication"
         end if
         if (reks%tNAC) then
-          write(stdOut, "(A,':',T30,A)") "Non-Adiabatic Coupling", "Yes"
+          write(output, "(A,':',T30,A)") "Non-Adiabatic Coupling", "Yes"
         end if
       end if
 
       if (reks%tRD) then
-        write(stdOut, "(A,':',T30,A)") "Relaxed Density for QM/MM", "Yes"
+        write(output, "(A,':',T30,A)") "Relaxed Density for QM/MM", "Yes"
       end if
 
     end if

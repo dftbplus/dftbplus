@@ -20,7 +20,6 @@ module dftbp_reks_reksinterface
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_dispiface, only : TDispersionIface
@@ -215,7 +214,7 @@ module dftbp_reks_reksinterface
         end if
       end if
 
-      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, rhoL, &
+      call getUnrelaxedDensMatAndTdp(env, eigenvecs(:,:,1), this%overSqr, rhoL, &
           & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
           & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
           & this%unrelRhoSqr, this%unrelTdm, densityMatrix, errStatus)
@@ -230,7 +229,7 @@ module dftbp_reks_reksinterface
           call getDipoleMomentMatrix(this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
         end do
         call writeReksTDP(this%tdp)
-        call getReksOsc(this%tdp, this%energy)
+        call getReksOsc(env%stdOut, this%tdp, this%energy)
       end if
 
     end if
@@ -371,9 +370,9 @@ module dftbp_reks_reksinterface
         do ist = 1, this%nstates
           if (ist /= this%SAstates) then
 
-            write(stdOut,"(A)")
-            write(stdOut,"(A)") repeat("-", 82)
-            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+            write(env%stdOut,"(A)")
+            write(env%stdOut,"(A)") repeat("-", 82)
+            write(env%stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', ist, 'state vector...'
 
             ! solve CP-REKS equation for SA-REKS state
@@ -396,9 +395,9 @@ module dftbp_reks_reksinterface
         do ist = 1, nstHalf
 
           call getTwoIndices(this%nstates, ist, ia, ib, 1)
-          write(stdOut,"(A)")
-          write(stdOut,"(A)") repeat("-", 82)
-          write(stdOut,'(1x,a,1x,I2,1x,a,1x,I2,1x,a)') &
+          write(env%stdOut,"(A)")
+          write(env%stdOut,"(A)") repeat("-", 82)
+          write(env%stdOut,'(1x,a,1x,I2,1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for SI between', ia, 'and', ib, 'state vectors...'
 
           ! solve CP-REKS equation for state-interaction term
@@ -424,9 +423,9 @@ module dftbp_reks_reksinterface
           call SaToSsrWeight(this%Rab, this%weightIL, this%G1, &
               & this%eigvecsSSR, this%rstate, this%weightL)
 
-          write(stdOut,"(A)")
-          write(stdOut,"(A)") repeat("-", 82)
-          write(stdOut,'(1x,a,1x,I2,1x,a)') &
+          write(env%stdOut,"(A)")
+          write(env%stdOut,"(A)") repeat("-", 82)
+          write(env%stdOut,'(1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for', this%rstate, 'state vector...'
 
           ! solve CP-REKS equation for SSR state
@@ -444,13 +443,13 @@ module dftbp_reks_reksinterface
 
         else
 
-          write(stdOut,"(A)")
-          write(stdOut,"(A)") repeat("-", 82)
+          write(env%stdOut,"(A)")
+          write(env%stdOut,"(A)") repeat("-", 82)
           if (this%Lstate == 0) then
-            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+            write(env%stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', this%rstate, 'state vector...'
           else
-            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+            write(env%stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', this%Lstate, 'microstate vector...'
           end if
 
@@ -493,7 +492,7 @@ module dftbp_reks_reksinterface
     end if
 
     if (this%Plevel >= 1) then
-      call printReksGradInfo(this, derivs)
+      call printReksGradInfo(this, derivs, env%stdOut)
     end if
 
   end subroutine getReksGradients
@@ -586,13 +585,13 @@ module dftbp_reks_reksinterface
 
         if (this%Lstate == 0) then
           ! get the relaxed density matrix for target SSR or SA-REKS state
-          call getRelaxedDensMat(eigenvecs(:,:,1), this%overSqr, this%unrelRhoSqr, &
+          call getRelaxedDensMat(env, eigenvecs(:,:,1), this%overSqr, this%unrelRhoSqr, &
               & this%ZT, this%omega, this%FONs, this%eigvecsSSR, this%SAweight, &
               & this%Rab, this%G1, this%Nc, this%Na, this%rstate, this%reksAlg, &
               & this%tSSR, this%tNAC, this%relRhoSqr)
         else
           ! get the relaxed density matrix for L-th microstate
-          call getRelaxedDensMatL(eigenvecs(:,:,1), this%rhoSqrL, this%overSqr, &
+          call getRelaxedDensMatL(env, eigenvecs(:,:,1), this%rhoSqrL, this%overSqr, &
               & this%weight, this%SAweight, this%unrelRhoSqr, this%RmatL, &
               & this%ZT, this%omega, this%weightIL, this%G1, this%orderRmatL, &
               & this%Lpaired, this%Nc, this%Na, this%Lstate, this%reksAlg, &
@@ -1057,7 +1056,7 @@ module dftbp_reks_reksinterface
         & this%isHybridXc, this%G1, this%weightIL, this%omega, this%Rab)
 
     ! get A1e or Aall values based on GradOpt
-    call getSuperAMatrix(eigenvecs, this%HxcSqrS, this%HxcSqrD, this%fockFc, &
+    call getSuperAMatrix(env, eigenvecs, this%HxcSqrS, this%HxcSqrD, this%fockFc, &
         & this%fockFa, this%omega, this%fillingL, this%weight, this%SAweight, &
         & this%FONs, this%G1, this%Lpaired, this%Nc, this%Na, this%Glevel, &
         & this%reksAlg, this%tSaveMem, this%A1e, this%A1ePre, this%Aall)
@@ -1222,9 +1221,9 @@ module dftbp_reks_reksinterface
       ! get converged R, Z, Q2 matrices & ZT vector
       ! RmatL : AO index, ZmatL : AO index, Q2mat : MO index
       if (optionQMMM) then
-        write(stdOut,'(a)') &
+        write(env%stdOut,'(a)') &
             & ' Warning! For calculating relaxed density for SSR state,'
-        write(stdOut,'(a)') &
+        write(env%stdOut,'(a)') &
             & '          run CG again to obtain ZT solution in (nac) case.'
       end if
       call CGgrad(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart, &
@@ -1252,7 +1251,7 @@ module dftbp_reks_reksinterface
             & this%SpinAO, this%LrGammaAO, this%orderRmatL, this%getDenseAO, &
             & this%Lpaired, this%Glevel, this%tSaveMem, this%isHybridXc, ZmatL)
         call getQ2mat(eigenvecs, this%fillingL, this%weight, ZmatL, Q2mat)
-        write(stdOut,"(A)") repeat("-", 82)
+        write(env%stdOut,"(A)") repeat("-", 82)
       end if
 
     end if
@@ -1262,7 +1261,7 @@ module dftbp_reks_reksinterface
       call getQ1mat(ZT, this%fockFc, this%fockFa, this%SAweight, &
           & this%FONs, this%Nc, this%Na, this%reksAlg, Q1mat)
     else
-      write(stdOut,"(A)")
+      write(env%stdOut,"(A)")
     end if
 
   end subroutine solveCpReks_

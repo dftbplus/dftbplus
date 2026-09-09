@@ -9,12 +9,10 @@
 
 !> Provides DFTB+ API
 module dftbp_api
-  use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, instanceSafeBuild, withMpi,&
-      & stdOut
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, instanceSafeBuild, withMpi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
@@ -363,6 +361,8 @@ contains
     !! multiple TDftbPlus instances within an MPI-process)
     integer, intent(in), optional :: devNull
 
+    integer :: stdOut, stdErr
+
   #:if not INSTANCE_SAFE_BUILD
     if (nInstance_ /= 0) then
       call error("This build does not support multiple DFTB+ instances")
@@ -374,10 +374,11 @@ contains
       call error("MPI Communicator supplied to initialise a serial DFTB+ instance")
     end if
 
-    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull)
+    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull, stdOut=stdOut,&
+        & stdErr=stdErr)
     allocate(this%env)
     allocate(this%main)
-    call TEnvironment_init(this%env)
+    call TEnvironment_init(this%env, stdOut=stdOut, stdErr=stdErr)
     this%env%tAPICalculation = .true.
     this%isInitialised = .true.
 
@@ -470,8 +471,8 @@ contains
 
     call this%checkInit()
 
-    call parseHsdTree(input%hsdTree, inpData, parserFlags)
-    call doPostParseJobs(input%hsdTree, parserFlags)
+    call parseHsdTree(this%env, input%hsdTree, inpData, parserFlags)
+    call doPostParseJobs(this%env%stdOut, input%hsdTree, parserFlags)
     call this%main%initProgramVariables(inpData, this%env)
 
   end subroutine TDftbPlus_setupCalculator
@@ -1296,7 +1297,8 @@ contains
       call error("Perturbation wrt to external charges requested, but no external charges present")
     end if
     if (.not. allocated(this%main%response)) then
-      write(stdOut, *)"Making a generic initialization of settings for coupled-perturbed response"
+      write(this%env%stdOut, *)"Making a generic initialization of settings for coupled-perturbed&
+          & response"
       allocate(this%main%response)
       ! eigenvalue-based, non-fixed Fermi level, degeneracy tolerances of 1E-9 and static:
       call TResponse_init(this%main%response, responseSolverTypes%spectralSum, .false., 1.0E-9_dp,&

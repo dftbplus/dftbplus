@@ -10,7 +10,7 @@
 !> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
 !> or recoverable (warning) nature.
 module dftbp_io_message
-  use dftbp_common_globalenv, only : abortProgram, stdOut, synchronizeAll
+  use dftbp_common_globalenv, only : abortProgram, stdOut0, synchronizeAll
   implicit none
 
   private
@@ -39,32 +39,39 @@ module dftbp_io_message
 
   public :: warning, error, cleanShutdown
 
+
 contains
 
 
   !> Gives a warning message.
-  subroutine warning_single(message)
+  subroutine warning_single(output, message)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Warning message to print to standard out.
     character (len=*), intent(in) :: message
 
-    write(stdOut, '(1a)') 'WARNING!'
-    write(stdOut, '(2a)') '-> ', trim(message)
+    write(output, '(1a)') 'WARNING!'
+    write(output, '(2a)') '-> ', trim(message)
 
   end subroutine warning_single
 
 
   !> Gives a warning message.
-  subroutine warning_array(messages)
+  subroutine warning_array(output, messages)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Lines of the error message to print to standard out.
     character(len=*), intent(in) :: messages(:)
 
     integer :: ii
 
-    write(stdOut, '(1a)') 'WARNING!'
+    write(output, '(1a)') 'WARNING!'
     do ii = 1, size(messages)
-      write(stdOut, '(2a)') '-> ', trim(messages(ii))
+      write(output, '(2a)') '-> ', trim(messages(ii))
     end do
 
   end subroutine warning_array
@@ -76,9 +83,9 @@ contains
     !> Error message to print to standard out.
     character (len=*), intent(in) :: message
 
-    write(stdOut, '(1a)') 'ERROR!'
-    write(stdOut, '(2a)') '-> ', trim(message)
-    flush(stdOut)
+    write(stdOut0, '(1a)') 'ERROR!'
+    write(stdOut0, '(2a)') '-> ', trim(message)
+    flush(stdOut0)
     call abortProgram()
 
   end subroutine error_single
@@ -92,24 +99,27 @@ contains
 
     integer :: ii
 
-    write(stdOut, '(1a)') 'ERROR!'
+    write(stdOut0, '(1a)') 'ERROR!'
     do ii = 1, size(messages)
-      write(stdOut, '(2a)') '-> ', trim(messages(ii))
+      write(stdOut0, '(2a)') '-> ', trim(messages(ii))
     end do
-    flush(stdOut)
+    flush(stdOut0)
     call abortProgram()
 
   end subroutine error_array
 
 
   !> Prints a message and stops the code cleanly.
-  subroutine shutdown_single(message)
+  subroutine shutdown_single(output, message)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Shutdown message to print to standard out.
     character (len=*), intent(in) :: message
 
-    write(stdOut, '(A)') trim(message)
-    flush(stdOut)
+    write(output, '(A)') trim(message)
+    flush(output)
     call synchronizeAll()
     call abortProgram()
 
@@ -117,7 +127,10 @@ contains
 
 
   !> Prints messages and stops the code cleanly.
-  subroutine shutdown_array(messages)
+  subroutine shutdown_array(output, messages)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Lines of the shutdown message to print to standard out.
     character(len=*), intent(in) :: messages(:)
@@ -125,9 +138,9 @@ contains
     integer :: ii
 
     do ii = 1, size(messages)
-      write(stdOut, '(A)') trim(messages(ii))
+      write(output, '(A)') trim(messages(ii))
     end do
-    flush(stdOut)
+    flush(output)
     call synchronizeAll()
     call abortProgram()
 

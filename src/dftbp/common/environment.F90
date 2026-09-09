@@ -10,7 +10,8 @@
 
 !> Contains computer environment settings
 module dftbp_common_environment
-  use dftbp_common_globalenv, only : shutdown, stdOut
+  use iso_fortran_env, only : globalStdErr => error_unit, globalStdOut => output_unit
+  use dftbp_common_globalenv, only : shutdown
   use dftbp_common_status, only : TStatus
   use dftbp_common_timerarray, only : TTimerArray, TTimerArray_init, TTimerItem
 #:if WITH_MAGMA
@@ -72,6 +73,12 @@ module dftbp_common_environment
 
     !> Is this calculation called by the API?
     logical, public :: tAPICalculation = .false.
+
+    !> Standard output unit
+    integer, public :: stdOut = -1
+
+    !> Standard error unit
+    integer, public :: stdErr = -1
 
   contains
     procedure :: destruct => TEnvironment_destruct
@@ -183,12 +190,27 @@ module dftbp_common_environment
 contains
 
   !> Returns an initialized instance.
-  subroutine TEnvironment_init(this)
+  subroutine TEnvironment_init(this, stdOut, stdErr)
 
     !> Instance
     type(TEnvironment), intent(out) :: this
 
-    continue
+    !> Standard output unit
+    integer, intent(in), optional :: stdOut
+
+    !> Standard error unit
+    integer, intent(in), optional :: stdErr
+
+    if (present(stdOut)) then
+      this%stdOut = stdOut
+    else
+      this%stdOut = globalStdOut
+    end if
+    if (present(stdErr)) then
+      this%stdErr = stdErr
+    else
+      this%stdErr = globalStdErr
+    end if
 
   end subroutine TEnvironment_init
 
@@ -217,7 +239,9 @@ contains
       end if
     #:endif
 
-    flush(stdOut)
+    if (this%stdOut > 0) then
+      flush(this%stdOut)
+    end if
 
   end subroutine TEnvironment_destruct
 
@@ -253,8 +277,7 @@ contains
     integer, intent(in) :: unit
 
     allocate(this%globalTimer)
-    call TTimerArray_init(this%globalTimer, globalTimerItems, maxLevel=timingLevel, header=header,&
-        & unit=unit)
+    call TTimerArray_init(this%globalTimer, globalTimerItems, unit, maxLevel=timingLevel, header=header)
 
   end subroutine TEnvironment_initGlobalTimer
 
@@ -318,12 +341,15 @@ contains
 #:if WITH_MAGMA
 
   !> Initialize GPU environment
-  subroutine TEnvironment_initGpu(this)
+  subroutine TEnvironment_initGpu(this, output)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    call TGpuEnv_init(this%gpu)
+    !> output for write processes
+    integer, intent(in) :: output
+
+    call TGpuEnv_init(this%gpu, output)
 
   end subroutine TEnvironment_initGpu
 

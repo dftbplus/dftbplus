@@ -26,7 +26,8 @@ module dftbp_common_globalenv
   private
   public :: initGlobalEnv, destructGlobalEnv
   public :: abortProgram, shutdown, synchronizeAll
-  public :: stdOut, stdOut0, stdErr, stdErr0, tIoProc
+  public :: stdOut0, stdErr0
+  public :: tIoProc
   public :: withScalapack, withMpi
   public :: instanceSafeBuild
   #:if WITH_MPI
@@ -39,12 +40,6 @@ module dftbp_common_globalenv
 
   !> Unredirected standard error
   integer, parameter :: stdErr0 = error_unit
-
-  !> Standard out file handler
-  integer, protected :: stdOut = stdOut0
-
-  !> Standard error file handler
-  integer, protected :: stdErr = stdErr0
 
   !> Whether current process is the global lead process
   logical, protected :: tIoProc = .true.
@@ -62,7 +57,7 @@ module dftbp_common_globalenv
 
 #:if WITH_MPI
   !> Whether MPI finalization should be performed at the end
-  logical :: doMpiFinalization = .true.
+  logical, protected :: doMpiFinalization = .true.
 #:endif
 
   !> Whether code was compiled with many-body dispersion support
@@ -76,7 +71,7 @@ module dftbp_common_globalenv
 contains
 
   !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit, devNull)
+  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit, devNull, stdOut, stdErr)
 
     !> Customised global standard output
     integer, intent(in), optional :: outputUnit
@@ -90,52 +85,60 @@ contains
     !> Unit of the null device (needed for follow processes to suppress their output)
     integer, intent(in), optional :: devNull
 
+    !> Effective standard output for the calling process (on an MPI run, this is redirected to
+    !> the null device on every process but the lead one)
+    integer, intent(out), optional :: stdOut
 
-    integer :: outputUnit0, errorUnit0, devNull0
+    !> Effective standard error for the calling process (on an MPI run, this is redirected to
+    !> the null device on every process but the lead one)
+    integer, intent(out), optional :: stdErr
 
-  #:if WITH_MPI
-    integer :: mpiComm0
-  #:endif
+    integer :: outputUnit_, errorUnit_
 
     if (present(outputUnit)) then
-      outputUnit0 = outputUnit
+      outputUnit_ = outputUnit
     else
-      outputUnit0 = stdOut0
+      outputUnit_ = stdOut0
     end if
 
     if (present(errorUnit)) then
-      errorUnit0 = errorUnit
+      errorUnit_ = errorUnit
     else
-      errorUnit0 = stdErr0
+      errorUnit_ = stdErr0
     end if
 
   #:if WITH_MPI
-    if (present(mpiComm)) then
-      mpiComm0 = mpiComm
-      doMpiFinalization = .false.
-    else
-      mpiComm0 = MPI_COMM_WORLD
-      call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
-    end if
+    block
+      integer :: mpiComm_, devNull_
 
-    call globalMpiComm%init(commid=mpiComm0)
-    if (globalMpiComm%lead) then
-      stdOut = outputUnit0
-      stdErr = errorUnit0
-    else
-      if (present(devNull)) then
-        devNull0 = devNull
+      if (present(mpiComm)) then
+        mpiComm_ = mpiComm
+        doMpiFinalization = .false.
       else
-        open(newunit=devNull0, file="/dev/null", action="write")
+        mpiComm_ = MPI_COMM_WORLD
+        call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
       end if
-      stdOut = devNull0
-      stdErr = devNull0
-    end if
-    tIoProc = globalMpiComm%lead
-  #:else
-    stdOut = outputUnit0
-    stdErr = errorUnit0
+
+      call globalMpiComm%init(commid=mpiComm_)
+      if (.not. globalMpiComm%lead) then
+        if (present(devNull)) then
+          devNull_ = devNull
+        else
+          open(newunit=devNull_, file="/dev/null", action="write")
+        end if
+        outputUnit_ = devNull_
+        errorUnit_ = devNull_
+      end if
+      tIoProc = globalMpiComm%lead
+    end block
   #:endif
+
+    if (present(stdOut)) then
+      stdOut = outputUnit_
+    end if
+    if (present(stdErr)) then
+      stdErr = errorUnit_
+    end if
 
   end subroutine initGlobalEnv
 
