@@ -13,7 +13,6 @@
 module dftbp_dftb_pmlocalisation
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error, warning
@@ -109,10 +108,14 @@ contains
 
 
   !> Performs Pipek-Mezey localisation for a molecule.
-  subroutine calcCoeffsReal(this, ci, SSqrReal, iAtomStart)
+  subroutine calcCoeffsReal(this, output, ci, SSqrReal, iAtomStart)
 
     !> Instance
     class(TPipekMezey), intent(in) :: this
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
+
 
     !> Wavefunction coefficients
     real(dp), intent(inout) :: ci(:,:)
@@ -127,22 +130,25 @@ contains
 
     if (allocated(this%sparseTols)) then
       do ii = 1, size(this%sparseTols)
-        call PipekMezeySuprtRegion_real(ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter,&
+        call PipekMezeySuprtRegion_real(output, ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter,&
             & this%sparseTols(ii))
       end do
     else
-      call pipekMezeyOld_real(ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter)
+      call pipekMezeyOld_real(output, ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter)
     end if
 
   end subroutine calcCoeffsReal
 
 
   !> Performs Pipek-Mezey localisation for a periodic system at a specified k-point.
-  subroutine calcCoeffsKPoint(this, ci, SSqrCplx, over, kPoint, neighbourList, nNeighbourSK,&
+  subroutine calcCoeffsKPoint(this, output, ci, SSqrCplx, over, kPoint, neighbourList, nNeighbourSK,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Instance.
     class(TPipekMezey), intent(in) :: this
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Wavefunction coefficients
     complex(dp), intent(inout) :: ci(:,:)
@@ -177,7 +183,7 @@ contains
     !> Index array back to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    call PipekMezeyOld_kpoint(ci, SSqrCplx, over, kPoint, neighbourList%iNeighbour, nNeighbourSK,&
+    call PipekMezeyOld_kpoint(output, ci, SSqrCplx, over, kPoint, neighbourList%iNeighbour, nNeighbourSK,&
         & iCellVec, cellVec, iAtomStart, iPair, img2CentCell, this%tolerance, this%maxIter)
 
   end subroutine calcCoeffsKPoint
@@ -258,7 +264,10 @@ contains
 
   !> Performs conventional Pipek-Mezey localisation for a molecule given the square overlap matrix
   !> using iterative sweeps over each pair of orbitals
-  subroutine PipekMezeyOld_real(ci, S, iAtomStart, pipekTol, mIter)
+  subroutine PipekMezeyOld_real(output, ci, S, iAtomStart, pipekTol, mIter)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Wavefunction coefficients
     real(dp), intent(inout) :: ci(:,:)
@@ -312,7 +321,7 @@ contains
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
       ! Sweep over all pairs of levels
-      write(stdout, *)'Iter', iIter
+      write(output, *)'Iter', iIter
       do iLev1 = 1, nLev
 
         if (iLev1 < nLev) then
@@ -374,14 +383,17 @@ contains
     end do lpLocalise
 
     if (.not.tConverged) then
-      call warning("Exceeded iterations in Pipek-Mezey localisation!")
+      call warning(output, "Exceeded iterations in Pipek-Mezey localisation!")
     end if
 
   end subroutine PipekMezeyOld_real
 
 
   !> Performs Pipek-Mezey localisation for a molecule given the square overlap matrix, using a
-  subroutine PipekMezeySuprtRegion_real(ci, S, iAtomStart, convergence, mIter, RegionTol)
+  subroutine PipekMezeySuprtRegion_real(output, ci, S, iAtomStart, convergence, mIter, RegionTol)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Support region for each molecular orbital
     real(dp), intent(inout) :: ci(:,:)
@@ -426,10 +438,10 @@ contains
     real(dp) :: Localisation, oldLocalisation
     integer, allocatable :: union(:)
 
-    write(stdout, *)'Pipek Mezey localisation'
+    write(output, *)'Pipek Mezey localisation'
 
     Localisation = PipekMezyLocality_real(ci,S,iAtomStart)
-    write(stdout, *)'Initial', Localisation
+    write(output, *)'Initial', Localisation
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
     @:ASSERT(size(ci,dim=1)==size(S,dim=1))
@@ -497,13 +509,13 @@ contains
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
 
-      write(stdout, "(' Iter:',I0,', tol:',E10.2)")iIter,RegionTol
+      write(output, "(' Iter:',I0,', tol:',E10.2)")iIter,RegionTol
       rCount = 0.0
 
       do iLev1 = 1, nLev
 
         if (real(iLev1)/real(nLev) > rCount) then
-          write(stdout, "(1X,I0,'%')")int(100*real(iLev1)/real(nLev))
+          write(output, "(1X,I0,'%')")int(100*real(iLev1)/real(nLev))
           rCount = rCount + 0.1 ! every 10%
         end if
 
@@ -665,34 +677,34 @@ contains
 
       oldLocalisation = Localisation
       Localisation = PipekMezyLocality_real(ci,S,iAtomStart)
-      write(stdout, "(A,F12.6,1X,A,E20.12)")'Current localisation ',Localisation,&
+      write(output, "(A,F12.6,1X,A,E20.12)")'Current localisation ',Localisation,&
           & 'change ',Localisation-oldLocalisation
 
       conv = abs(alphamax) - abs(alphalast)
       if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
-        write(stdout, *)'Converged on rotation angle'
+        write(output, *)'Converged on rotation angle'
         tConverged = .true.
         exit
       end if
 
       conv = abs(Localisation-oldLocalisation)
       if (abs(conv)<convergence) then
-        write(stdout, *)'Converged on localization value.'
+        write(output, *)'Converged on localization value.'
         tConverged = .true.
         exit
       end if
 
       alphalast = alphamax
-      write(stdout, "(' max(alpha)',E10.2)")alphamax
+      write(output, "(' max(alpha)',E10.2)")alphamax
 
     end do lpLocalise
 
     Localisation = PipekMezyLocality_real(ci,S,iAtomStart)
-    write(stdout, *)'Final',Localisation
+    write(output, *)'Final',Localisation
 
     if (.not.tConverged) then
-      write(stdout, *)alphamax
-      call warning("Exceeded iterations in Pipek-Mezey localisation!")
+      write(output, *)alphamax
+      call warning(output, "Exceeded iterations in Pipek-Mezey localisation!")
     end if
 
   end subroutine PipekMezeySuprtRegion_real
@@ -816,8 +828,11 @@ contains
 
   !> Performs conventional Pipek-Mezey localisation for a supercell using iterative sweeps over each
   !> pair of orbitals for a particular k and spin sub-matrix
-  subroutine PipekMezeyOld_kpoint(ci, S, over, kpoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
+  subroutine PipekMezeyOld_kpoint(output, ci, S, over, kpoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iAtomStart, iPair, img2CentCell, convergence, mIter)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Wavefunction coefficients
     complex(dp), intent(inout) :: ci(:,:)
@@ -903,7 +918,7 @@ contains
 
     lpLocalise: do iIter = 1, nIter
 
-      write(stdout, *)'Iter', iIter
+      write(output, *)'Iter', iIter
 
       alphamax = 0.0_dp
 
@@ -979,7 +994,7 @@ contains
     !    & img2CentCell))
 
     if (.not.tConverged) then
-      call warning("Exceeded iterations in Pipek-Mezey localisation!")
+      call warning(output, "Exceeded iterations in Pipek-Mezey localisation!")
     end if
 
     ! Choose phase to make largest Bloch state element real for this k-point - dumb approch, as

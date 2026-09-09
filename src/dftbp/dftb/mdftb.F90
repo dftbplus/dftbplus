@@ -12,7 +12,6 @@
 module dftbp_dftb_mdftb
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
