@@ -41,6 +41,8 @@ contributed to DFTB+ :
 
 * Sebastian Ehlert (University of Bonn, Germany)
 
+* Merlin Elvers (University of Bremen, Germany)
+
 * Roberto Andrés González-León (University of Costa Rica)
 
 * Tammo van der Heide (University of Bremen, Germany)
