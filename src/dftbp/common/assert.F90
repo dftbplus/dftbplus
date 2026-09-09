@@ -9,7 +9,8 @@
 
 !> Auxiliary subroutines for the ASSERT command
 module dftbp_common_assert
-  use dftbp_common_globalenv, only : abortProgram, stdOut
+  use dftbp_common_globalenv, only : stdOut0
+  use dftbp_common_globalenv, only : abortProgram
   implicit none
 
   private
@@ -34,11 +35,11 @@ contains
     !> Additional message for error
     character(*), intent(in), optional :: message
 
-    write(stdout, '(A)') "!!! UNFULLFILLED ASSERTION"
-    write(stdout, '(A,A)') "!!! FILE:      ", fileName
-    write(stdout, '(A,I0)') "!!! LINE NR.:  ", lineNr
+    write(stdOut0, '(A)') "!!! UNFULLFILLED ASSERTION"
+    write(stdOut0, '(A,A)') "!!! FILE:      ", fileName
+    write(stdOut0, '(A,I0)') "!!! LINE NR.:  ", lineNr
     if (present(message)) then
-      write(stdout, '(A,A,A)') '!!! MESSAGE:  "', trim(message), '"'
+      write(stdOut0, '(A,A,A)') '!!! MESSAGE:  "', trim(message), '"'
     end if
     call abortProgram()
 

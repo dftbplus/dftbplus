@@ -10,6 +10,7 @@
 !> Module to impose constraints on the electronic ground state.
 module dftbp_dftb_elecconstraints
   use dftbp_common_accuracy, only : dp, hugeIterations
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
   use dftbp_extlibs_xmlf90, only : char, destroyNodeList, fnode, fnodeList, getItem1, getLength,&
       & string
@@ -160,7 +161,10 @@ contains
 
 
   !> Reads electronic constraint input from HSD.
-  subroutine readElecConstraintInput(node, geo, isSpinPol, is2Component, input)
+  subroutine readElecConstraintInput(env, node, geo, isSpinPol, is2Component, input)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Input structure to be filled
     type(TElecConstraintInp), intent(out) :: input
@@ -189,14 +193,18 @@ contains
 
     call getChildValue(node, "Constraints", placeholderNode, "", child=constrContainer,&
         & allowEmptyValue=.true., dontMarkProcessed=.true., list=.true.)
-    call readMullikenConstraintInputs(constrContainer, geo, isSpinPol, is2Component,&
+    call readMullikenConstraintInputs(env%stdOut, constrContainer, geo, isSpinPol, is2Component,&
         & input%mullikenConstrs)
 
   end subroutine readElecConstraintInput
 
 
   !> Reads Mulliken constraint inputs from HSD.
-  subroutine readMullikenConstraintInputs(constrContainer, geo, isSpinPol, is2Component, inputs)
+  subroutine readMullikenConstraintInputs(output, constrContainer, geo, isSpinPol, is2Component,&
+      & inputs)
+
+    !> Output unit
+    integer, intent(in) :: output
 
     !> Node containing all constraints
     type(fnode), pointer, intent(in) :: constrContainer
@@ -230,7 +238,7 @@ contains
       associate(input => inputs(iConstrInp))
         call getItem1(constrNodes, iConstrInp, constrNode)
         call getChildValue(constrNode, "Atoms", buffer, child=child1, multiple=.true.)
-        call getSelectedAtomIndices(child1, char(buffer), geo%speciesNames, geo%species,&
+        call getSelectedAtomIndices(output, child1, char(buffer), geo%speciesNames, geo%species,&
             & input%atoms)
 
         call getChild(constrNode, "Populations", populationsNode, requested=.false.)
