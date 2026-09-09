@@ -30,7 +30,10 @@ module dftbp_poisson_gewald
 contains
 
   !======================================================================
-  subroutine short_pot(distR,basis,uhatm,deltaQ,tol,sh_pot, iError)
+  subroutine short_pot(output, distR,basis,uhatm,deltaQ,tol,sh_pot, iError)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     real(kind=dp) :: distR(3), uhatm, deltaQ, basis(3,3), tol, sh_pot
     integer, intent(out), optional :: iError
@@ -90,14 +93,17 @@ contains
     END DO
 
     IF(abs(lastshell) .gt. tol) THEN
-      @:ERROR_HANDLING(iError, -1, 'tolerance in subroutine short_pot not reached')
+      @:ERROR_HANDLING(output, iError, -1, 'tolerance in subroutine short_pot not reached')
     END IF
 
   END subroutine short_pot
   !----------------------------------------------------------------
 
 
-  subroutine long_pot(r,basis,recbasis,alpha,vol,tol,potential, iError)
+  subroutine long_pot(output, r,basis,recbasis,alpha,vol,tol,potential, iError)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
     real(kind=dp) ::  potential
@@ -147,7 +153,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:ERROR_HANDLING(iError, -1, 'tolerance in long_pot not reached in reciprocal space')
+      @:ERROR_HANDLING(output, iError, -1, 'tolerance in long_pot not reached in reciprocal space')
     END IF
 
     reciprocal=(4._dp*Pi*reciprocal)/vol
@@ -188,7 +194,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:ERROR_HANDLING(iError, -2, 'tolerance in long_pot not reached in real space')
+      @:ERROR_HANDLING(output, iError, -2, 'tolerance in long_pot not reached in real space')
     END IF
 
 
@@ -229,7 +235,10 @@ contains
 !
 !  ======================================================================
 
-  subroutine phi(r,basis,recbasis,alpha,vol,tol,potential, iError)
+  subroutine phi(output, r,basis,recbasis,alpha,vol,tol,potential, iError)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
     real(kind=dp) ::  potential
@@ -280,7 +289,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:ERROR_HANDLING(iError, -1, "tolerance in phi not reached in reciprocal space")
+      @:ERROR_HANDLING(output, iError, -1, "tolerance in phi not reached in reciprocal space")
     END IF
 
     reciprocal=(4._dp*Pi*reciprocal)/vol
@@ -321,7 +330,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:ERROR_HANDLING(iError, -2, "tolerance in phi not reached in real space")
+      @:ERROR_HANDLING(output, iError, -2, "tolerance in phi not reached in real space")
     END IF
 
 
@@ -358,7 +367,10 @@ contains
   !  ======================================================================
 
 
-  subroutine phi1(r,basis,recbasis, alpha,vol,tol,deriv, iError)
+  subroutine phi1(output, r,basis,recbasis, alpha,vol,tol,deriv, iError)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, deriv(3)
     integer, intent(out), optional :: iError
@@ -416,7 +428,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:ERROR_HANDLING(iError, -1, "tolerance in phi1 not reached in reciprocal space")
+      @:ERROR_HANDLING(output, iError, -1, "tolerance in phi1 not reached in reciprocal space")
     END IF
 
     reciprocal(1)=(4._dp*Pi*reciprocal(1))/vol
@@ -463,7 +475,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:ERROR_HANDLING(iError, -2, "tolerance in phi1 not reached in real space")
+      @:ERROR_HANDLING(output, iError, -2, "tolerance in phi1 not reached in real space")
     END IF
 
 

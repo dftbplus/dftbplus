@@ -76,10 +76,13 @@ contains
 
 
   !> Create new transformation filter
-  subroutine TFilter_init(this, input, coord0, latVec, stat)
+  subroutine TFilter_init(this, output, input, coord0, latVec, stat)
 
     !> Instance of the transformation filter
     type(TFilter), intent(out) :: this
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Input to create transformation filter
     type(TFilterInput), intent(in) :: input
@@ -114,7 +117,7 @@ contains
     this%isotropic = input%isotropic
     if (this%lattice .and. present(latVec)) then
       if (size(coord0) > this%nvar) then
-        @:ERROR_HANDLING(stat, 1, &
+        @:ERROR_HANDLING(output, stat, 1, &
             & "Subset of optimising atoms not currently possible with lattice optimisation.")
       end if
       this%nvar = this%nvar + size(latVec)

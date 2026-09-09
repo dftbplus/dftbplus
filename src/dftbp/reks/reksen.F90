@@ -16,7 +16,6 @@
 module dftbp_reks_reksen
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : globalTimers, TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only : unpackHS
@@ -76,7 +75,10 @@ module dftbp_reks_reksen
 
 
   !> Swap the active orbitals for feasible occupation in REKS
-  subroutine activeOrbSwap(this, eigenvecs)
+  subroutine activeOrbSwap(output, this, eigenvecs)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -87,7 +89,7 @@ module dftbp_reks_reksen
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call MOswap22_(eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
+      call MOswap22_(output, eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -369,7 +371,7 @@ module dftbp_reks_reksen
     end if
 
     ! print state energies and couplings
-    call printReksSSRInfo(this, Wab, tmpEn, StateCoup)
+    call printReksSSRInfo(this, Wab, tmpEn, StateCoup, env%stdOut)
 
   end subroutine solveSecularEqn
 
@@ -559,7 +561,10 @@ module dftbp_reks_reksen
 
 
   !> Swap active orbitals when fa < fb in REKS(2,2) case
-  subroutine MOswap22_(eigenvecs, SAweight, FONs, Efunction, Nc)
+  subroutine MOswap22_(output, eigenvecs, SAweight, FONs, Efunction, Nc)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> eigenvectors
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -599,7 +604,7 @@ module dftbp_reks_reksen
     end if
 
     if (fa < fb) then
-      write(stdOut,'(A6,F9.6,A20,I4,A8,I4,A8)') " fa = ", fa, &
+      write(output,'(A6,F9.6,A20,I4,A8,I4,A8)') " fa = ", fa, &
           & ", MO swap between a(", Nc+1, ") and b(", Nc+2, ") occurs"
       tmpMO(:) = eigenvecs(:,Nc+1)
       eigenvecs(:,Nc+1) = eigenvecs(:,Nc+2)
