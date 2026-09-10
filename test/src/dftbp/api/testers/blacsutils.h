@@ -30,10 +30,10 @@ extern void blacs_gridinit_(
 // https://www.intel.com/content/www/us/en/develop/documentation/onemkl-developer-reference-c/top/scalapack-routines/scalapack-redistribution-copy-routines/p-gemr2d.html
 // http://www.netlib.org/scalapack/slug/node164.html
 // http://www.netlib.org/scalapack/slug/node168.html
-extern void pdgemr2d_(int *m, int *n, double *a, int *ia, int *ja, int *desca,
+extern void pdgemr2d_(int *m, int *n, const void *a, int *ia, int *ja, int *desca,
                       double *b, int *ib, int *jb, int *descb, int *ictxt);
 
-extern void pzgemr2d_(int *m, int *n, double complex *a, int *ia, int *ja, int *desca,
+extern void pzgemr2d_(int *m, int *n, const void *a, int *ia, int *ja, int *desca,
                       double complex *b, int *ib, int *jb, int *descb, int *ictxt);
 
 extern void descinit_(

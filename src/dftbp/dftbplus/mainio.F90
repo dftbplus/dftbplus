@@ -4017,7 +4017,7 @@ contains
     !> Driving frequencies (including potentially 0 for static)
     real(dp), allocatable, intent(in) :: omega(:)
 
-    integer :: iCart, iAt, nAtom, iS, nSpin, iOmega
+    integer :: iCart, iAt, nAtom, iS, nSpin
 
     if (allocated(dqOut)) then
       nAtom = size(dqOut, dim=2)
@@ -5783,6 +5783,7 @@ contains
 
   #:if WITH_SCALAPACK
 
+    eigenvecs(:,:) = 0.0_dp
     call error("Eigenvector reading not currently supported for ScaLAPACK enabled builds")
 
   #:else

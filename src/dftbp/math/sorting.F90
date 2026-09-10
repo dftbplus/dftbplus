@@ -229,7 +229,7 @@ contains
     @:ASSERT(size(indx) >= n)
 
     ! Initialize an index array
-    forall (ii = 1:n) indx(ii) = ii
+    indx(1:n) = [(ii, ii = 1, n)]
 
     if (n > 1) then
       allocate(work(n))
@@ -380,7 +380,7 @@ contains
     @:ASSERT(size(arr,dim=1) == size(tolerance))
 
     ! Initialize an index array
-    forall (ii = 1:n) indx(ii) = ii
+    indx(1:n) = [(ii, ii = 1, n)]
 
     if (n > 1) then
       allocate(work(n))

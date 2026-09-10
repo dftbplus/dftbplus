@@ -141,7 +141,7 @@ contains
     !> Central cell coordinates
     real(dp), intent(in) :: coords0(:,:)
 
-    this%zCoords_ = foldedZCoords_(coords0, this%iNormalComp, this%z0, this%cellHeight_)
+    this%zCoords_(:) = foldedZCoords_(coords0, this%iNormalComp, this%z0, this%cellHeight_)
 
   end subroutine TDipoleCorr_updateCoords
 
@@ -197,7 +197,8 @@ contains
 
     real(dp), allocatable :: zCoords_(:)
 
-    zCoords_ = foldedZCoords_(coords0, this%iNormalComp, this%z0, this%cellHeight_)
+    allocate(zCoords_(size(coords0)))
+    zCoords_(:) = foldedZCoords_(coords0, this%iNormalComp, this%z0, this%cellHeight_)
     potentials(:) = dipoleCorrectionPot_(zCoords_, this%z0, this%dipoleZ_, this%cellVol_,&
         & this%cellHeight_)
 
