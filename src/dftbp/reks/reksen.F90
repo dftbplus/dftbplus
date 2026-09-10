@@ -371,7 +371,7 @@ module dftbp_reks_reksen
     end if
 
     ! print state energies and couplings
-    call printReksSSRInfo(this, Wab, tmpEn, StateCoup, env%stdOut)
+    call printReksSSRInfo(this, env%stdOut, Wab, tmpEn, StateCoup)
 
   end subroutine solveSecularEqn
 

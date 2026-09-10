@@ -37,10 +37,10 @@ contains
 
 
   !> print real values
-  subroutine printArrayRealR1(unit, array, omitHeader)
+  subroutine printArrayRealR1(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     real(dp), intent(in) :: array(:)
@@ -53,16 +53,16 @@ contains
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
-    write(unit, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
+    write(output, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
 
   end subroutine printArrayRealR1
 
 
   !> print real values
-  subroutine printArrayRealR2(unit, array, omitHeader)
+  subroutine printArrayRealR2(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     real(dp), intent(in) :: array(:, :)
@@ -77,17 +77,17 @@ contains
     end if
     do ii = lbound(array, 2), ubound(array, 2)
       print *, "--2------", ii, "------"
-      call printContent(unit, array(:, ii), .true.)
+      call printContent(output, array(:, ii), .true.)
     end do
 
   end subroutine printArrayRealR2
 
 
   !> print real values
-  subroutine printArrayRealR3(unit, array, omitHeader)
+  subroutine printArrayRealR3(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     real(dp), intent(in) :: array(:, :, :)
@@ -102,17 +102,17 @@ contains
     end if
     do ii = lbound(array, 3), ubound(array, 3)
       print *, "--3------", ii, "------"
-      call printContent(unit, array(:, :, ii), .true.)
+      call printContent(output, array(:, :, ii), .true.)
     end do
 
   end subroutine printArrayRealR3
 
 
   !> print real values
-  subroutine printArrayRealR4(unit, array, omitHeader)
+  subroutine printArrayRealR4(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     real(dp), intent(in) :: array(:, :, :, :)
@@ -127,7 +127,7 @@ contains
     end if
     do ii = lbound(array, 4), ubound(array, 4)
       print *, "--4------", ii, "------"
-      call printContent(unit, array(:, :, :, ii), .true.)
+      call printContent(output, array(:, :, :, ii), .true.)
     end do
 
   end subroutine printArrayRealR4
@@ -136,10 +136,10 @@ contains
 
 
   !> print complex values
-  subroutine printArrayComplexR1(unit, array, omitHeader)
+  subroutine printArrayComplexR1(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     !> data to print
@@ -153,16 +153,16 @@ contains
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
-    write(unit, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
+    write(output, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
 
   end subroutine printArrayComplexR1
 
 
   !> print complex values
-  subroutine printArrayComplexR2(unit, array, omitHeader)
+  subroutine printArrayComplexR2(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     complex(dp), intent(in) :: array(:, :)
@@ -177,17 +177,17 @@ contains
     end if
     do ii = lbound(array, 2), ubound(array, 2)
       print *, "--2------", ii, "------"
-      call printContent(unit, array(:, ii), .true.)
+      call printContent(output, array(:, ii), .true.)
     end do
 
   end subroutine printArrayComplexR2
 
 
   !> print complex values
-  subroutine printArrayComplexR3(unit, array, omitHeader)
+  subroutine printArrayComplexR3(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     complex(dp), intent(in) :: array(:, :, :)
@@ -202,17 +202,17 @@ contains
     end if
     do ii = lbound(array, 3), ubound(array, 3)
       print *, "--3------", ii, "------"
-      call printContent(unit, array(:, :, ii), .true.)
+      call printContent(output, array(:, :, ii), .true.)
     end do
 
   end subroutine printArrayComplexR3
 
 
   !> print complex values
-  subroutine printArrayComplexR4(unit, array, omitHeader)
+  subroutine printArrayComplexR4(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     complex(dp), intent(in) :: array(:, :, :, :)
@@ -227,7 +227,7 @@ contains
     end if
     do ii = lbound(array, 4), ubound(array, 4)
       print *, "--4------", ii, "------"
-      call printContent(unit, array(:, :, :, ii), .true.)
+      call printContent(output, array(:, :, :, ii), .true.)
     end do
 
   end subroutine printArrayComplexR4
@@ -236,10 +236,10 @@ contains
 
 
   !> print integer values
-  subroutine printArrayIntR1(unit, array, omitHeader)
+  subroutine printArrayIntR1(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     integer, intent(in) :: array(:)
@@ -252,16 +252,16 @@ contains
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
-    write(unit, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
+    write(output, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
 
   end subroutine printArrayIntR1
 
 
   !> print integer values
-  subroutine printArrayIntR2(unit, array, omitHeader)
+  subroutine printArrayIntR2(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     integer, intent(in) :: array(:, :)
@@ -276,17 +276,17 @@ contains
     end if
     do ii = lbound(array, 2), ubound(array, 2)
       print *, "--2------", ii, "------"
-      call printContent(unit, array(:, ii), .true.)
+      call printContent(output, array(:, ii), .true.)
     end do
 
   end subroutine printArrayIntR2
 
 
   !> print integer values
-  subroutine printArrayIntR3(unit, array, omitHeader)
+  subroutine printArrayIntR3(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     integer, intent(in) :: array(:, :, :)
@@ -301,17 +301,17 @@ contains
     end if
     do ii = lbound(array, 3), ubound(array, 3)
       print *, "--3------", ii, "------"
-      call printContent(unit, array(:, :, ii), .true.)
+      call printContent(output, array(:, :, ii), .true.)
     end do
 
   end subroutine printArrayIntR3
 
 
   !> print integer values
-  subroutine printArrayIntR4(unit, array, omitHeader)
+  subroutine printArrayIntR4(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     integer, intent(in) :: array(:, :, :, :)
@@ -326,7 +326,7 @@ contains
     end if
     do ii = lbound(array, 4), ubound(array, 4)
       print *, "--4------", ii, "------"
-      call printContent(unit, array(:, :, :, ii), .true.)
+      call printContent(output, array(:, :, :, ii), .true.)
     end do
 
   end subroutine printArrayIntR4
@@ -335,10 +335,10 @@ contains
 
 
   !> print character values
-  subroutine printArrayCharR1(unit, array, omitHeader)
+  subroutine printArrayCharR1(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     character(lc), intent(in) :: array(:)
@@ -351,16 +351,16 @@ contains
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
-    write(unit, *) (trim(array(ii)), ii = lbound(array, 1), ubound(array, 1))
+    write(output, *) (trim(array(ii)), ii = lbound(array, 1), ubound(array, 1))
 
   end subroutine printArrayCharR1
 
 
   !> print character values
-  subroutine printArrayCharR2(unit, array, omitHeader)
+  subroutine printArrayCharR2(output, array, omitHeader)
 
     !> output unit
-    integer, intent(in) :: unit
+    integer, intent(in) :: output
 
     !> data to print
     character(lc), intent(in) :: array(:, :)
@@ -375,7 +375,7 @@ contains
     end if
     do ii = lbound(array, 2), ubound(array, 2)
       print *, "--2------", ii, "------"
-      call printContent(unit, array(:, ii), .true.)
+      call printContent(output, array(:, ii), .true.)
     end do
 
   end subroutine printArrayCharR2

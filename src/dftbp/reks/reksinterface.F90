@@ -492,7 +492,7 @@ module dftbp_reks_reksinterface
     end if
 
     if (this%Plevel >= 1) then
-      call printReksGradInfo(this, derivs, env%stdOut)
+      call printReksGradInfo(this, env%stdOut, derivs)
     end if
 
   end subroutine getReksGradients

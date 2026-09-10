@@ -71,7 +71,7 @@ module dftbp_common_globalenv
 contains
 
   !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit, devNull, stdOut, stdErr)
+  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit, devNull, stdOut)
 
     !> Customised global standard output
     integer, intent(in), optional :: outputUnit
@@ -89,22 +89,12 @@ contains
     !> the null device on every process but the lead one)
     integer, intent(out), optional :: stdOut
 
-    !> Effective standard error for the calling process (on an MPI run, this is redirected to
-    !> the null device on every process but the lead one)
-    integer, intent(out), optional :: stdErr
-
-    integer :: outputUnit_, errorUnit_
+    integer :: outputUnit_
 
     if (present(outputUnit)) then
       outputUnit_ = outputUnit
     else
       outputUnit_ = stdOut0
-    end if
-
-    if (present(errorUnit)) then
-      errorUnit_ = errorUnit
-    else
-      errorUnit_ = stdErr0
     end if
 
   #:if WITH_MPI
@@ -127,7 +117,6 @@ contains
           open(newunit=devNull_, file="/dev/null", action="write")
         end if
         outputUnit_ = devNull_
-        errorUnit_ = devNull_
       end if
       tIoProc = globalMpiComm%lead
     end block
@@ -135,9 +124,6 @@ contains
 
     if (present(stdOut)) then
       stdOut = outputUnit_
-    end if
-    if (present(stdErr)) then
-      stdErr = errorUnit_
     end if
 
   end subroutine initGlobalEnv

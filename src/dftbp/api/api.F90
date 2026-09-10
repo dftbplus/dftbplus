@@ -361,7 +361,7 @@ contains
     !! multiple TDftbPlus instances within an MPI-process)
     integer, intent(in), optional :: devNull
 
-    integer :: stdOut, stdErr
+    integer :: stdOut
 
   #:if not INSTANCE_SAFE_BUILD
     if (nInstance_ /= 0) then
@@ -374,11 +374,10 @@ contains
       call error("MPI Communicator supplied to initialise a serial DFTB+ instance")
     end if
 
-    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull, stdOut=stdOut,&
-        & stdErr=stdErr)
+    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull, stdOut=stdOut)
     allocate(this%env)
     allocate(this%main)
-    call TEnvironment_init(this%env, stdOut=stdOut, stdErr=stdErr)
+    call TEnvironment_init(this%env, stdOut=stdOut)
     this%env%tAPICalculation = .true.
     this%isInitialised = .true.
 
