@@ -235,18 +235,11 @@ contains
         vv = contvec(1:3,icont)
         tol = norm2(vv)*contvec(4,icont)
         PLsize = size(data)/2
-<<<<<<< HEAD
-        write(stdOut, *) "PL size:",PLsize
-        write(stdOut, *) "Number of PLs:",nPLs(icont)
-        write(stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA,'(A)'
-        write(stdOut, *) "contact direction:",contdir(icont)
-        write(stdOut, *) "tolerance:",tol
-=======
         write(env%stdOut, *) "PL size:",PLsize
         write(env%stdOut, *) "Number of PLs:",nPLs(icont)
         write(env%stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA,'(A)'
+        write(env%stdOut, *) "contact direction:",contdir(icont)
         write(env%stdOut, *) "tolerance:",tol
->>>>>>> 9104a69c9 (Eliminate global stdout (first step))
         ! check PL size
         mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont))
         write(env%stdOut, *) "minimum distance 2nd neighbour PL:", mindist*Bohr__AA,'(A)'
@@ -502,7 +495,7 @@ contains
   ! debug subroutine
   subroutine print_debug(output, iAtInRegion)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(TWrappedInt1), intent(in) :: iAtInRegion(:)

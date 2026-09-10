@@ -41,7 +41,7 @@ module dftbp_reks_reksio
     !> repulsive energy
     real(dp), intent(in) :: Erep
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer :: iL
@@ -79,7 +79,7 @@ module dftbp_reks_reksio
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer :: ist
@@ -105,7 +105,7 @@ module dftbp_reks_reksio
     !> Total energy for averaged state in REKS
     real(dp), intent(in) :: Eavg
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     select case (this%reksAlg)
@@ -135,7 +135,7 @@ module dftbp_reks_reksio
     !> state-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     select case (this%reksAlg)
@@ -159,7 +159,7 @@ module dftbp_reks_reksio
     !> derivatives of energy wrt to atomic positions
     real(dp), intent(in) :: derivs(:,:)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer :: ist, ia, ib, nstHalf
@@ -278,7 +278,7 @@ module dftbp_reks_reksio
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical, intent(in) :: tSSR
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer :: ii
@@ -325,7 +325,7 @@ module dftbp_reks_reksio
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical, intent(in) :: tSSR
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer :: ii
@@ -364,7 +364,7 @@ module dftbp_reks_reksio
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer :: ii
@@ -480,7 +480,7 @@ module dftbp_reks_reksio
     !> Print level in standard output file
     integer, intent(in) :: Plevel
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     real(dp) :: n_a, n_b
@@ -544,7 +544,7 @@ module dftbp_reks_reksio
   subroutine printReksSSRInfo22_(output, Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
       & Na, tAllStates, tSSR)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> converged Lagrangian values within active space

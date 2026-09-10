@@ -469,7 +469,7 @@ contains
     !> Instance.
     class(TNegfInt), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> density of states in tunnel region
@@ -489,7 +489,7 @@ contains
   !> Initialise electron-phonon coupling model
   subroutine negf_setup_elph(output, negf, elph)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> NEGF container
@@ -519,7 +519,7 @@ contains
   !> Initialise Buttiker Probe dephasing
   subroutine negf_setup_bp(output, negf, elph)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> NEGF container
@@ -583,7 +583,7 @@ contains
   !> Destroy CSR matrices
   subroutine TNegfInt_final(output, this)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(TNegfInt), intent(inout) :: this
@@ -606,7 +606,7 @@ contains
     !> Instance.
     class(TNegfInt), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Dense matrix information
@@ -657,7 +657,7 @@ contains
 
     nAtom = size(denseDescr%iAtomStart) - 1
 
-    call check_pls(outut, transpar, greendens, nAtom, iNeigh, nNeigh, img2CentCell, info)
+    call check_pls(output, transpar, greendens, nAtom, iNeigh, nNeigh, img2CentCell, info)
 
     allocate(PL_end(nDevicePLs))
     allocate(atomStart(nDevicePLs+1))
@@ -767,7 +767,7 @@ contains
   !> Subroutine to check the principal layer (PL) definitions
   subroutine check_pls(output, transPar, greenDens, nAtoms, iNeigh, nNeigh, img2CentCell, info)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> transport calculation parameters
@@ -966,7 +966,7 @@ contains
   !>
   subroutine negf_dumpHS(output, HH,SS)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> hamiltonian in CSR format
@@ -1003,7 +1003,7 @@ contains
   !> Routines to setup orthogonalised H and S have been moved here
   subroutine prepare_HS(output, negf, H_dev,S_dev,HH,SS)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> NEGF container
@@ -1516,11 +1516,11 @@ contains
     ncont = size(mu,1)
 
     if (params%verbose > 30) then
-      write(output, *)
-      write(output, '(80("="))')
-      write(output, *) '                            COMPUTATION OF CURRENT         '
-      write(output, '(80("="))')
-      write(output, *)
+      write(env%stdOut, *)
+      write(env%stdOut, '(80("="))')
+      write(env%stdOut, *) '                            COMPUTATION OF CURRENT         '
+      write(env%stdOut, '(80("="))')
+      write(env%stdOut, *)
     end if
 
     do iKS = 1, nKS

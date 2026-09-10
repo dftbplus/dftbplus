@@ -119,7 +119,7 @@ contains
   !> Prints a warning message about unprocessed nodes
   subroutine warnUnprocessedNodes(output, node, tIgnoreUnprocessed, nodeList)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root element of the tree to investigate

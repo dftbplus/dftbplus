@@ -5671,7 +5671,7 @@ contains
     !> Sn-S0 excitation energy
     real(dp), intent(in) :: excEnergies(:)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer :: nAtoms, nexcGrad, nCoupl

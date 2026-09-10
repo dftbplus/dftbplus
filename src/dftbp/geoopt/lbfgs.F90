@@ -390,7 +390,7 @@ contains
     !> lbfgs instance
     class(TLbfgs), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Point
@@ -712,7 +712,7 @@ contains
     !> Instance.
     type(TLineSearch), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Function value at current point
@@ -811,7 +811,7 @@ contains
     !> Instance.
     type(TLineSearch), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Function value at current point

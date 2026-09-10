@@ -77,7 +77,7 @@ module dftbp_reks_reksen
   !> Swap the active orbitals for feasible occupation in REKS
   subroutine activeOrbSwap(output, this, eigenvecs)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> data type for REKS
@@ -563,7 +563,7 @@ module dftbp_reks_reksen
   !> Swap active orbitals when fa < fb in REKS(2,2) case
   subroutine MOswap22_(output, eigenvecs, SAweight, FONs, Efunction, Nc)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> eigenvectors

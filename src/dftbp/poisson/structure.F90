@@ -63,7 +63,7 @@ module dftbp_poisson_structure
   subroutine init_structure(output, st_nAtom, st_nSpecies, st_specie0, st_x0, &
               st_latVecs, st_isperiodic)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer, intent(in)   :: st_nAtom          ! number of Atoms in central cell
@@ -124,7 +124,7 @@ module dftbp_poisson_structure
   !------------------------------------------------------------------------------
   subroutine init_charges(output)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer :: nsh
@@ -138,7 +138,7 @@ module dftbp_poisson_structure
   !------------------------------------------------------------------------------
   subroutine init_skdata(output, nShell, angShell, hubbU)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer, intent(in) :: nShell(:)
@@ -284,7 +284,7 @@ module dftbp_poisson_structure
 
      implicit none
 
-     !> output for write processes
+     !> Output unit for human readable messages
      integer, intent(in) :: output
 
      integer :: ijk(9),algn,nu,nv,nw,i,j,k,n

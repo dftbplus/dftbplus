@@ -171,7 +171,7 @@ contains
   ! Get H5 parameters for all species pairs.
   subroutine getParams_(output, speciesNames, elementParams, h5Scaling_, sumVdw_)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     character(*), intent(in) :: speciesNames(:)

@@ -113,7 +113,7 @@ contains
     !> Instance
     class(TPipekMezey), intent(in) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
 
@@ -147,7 +147,7 @@ contains
     !> Instance.
     class(TPipekMezey), intent(in) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Wavefunction coefficients
@@ -266,7 +266,7 @@ contains
   !> using iterative sweeps over each pair of orbitals
   subroutine PipekMezeyOld_real(output, ci, S, iAtomStart, pipekTol, mIter)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Wavefunction coefficients
@@ -392,7 +392,7 @@ contains
   !> Performs Pipek-Mezey localisation for a molecule given the square overlap matrix, using a
   subroutine PipekMezeySuprtRegion_real(output, ci, S, iAtomStart, convergence, mIter, RegionTol)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Support region for each molecular orbital
@@ -831,7 +831,7 @@ contains
   subroutine PipekMezeyOld_kpoint(output, ci, S, over, kpoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iAtomStart, iPair, img2CentCell, convergence, mIter)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Wavefunction coefficients

@@ -260,7 +260,7 @@ contains
 
   subroutine negf_destroy(output)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     write(output, *)
@@ -275,7 +275,7 @@ contains
 
   subroutine negf_init_str(output, nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Number of atoms

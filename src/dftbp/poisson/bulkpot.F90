@@ -55,7 +55,7 @@ contains
  !%--------------------------------------------------------------------------
  subroutine create_super_array(output, SA,na,nb,nc)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    type(super_array) :: SA
@@ -70,7 +70,7 @@ contains
  !%--------------------------------------------------------------------------
  subroutine destroy_super_array(output, SA)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    type(super_array) :: SA
@@ -83,7 +83,7 @@ contains
 
  subroutine write_super_array(output, SA)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    type(super_array) :: SA
@@ -106,7 +106,7 @@ contains
  !%--------------------------------------------------------------------------
  subroutine create_phi_bulk(output, phi_bulk,iparm,dlx,dly,dlz,cont_mem)
 
- !> output for write processes
+ !> Output unit for human readable messages
  integer, intent(in) :: output
 
  type(super_array) :: phi_bulk(:)
@@ -311,7 +311,7 @@ end subroutine create_phi_bulk
 
 subroutine destroy_phi_bulk(output, phi_bulk)
 
- !> output for write processes
+ !> Output unit for human readable messages
  integer, intent(in) :: output
 
   type(super_array) :: phi_bulk(:)

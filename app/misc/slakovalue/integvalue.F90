@@ -50,7 +50,7 @@ contains
   !> Prints help and stops.
   subroutine printHelp(output)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     write(output, "(A)") &
@@ -175,7 +175,7 @@ contains
   !!
   subroutine writeValues(output, skgrid, rStart, dr, nPoint)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> SK data grid

@@ -784,7 +784,7 @@ contains
   !> Updates the number of neighbours.
   subroutine updateNrOfNeighbours_(output, shortCutoffs, species, hubb, neighList, nNeigh)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     real(dp), intent(in) :: shortCutoffs(:,:,:,:)

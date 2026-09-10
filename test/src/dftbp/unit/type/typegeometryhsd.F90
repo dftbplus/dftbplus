@@ -12,7 +12,7 @@ module test_type_typegeometryhsd
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, stdOut
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
   use dftbp_extlibs_xmlf90, only : createDocumentNode, createTextNode, destroyNode, fnode
   use dftbp_io_hsdutils, only : setChildValue
   use dftbp_type_typegeometryhsd, only : readTGeometryLammps, TGeometry
@@ -48,10 +48,10 @@ contains
   subroutine init_test_env(this)
     type(test_env), intent(out) :: this
 
-    call initGlobalEnv()
-    call TEnvironment_init(this%env)
-    ! temporary fix
-    this%env%stdOut = stdOut
+    integer :: stdOut
+
+    call initGlobalEnv(stdOut=stdOut)
+    call TEnvironment_init(this%env, stdOut=stdOut)
 
   end subroutine init_test_env
 

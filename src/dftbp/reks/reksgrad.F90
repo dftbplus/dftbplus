@@ -3117,7 +3117,7 @@ contains
   subroutine buildA1e_(output, Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
       & Glevel, reksAlg, A1e, A1ePre)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> dense fock matrix for core orbitals

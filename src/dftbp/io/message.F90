@@ -46,7 +46,7 @@ contains
   !> Gives a warning message.
   subroutine warning_single(output, message)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Warning message to print to standard out.
@@ -61,7 +61,7 @@ contains
   !> Gives a warning message.
   subroutine warning_array(output, messages)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Lines of the error message to print to standard out.
@@ -112,7 +112,7 @@ contains
   !> Prints a message and stops the code cleanly.
   subroutine shutdown_single(output, message)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Shutdown message to print to standard out.
@@ -129,7 +129,7 @@ contains
   !> Prints messages and stops the code cleanly.
   subroutine shutdown_array(output, messages)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Lines of the shutdown message to print to standard out.

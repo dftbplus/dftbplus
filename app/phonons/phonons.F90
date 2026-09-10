@@ -95,7 +95,7 @@ contains
 
   subroutine printHeader(output)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     write (output, "(A)") repeat("=", 80)
@@ -117,7 +117,7 @@ contains
 
   subroutine ComputeModes(output)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(TFileDescr) :: fd
@@ -235,7 +235,7 @@ contains
 
   subroutine PhononDispersion(output, tWriter)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(TTaggedWriter) :: tWriter

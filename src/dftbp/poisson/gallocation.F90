@@ -62,7 +62,7 @@ contains
   !---------------------------------------------------------------
   subroutine allocate_${LABEL}$(output, array, ${ARGS}$, err)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     ${TYPE}$, allocatable, target, intent(inout) :: array(${ARRAY}$)
@@ -112,7 +112,7 @@ contains
   !---------------------------------------------------------------
   subroutine deallocate_${LABEL}$(output, array, err)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     ${TYPE}$, allocatable, target, intent(inout) :: array(${ARRAY}$)

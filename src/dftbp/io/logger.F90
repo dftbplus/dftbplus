@@ -101,7 +101,7 @@ contains
     !> Instance
     class(LogWriter), intent(in) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Message to write
@@ -135,7 +135,7 @@ contains
     !> Instance
     class(LogWriter), intent(in) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Message to write
@@ -169,7 +169,7 @@ contains
     !> Instance
     class(LogWriter), intent(in) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Message to write
@@ -203,7 +203,7 @@ contains
     !> Instance
     class(LogWriter), intent(in) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Message to write
@@ -250,7 +250,7 @@ contains
     !> Instance
     class(LogWriter), intent(in) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Message to write

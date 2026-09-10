@@ -102,7 +102,7 @@ module dftbp_poisson_poisson
  !------------------------------------------------------------------------------
  subroutine poiss_freepoisson(output)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    if (active_id) then
@@ -893,7 +893,7 @@ end subroutine Mudpack_drv
 !>
 subroutine finalize_mudpack(output)
 
-  !> output for write processes
+  !> Output unit for human readable messages
   integer, intent(in) :: output
 
   if (allocated(phi_)) call log_gdeallocate(output, phi_)

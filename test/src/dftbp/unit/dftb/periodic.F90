@@ -10,6 +10,8 @@
 module test_dftb_periodic
   use fortuno_serial, only : suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp, minNeighDist
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : allocateNeighbourArrays, distributeAtoms, fillNeighbourArrays,&
       & reallocateArrays2, TNeighbourList, TNeighbourlist_init, updateNeighbourList
@@ -32,10 +34,11 @@ contains
   subroutine init_test_env(this)
     type(test_env), intent(out) :: this
 
-    call initGlobalEnv()
-    call TEnvironment_init(this%env)
-    ! temporary fix
-    this%env%stdOut = stdOut
+    integer :: stdOut
+
+    call initGlobalEnv(stdOut=stdOut)
+    print *, "STDOUT: ", stdOut
+    call TEnvironment_init(this%env, stdOut=stdOut)
 
   end subroutine init_test_env
 
@@ -87,6 +90,8 @@ contains
     integer :: startAtom, endAtom, ii
     logical :: error
     integer, parameter :: nRanks = 4
+
+    call init_test_env(tenv)
 
     write(*,*)
     write(*,"(1X,A,I0,A)")'Expect errors for the next ', nRanks, ' ranks.'

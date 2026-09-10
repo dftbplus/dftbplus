@@ -42,7 +42,7 @@ contains
  ! ---------------------------------------------------------------------------
  subroutine check_poisson_box(output, iErr)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    integer, intent(out), optional :: iErr
@@ -97,7 +97,7 @@ contains
 
  subroutine check_biasdir(output, iErr)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    integer, intent(out), optional :: iErr
@@ -158,7 +158,10 @@ contains
 
  end subroutine check_biasdir
 
- subroutine check_parameters()
+ subroutine check_parameters(output)
+
+   !> Output unit for human readable messages
+   integer, intent(in) :: output
 
    if (OxLength < GateLength_l) OxLength = GateLength_l
    print *,'Oxlength=', OxLength, 'GateLength_l=', GateLength_l
@@ -167,7 +170,8 @@ contains
        call error('Insulator radius must be positive')
      end if
      if (Rmin_ins > Rmin_gate) then
-       call warning('Insulator radius is larger than gate radius: setting Rmin_ins=Rmin_gate')
+       call warning(output,&
+           & 'Insulator radius is larger than gate radius: setting Rmin_ins=Rmin_gate')
        Rmin_ins = Rmin_gate
      end if
      if (dr_eps < 0.5_dp) dr_eps = 0.5d0 !TODO: should be changed to one grid spacing
@@ -183,7 +187,7 @@ contains
    !-------WRITE DOWN FEEDBACK ABOUT INPUT FILE -------------------!
  subroutine write_parameters(output)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    integer i
@@ -261,7 +265,7 @@ contains
 
  subroutine check_localbc(output)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    integer :: m, err
@@ -339,7 +343,7 @@ contains
  !--- WRITE INFOS ABOUT THE CONTACT STRUCTURES ---------------
  subroutine check_contacts(output, iErr)
 
-   !> output for write processes
+   !> Output unit for human readable messages
    integer, intent(in) :: output
 
    integer, intent(out), optional :: iErr

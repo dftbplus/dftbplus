@@ -32,7 +32,7 @@ contains
   !======================================================================
   subroutine short_pot(output, distR,basis,uhatm,deltaQ,tol,sh_pot, iError)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     real(kind=dp) :: distR(3), uhatm, deltaQ, basis(3,3), tol, sh_pot
@@ -102,7 +102,7 @@ contains
 
   subroutine long_pot(output, r,basis,recbasis,alpha,vol,tol,potential, iError)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
@@ -237,7 +237,7 @@ contains
 
   subroutine phi(output, r,basis,recbasis,alpha,vol,tol,potential, iError)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
@@ -369,7 +369,7 @@ contains
 
   subroutine phi1(output, r,basis,recbasis, alpha,vol,tol,deriv, iError)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, deriv(3)

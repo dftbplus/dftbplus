@@ -564,7 +564,7 @@ contains
   !> Checks for supported ELSI api version, ideally 2.6.2, but 2.5.0 can also be used with warnings.
   subroutine supportedVersionNumber(output, version)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Version value components inside the structure

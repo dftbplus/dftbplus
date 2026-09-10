@@ -379,7 +379,7 @@ contains
   !!* destruct the program variables created in initProgramVariables
   subroutine destructProgramVariables(output)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     deallocate(atomicMasses)
@@ -617,7 +617,7 @@ contains
   !> Verification checking of atom ranges and returning contact vector and direction.
   subroutine getContactVectorII(output, atomrange, geom, id, pContact, plShiftTol, contactVec, contactDir)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     integer, intent(in) :: atomrange(2)
@@ -674,7 +674,7 @@ contains
   !> Used to read atomic masses from SK files
   subroutine readSKfiles(output, child, geo, speciesMass)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(fnode), pointer :: child
@@ -767,7 +767,7 @@ contains
 
   subroutine readMasses(output, value, geo, speciesMass)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(fnode), pointer :: value
@@ -951,7 +951,7 @@ contains
   !!
   subroutine readDftbHessian(output, child)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(fnode), pointer :: child
@@ -1008,7 +1008,7 @@ contains
 
   subroutine readDynMatrix(output, child)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(fnode), pointer :: child
@@ -1043,7 +1043,7 @@ contains
 
   subroutine readCp2kHessian(output, child)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(fnode), pointer :: child
@@ -1116,17 +1116,12 @@ contains
 
 
   !> Reads the Analysis block.
-<<<<<<< HEAD
-  subroutine readAnalysis(node, geo, tundos, transpar)
-    type(fnode), pointer :: node
-=======
-  subroutine readAnalysis(env, node, geo, pdos, tundos, transpar, atTemperature)
+  subroutine readAnalysis(env, node, geo, tundos, transpar)
 
     !> Environment
     type(TEnvironment), intent(in) :: env
 
-    type(fnode), pointer :: node, pnode
->>>>>>> 9104a69c9 (Eliminate global stdout (first step))
+    type(fnode), pointer :: node
     type(TGeometry), intent(in) :: geo
     type(TNEGFTunDos), intent(inout) :: tundos
     type(TTransPar), intent(inout) :: transpar
