@@ -3451,10 +3451,10 @@ contains
         end if
       case(thermostatTypes%langevin)
         if (this%geometryChanges%tBarostat) then
-          write(stdOut, "('Mode:',T30,A)")&
+          write(env%stdOut, "('Mode:',T30,A)")&
               & "MD with NVP ensemble using Langevin thermostating and barostat"
         else
-          write(stdOut, "('Mode:',T30,A)")&
+          write(env%stdOut, "('Mode:',T30,A)")&
               & "MD with NVT Langevin thermostating"
         end if
       case(thermostatTypes%nhc)
