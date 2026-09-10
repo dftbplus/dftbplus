@@ -1549,7 +1549,7 @@ contains
 
     real(dp), optional, intent(inout) :: dqdx(:,:,:)
 
-    integer :: iS, iK, iKS, iNeigh, iCart, iSCC, iLev, iSh, iSp, jAt, jAtf, iOrb, jCart
+    integer :: iS, iK, iKS, iNeigh, iCart, iSh, iSp, jAt, jAtf, iOrb, jCart
     integer :: iAt, nSpin, nKpts, nOrbs, nIndepHam, nDerivs, iDeriv, jCharge
 
     ! maximum allowed number of electrons in a single particle state

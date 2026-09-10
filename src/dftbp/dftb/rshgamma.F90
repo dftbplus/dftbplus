@@ -257,7 +257,7 @@ contains
     !> Resulting gamma
     real(dp) :: gamma
 
-    real(dp) :: tauA, tauB, distTau, distTauA, invDist
+    real(dp) :: tauA, tauB, distTauA, invDist
     real(dp) :: prefac, tmp, tmp2, tau, omega2
 
     omega2 = omega**2

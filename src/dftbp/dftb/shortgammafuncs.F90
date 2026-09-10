@@ -589,13 +589,10 @@ contains
 
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
   !! Ua /= Ub and R > 0
-  function gammaSubgExprnQuadruplePrime(rab, tauMean)
+  function gammaSubgExprnQuadruplePrime(rab)
 
     !> separation of sites a and b
     real(dp), intent(in) :: rab
-
-    !> Charge fluctuation for site a
-    real(dp), intent(in) :: tauMean
 
     !> contribution
     real(dp) :: gammaSubgExprnQuadruplePrime
@@ -643,13 +640,10 @@ contains
 
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
   !! Ua /= Ub and R > 0
-  function gammaSubgExprnQuintuplePrime(rab, tauMean)
+  function gammaSubgExprnQuintuplePrime(rab)
 
     !> separation of sites a and b
     real(dp), intent(in) :: rab
-
-    !> Charge fluctuation for site a
-    real(dp), intent(in) :: tauMean
 
     !> contribution
     real(dp) :: gammaSubgExprnQuintuplePrime
@@ -827,7 +821,7 @@ contains
       ! 16/5 * U
       tauMean = 3.2_dp * 0.5_dp * (Ua + Ub)
       expGammaQuadruplePrime = &
-          & exp(-tauMean * rab) * gammaSubgExprnQuadruplePrime(rab, tauMean) &
+          & exp(-tauMean * rab) * gammaSubgExprnQuadruplePrime(rab) &
           & - 4.0_dp * tauMean * exp(-tauMean * rab) * gammaSubgExprnTriplePrime(rab, tauMean) &
           & + 6.0_dp * tauMean**2 * exp(-tauMean * rab) * gammaSubgExprnDoublePrime(rab, tauMean) &
           & - 4.0_dp * tauMean**3 * exp(-tauMean * rab) * gammaSubgExprnPrime(rab, tauMean) &
@@ -889,8 +883,8 @@ contains
       ! 16/5 * U
       tauMean = 3.2_dp * 0.5_dp * (Ua + Ub)
       expGammaQuintuplePrime = &
-          & exp(-tauMean * rab) * gammaSubgExprnQuintuplePrime(rab, tauMean) &
-          & - 5.0_dp * tauMean * exp(-tauMean * rab) * gammaSubgExprnQuadruplePrime(rab, tauMean) &
+          & exp(-tauMean * rab) * gammaSubgExprnQuintuplePrime(rab) &
+          & - 5.0_dp * tauMean * exp(-tauMean * rab) * gammaSubgExprnQuadruplePrime(rab) &
           & + 10.0_dp * tauMean**2 * exp(-tauMean * rab) * gammaSubgExprnTriplePrime(rab, tauMean) &
           & - 10.0_dp * tauMean**3 * exp(-tauMean * rab) * gammaSubgExprnDoublePrime(rab, tauMean) &
           & + 5.0_dp * tauMean**4 * exp(-tauMean * rab) * gammaSubgExprnPrime(rab, tauMean) &

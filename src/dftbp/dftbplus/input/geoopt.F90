@@ -62,7 +62,7 @@ contains
     !> calculations)
     character(len=*), intent(in) :: atomsRange
 
-    type(fnode), pointer :: child, value1
+    type(fnode), pointer :: child
     type(string) :: buffer
 
     call localiseName(node, "Optimizer", "Optimiser")

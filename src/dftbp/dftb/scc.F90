@@ -621,8 +621,6 @@ contains
     !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
-    integer :: iam, nprocs
-
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
     @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
@@ -657,7 +655,7 @@ contains
     !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
-    integer :: ii, jj, iLoc, jLoc, rSrc, cSrc
+    integer :: ii, jj, iLoc, jLoc
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
@@ -856,7 +854,9 @@ contains
     !! shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
 
+  #:if WITH_POISSON
     real(dp), allocatable :: tmpDerivs(:,:)
+  #:endif
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(force,dim=1) == 3)
