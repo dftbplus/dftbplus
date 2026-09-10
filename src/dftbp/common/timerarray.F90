@@ -34,7 +34,7 @@ module dftbp_common_timerarray
     real(dp), allocatable :: wallClockTimes(:)
     integer :: maxLevel
     character(:), allocatable :: header
-    integer :: unit
+    integer :: output
   contains
     procedure :: startTimer
     procedure :: stopTimer
@@ -45,7 +45,7 @@ module dftbp_common_timerarray
 contains
 
   !> Initializes a global timer
-  subroutine TTimerArray_init(this, timerItems, unit, maxLevel, header)
+  subroutine TTimerArray_init(this, timerItems, output, maxLevel, header)
 
     !> Instance
     type(TTimerArray), intent(out) :: this
@@ -53,8 +53,8 @@ contains
     !> Names of the sub-timers to use
     type(TTimerItem), intent(in) :: timerItems(:)
 
-    !> File unit to write the statistics to
-    integer, intent(in) :: unit
+    !> Output unit to write the statistics to
+    integer, intent(in) :: output
 
     !> Last timer level to be included in printing (default: all)
     integer, intent(in), optional :: maxLevel
@@ -76,7 +76,7 @@ contains
       this%header = "Timing"
     end if
 
-    this%unit = unit
+    this%output = output
 
     this%timerNames = timerItems(:)%name
     this%timerLevels = timerItems(:)%level
@@ -161,7 +161,7 @@ contains
     totalCpu = this%myTimer%getCpuTime()
     totalWall = this%myTimer%getWallClockTime()
 
-    fp = this%unit
+    fp = this%output
     write(fp, *)
     write(fp, "(A)") repeat("-", 80)
     write(fp, "(A,T46,A,T66,A)") this%header, 'cpu [s]', 'wall clock [s]'

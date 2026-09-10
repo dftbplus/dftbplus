@@ -3334,7 +3334,7 @@ contains
         & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
         & cm5Cont)
 
-    call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut%unit)
+    call printEnergies(fdDetailedOut%unit, dftbEnergy, electronicSolver, deltaDftb)
 
   end subroutine writeDetailedOut2Dets
 
@@ -3490,7 +3490,7 @@ contains
       end if
 
       if (isMdftb) then
-        call writeMdftbEnergies(energy, fd)
+        call writeMdftbEnergies(fd, energy)
       end if
 
       if (tDFTBU) then
@@ -3930,7 +3930,7 @@ contains
     end if
 
     if (allocated(quadrupoleMoment)) then
-      call printQuadrupoleMoment(quadrupoleMoment, fd)
+      call printQuadrupoleMoment(fd, quadrupoleMoment)
     end if
 
     if (allocated(eField)) then
@@ -4318,11 +4318,11 @@ contains
     end if
 
     if (deltaDftb%nDeterminant() > 1) then
-      call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fd)
+      call printEnergies(fd, dftbEnergy, electronicSolver, deltaDftb)
     end if
 
     if (allocated(quadrupoleMoment)) then
-      call printQuadrupoleMoment(quadrupoleMoment, fd)
+      call printQuadrupoleMoment(fd, quadrupoleMoment)
     end if
 
   end subroutine writeMdOut2
@@ -4951,7 +4951,10 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, electronicSolver, deltaDftb, outUnit)
+  subroutine printEnergies(output, energy, electronicSolver, deltaDftb)
+
+    !> Output unit where results should be written to
+    integer, intent(in) :: output
 
     !> energy components, potentially from multiple determinants
     type(TEnergies), intent(in) :: energy(:)
@@ -4962,102 +4965,99 @@ contains
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
-    !> Optional unit to print out the results
-    integer, intent(in) :: outUnit
-
-    write(outUnit, *)
+    write(output, *)
 
     if (deltaDftb%iGround > 0) then
 
       if (deltaDftb%isNonAufbau) then
-        write(outUnit, format2U) "Ground State Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+        write(output, format2U) "Ground State Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(outUnit, format2U) "Ground State Extrapolated to 0K",&
+          write(output, format2U) "Ground State Extrapolated to 0K",&
               & energy(deltaDftb%iGround)%Ezero, "H",&
               & Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(outUnit, format2U) "Total Ground State Mermin egy",&
+          write(output, format2U) "Total Ground State Mermin egy",&
               & energy(deltaDftb%iGround)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(outUnit, format2U) 'Ground State Force related egy',&
+          write(output, format2U) 'Ground State Force related egy',&
               & energy(deltaDftb%iGround)%EForceRelated, 'H',&
               & energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
         end if
       else
-        write(outUnit, format2U) "Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+        write(output, format2U) "Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(outUnit, format2U) "Extrapolated to 0K", energy(deltaDftb%iGround)%Ezero,&
+          write(output, format2U) "Extrapolated to 0K", energy(deltaDftb%iGround)%Ezero,&
               & "H", Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(outUnit, format2U) "Total Mermin free energy", energy(deltaDftb%iGround)%EMermin,&
+          write(output, format2U) "Total Mermin free energy", energy(deltaDftb%iGround)%EMermin,&
               & "H", Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(outUnit, format2U) 'Force related energy', energy(deltaDftb%iGround)%EForceRelated,&
+          write(output, format2U) 'Force related energy', energy(deltaDftb%iGround)%EForceRelated,&
               & 'H', energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
         end if
       end if
-      write(outUnit,*)
+      write(output,*)
     end if
 
     if (deltaDftb%iTriplet > 0) then
 
-      write(outUnit, format2U) "Triplet State Total Energy", energy(deltaDftb%iTriplet)%Etotal,"H",&
+      write(output, format2U) "Triplet State Total Energy", energy(deltaDftb%iTriplet)%Etotal,"H",&
           & Hartree__eV * energy(deltaDftb%iTriplet)%Etotal,"eV"
       if (electronicSolver%providesEigenvals) then
-        write(outUnit, format2U) "Triplet State Extrapolated to 0K",&
+        write(output, format2U) "Triplet State Extrapolated to 0K",&
             & energy(deltaDftb%iTriplet)%Ezero, "H",&
             & Hartree__eV * energy(deltaDftb%iTriplet)%Ezero, "eV"
       end if
       if (electronicSolver%providesElectronEntropy) then
-        write(outUnit, format2U) "Triplet State Mermin free egy",&
+        write(output, format2U) "Triplet State Mermin free egy",&
             & energy(deltaDftb%iTriplet)%EMermin, "H",&
             & Hartree__eV * energy(deltaDftb%iTriplet)%EMermin, "eV"
       end if
       if (electronicSolver%providesFreeEnergy) then
-        write(outUnit, format2U) 'Triplet State Force related egy',&
+        write(output, format2U) 'Triplet State Force related egy',&
             & energy(deltaDftb%iTriplet)%EForceRelated, 'H',&
             & energy(deltaDftb%iTriplet)%EForceRelated * Hartree__eV, 'eV'
       end if
-      write(outUnit,*)
+      write(output,*)
     end if
 
     if (deltaDftb%iMixed > 0) then
 
       if (deltaDftb%isSpinPurify) then
 
-        write(outUnit, format2U) "Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
+        write(output, format2U) "Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iFinal)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(outUnit, format2U) "Purified Extrapolated 0K",&
+          write(output, format2U) "Purified Extrapolated 0K",&
               & energy(deltaDftb%iFinal)%Ezero, "H",&
               & Hartree__eV * energy(deltaDftb%iFinal)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(outUnit, format2U) "Purified State Mermin free egy",&
+          write(output, format2U) "Purified State Mermin free egy",&
               & energy(deltaDftb%iFinal)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iFinal)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(outUnit, format2U) 'Purified Force related egy',&
+          write(output, format2U) 'Purified Force related egy',&
               & energy(deltaDftb%iFinal)%EForceRelated, 'H',&
               & energy(deltaDftb%iFinal)%EForceRelated * Hartree__eV, 'eV'
         end if
 
         if (deltaDftb%iGround > 0) then
-          write(outUnit, *)
-          write(outUnit, format2U) 'S0 -> T1',&
+          write(output, *)
+          write(output, format2U) 'S0 -> T1',&
               & energy(deltaDftb%iTriplet)%EForceRelated&
               & - energy(deltaDftb%iGround)%EForceRelated, 'H',&
               & (energy(deltaDftb%iTriplet)%EForceRelated&
               & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV'
-          write(outUnit, format2U) 'S0 -> S1',&
+          write(output, format2U) 'S0 -> S1',&
               & energy(deltaDftb%iFinal)%EForceRelated - energy(deltaDftb%iGround)%EForceRelated,&
               & 'H',&
               & (energy(deltaDftb%iFinal)%EForceRelated - energy(deltaDftb%iGround)%EForceRelated)&
@@ -5066,27 +5066,27 @@ contains
 
       else
 
-        write(outUnit, format2U) "Mixed State Total Energy", energy(deltaDftb%iMixed)%Etotal,"H",&
+        write(output, format2U) "Mixed State Total Energy", energy(deltaDftb%iMixed)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iMixed)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(outUnit, format2U) "Mixed Extrapolated to 0K",&
+          write(output, format2U) "Mixed Extrapolated to 0K",&
               & energy(deltaDftb%iMixed)%Ezero, "H",&
               & Hartree__eV * energy(deltaDftb%iMixed)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(outUnit, format2U) "Mixed State Mermin free egy",&
+          write(output, format2U) "Mixed State Mermin free egy",&
               & energy(deltaDftb%iMixed)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iMixed)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(outUnit, format2U) 'Mixed State Force related egy',&
+          write(output, format2U) 'Mixed State Force related egy',&
               & energy(deltaDftb%iMixed)%EForceRelated, 'H',&
               & energy(deltaDftb%iMixed)%EForceRelated * Hartree__eV, 'eV'
         end if
 
       end if
 
-      write(outUnit,*)
+      write(output,*)
 
     end if
 
@@ -6164,7 +6164,7 @@ contains
       end if
 
       if (isMdftb) then
-        call writeMdftbEnergies(energy, fd)
+        call writeMdftbEnergies(fd, energy)
       end if
 
     end if
@@ -6267,60 +6267,59 @@ contains
 
 
   !> Prints out the total quadrupole moment of the system
-  subroutine printQuadrupoleMoment(quadrupoleMoment, outUnit)
+  subroutine printQuadrupoleMoment(output, quadrupoleMoment)
+
+    !> Unit to print out the quadrupoleMoment
+    integer, intent(in) :: output
 
     !> quadrupole moment
     real(dp), intent(in), allocatable :: quadrupoleMoment(:,:)
 
-    !> Unit to print out the quadrupoleMoment
-    integer, intent(in) :: outUnit
-
-    write(outUnit, "(A)") ' Traceless Quadrupole moment in au'
-    write(outUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XX', quadrupoleMoment(1,1), ' YY',&
+    write(output, "(A)") ' Traceless Quadrupole moment in au'
+    write(output, "(A, F14.8, A, F14.8, A, F14.8)") ' XX', quadrupoleMoment(1,1), ' YY',&
         & quadrupoleMoment(2,2), ' ZZ', quadrupoleMoment(3,3)
-    write(outUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XY', quadrupoleMoment(1,2), ' XZ',&
+    write(output, "(A, F14.8, A, F14.8, A, F14.8)") ' XY', quadrupoleMoment(1,2), ' XZ',&
         & quadrupoleMoment(1,3), ' YZ', quadrupoleMoment(2,3)
 
-    write(outUnit, "(A)") ' Traceless Quadrupole moment in Buckingham or Debye*Ang'
-    write(outUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XX',&
+    write(output, "(A)") ' Traceless Quadrupole moment in Buckingham or Debye*Ang'
+    write(output, "(A, F14.8, A, F14.8, A, F14.8)") ' XX',&
         & quadrupoleMoment(1,1) * au__Debye * Bohr__AA, ' YY',&
         & quadrupoleMoment(2,2) * au__Debye * Bohr__AA, ' ZZ',&
         & quadrupoleMoment(3,3) * au__Debye * Bohr__AA
-    write(outUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XY',&
+    write(output, "(A, F14.8, A, F14.8, A, F14.8)") ' XY',&
         & quadrupoleMoment(1,2) * au__Debye * Bohr__AA, ' XZ',&
         & quadrupoleMoment(1,3) * au__Debye * Bohr__AA, ' YZ',&
         & quadrupoleMoment(2,3) * au__Debye * Bohr__AA
-    write(outUnit, *)
+    write(output, *)
 
   end subroutine printQuadrupoleMoment
 
 
   !> Writes the mdftb energy components.
-  subroutine writeMdftbEnergies(energy, iUnit)
+  subroutine writeMdftbEnergies(output, energy)
+
+    !> File unit to write out the mdftb energy components
+    integer, intent(in) :: output
 
     !> Energy terms in the system
     type(TEnergies), intent(in) :: energy
 
-    !> File unit to write out the mdftb energy components
-    integer, intent(in) :: iUnit
-
-
-    write(iUnit, format2U) 'Energy Monopole-Dipole', energy%EMdftbMD, 'H',&
+    write(output, format2U) 'Energy Monopole-Dipole', energy%EMdftbMD, 'H',&
         & energy%EMdftbMD * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Dipole-Dipole', energy%EMdftbDD, 'H',&
+    write(output, format2U) 'Energy Dipole-Dipole', energy%EMdftbDD, 'H',&
         & energy%EMdftbDD * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Monopole-Quadrupole', energy%EMdftbMQ, 'H',&
+    write(output, format2U) 'Energy Monopole-Quadrupole', energy%EMdftbMQ, 'H',&
         & energy%EMdftbMQ * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Dipole-Quadrupole', energy%EMdftbDQ, 'H',&
+    write(output, format2U) 'Energy Dipole-Quadrupole', energy%EMdftbDQ, 'H',&
         & energy%EMdftbDQ * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Quadrupole-Quadrupole', energy%EMdftbQQ, 'H',&
+    write(output, format2U) 'Energy Quadrupole-Quadrupole', energy%EMdftbQQ, 'H',&
         & energy%EMdftbQQ * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Multipole', energy%EMdftb, 'H',&
+    write(output, format2U) 'Energy Multipole', energy%EMdftb, 'H',&
         & energy%EMdftb * Hartree__eV, 'eV'
 
   end subroutine writeMdftbEnergies

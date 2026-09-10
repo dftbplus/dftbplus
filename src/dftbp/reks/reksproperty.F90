@@ -231,7 +231,7 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR, env%stdOut)
+    call printUnrelaxedFONs(env%stdOut, tmpRho, rstate, Lstate, Nc, Na, tSSR)
 
   end subroutine getUnrelaxedDensMatAndTdp
 
@@ -396,7 +396,7 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR, env%stdOut)
+    call printRelaxedFONs(env%stdOut, tmpRho, rstate, Nc, Na, tSSR)
 
   end subroutine getRelaxedDensMat
 
@@ -513,7 +513,7 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printRelaxedFONsL(tmpRho, Lstate, Nc, Na, env%stdOut)
+    call printRelaxedFONsL(env%stdOut, tmpRho, Lstate, Nc, Na)
 
   end subroutine getRelaxedDensMatL
 

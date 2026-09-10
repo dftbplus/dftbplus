@@ -269,7 +269,7 @@ contains
 
       if (.not.this%tRestartNoSC .and.&
           & this%electronicSolver%iSolver /= electronicSolverTypes%OnlyTransport) then
-        call printEnergies(this%dftbEnergy, this%electronicSolver, this%deltaDftb, env%stdOut)
+        call printEnergies(env%stdOut, this%dftbEnergy, this%electronicSolver, this%deltaDftb)
       end if
 
       if (this%tStress) then
@@ -1026,10 +1026,13 @@ contains
 
 
   !> Write data from inside the SCC loop
-  subroutine sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ, output)
+  subroutine sccLoopWriting(this, output, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ)
 
     !> Global variables
     type(TDftbPlusMain), intent(inout) :: this
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Current geometry step
     integer, intent(in) :: iGeoStep
@@ -1045,9 +1048,6 @@ contains
 
     !> Self-consistency error
     real(dp), intent(in) :: sccErrorQ
-
-    !> Output unit for human readable messages
-    integer, intent(in) :: output
 
      if (this%tSccCalc) then
       call printSccInfo(output, allocated(this%dftbU), iSccIter,&
@@ -1385,7 +1385,7 @@ contains
 
         if (tConverged .or. tStopScc) then
 
-          call printReksSAInfo(this%reks, this%dftbEnergy(1)%Eavg, env%stdOut)
+          call printReksSAInfo(this%reks, env%stdOut, this%dftbEnergy(1)%Eavg)
 
           call getStateInteraction(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
               & this%iSparseStart, this%img2CentCell, this%coord, this%iAtInCentralRegion,&
@@ -1562,7 +1562,7 @@ contains
         end if
         call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
 
-        call sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ, env%stdOut)
+        call sccLoopWriting(this, env%stdOut, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ)
 
         if (tConverged .or. tStopScc) exit lpSCC
 
@@ -9074,7 +9074,7 @@ contains
     end do
 
     if (reks%Plevel >= 2) then
-      call printReksMicrostates(reks, energy%Erep, env%stdOut)
+      call printReksMicrostates(reks, env%stdOut, energy%Erep)
     end if
 
   end subroutine getHamiltonianLandEnergyL

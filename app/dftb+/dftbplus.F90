@@ -21,10 +21,10 @@ program dftbplus
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input
   type(TDftbPlusMain), allocatable, target :: main
-  integer :: stdOut, stdErr
+  integer :: stdOut
 
-  call initGlobalEnv(stdOut=stdOut, stdErr=stdErr)
-  call TEnvironment_init(env, stdOut=stdOut, stdErr=stdErr)
+  call initGlobalEnv(stdOut=stdOut)
+  call TEnvironment_init(env, stdOut=stdOut)
   call printDftbHeader(env%stdOut, releaseName, releaseYear)
   allocate(input)
   call parseHsdInput(env, input)

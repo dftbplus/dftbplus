@@ -33,16 +33,16 @@ module dftbp_reks_reksio
   contains
 
   !> Print energy contribution for each microstate in SCC iteration
-  subroutine printReksMicrostates(this, Erep, output)
+  subroutine printReksMicrostates(this, output, Erep)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    !> repulsive energy
-    real(dp), intent(in) :: Erep
-
     !> Output unit for human readable messages
     integer, intent(in) :: output
+
+    !> repulsive energy
+    real(dp), intent(in) :: Erep
 
     integer :: iL
 
@@ -97,22 +97,22 @@ module dftbp_reks_reksio
 
 
   !> print SA-REKS result in standard output
-  subroutine printReksSAInfo(this, Eavg, output)
+  subroutine printReksSAInfo(this, output, Eavg)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    !> Total energy for averaged state in REKS
-    real(dp), intent(in) :: Eavg
-
     !> Output unit for human readable messages
     integer, intent(in) :: output
+
+    !> Total energy for averaged state in REKS
+    real(dp), intent(in) :: Eavg
 
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call printReksSAInfo22_(Eavg, this%enLtot, this%energy, this%FONs, this%Efunction,&
-          & this%Plevel, output)
+      call printReksSAInfo22_(output, Eavg, this%enLtot, this%energy, this%FONs, this%Efunction,&
+          & this%Plevel)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -121,10 +121,13 @@ module dftbp_reks_reksio
 
 
   !> print SI-SA-REKS result in standard output
-  subroutine printReksSSRInfo(this, Wab, tmpEn, StateCoup, output)
+  subroutine printReksSSRInfo(this, output, Wab, tmpEn, StateCoup)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -134,9 +137,6 @@ module dftbp_reks_reksio
 
     !> state-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
-
-    !> Output unit for human readable messages
-    integer, intent(in) :: output
 
     select case (this%reksAlg)
     case (reksTypes%noReks)
@@ -151,16 +151,16 @@ module dftbp_reks_reksio
 
 
   !> print gradient results for REKS calculation
-  subroutine printReksGradInfo(this, derivs, output)
+  subroutine printReksGradInfo(this, output, derivs)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    !> derivatives of energy wrt to atomic positions
-    real(dp), intent(in) :: derivs(:,:)
-
     !> Output unit for human readable messages
     integer, intent(in) :: output
+
+    !> derivatives of energy wrt to atomic positions
+    real(dp), intent(in) :: derivs(:,:)
 
     integer :: ist, ia, ib, nstHalf
     character(3), parameter :: ordinals(6) = ['1st', '2nd', '3rd', '4th', '5th', '6th']
@@ -258,7 +258,10 @@ module dftbp_reks_reksio
 
 
   !> print unrelaxed FONs for target state
-  subroutine printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR, output)
+  subroutine printUnrelaxedFONs(output, tmpRho, rstate, Lstate, Nc, Na, tSSR)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
@@ -277,9 +280,6 @@ module dftbp_reks_reksio
 
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical, intent(in) :: tSSR
-
-    !> Output unit for human readable messages
-    integer, intent(in) :: output
 
     integer :: ii
 
@@ -308,7 +308,10 @@ module dftbp_reks_reksio
 
 
   !> print Relaxed FONs for target state
-  subroutine printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR, output)
+  subroutine printRelaxedFONs(output, tmpRho, rstate, Nc, Na, tSSR)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
@@ -324,9 +327,6 @@ module dftbp_reks_reksio
 
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical, intent(in) :: tSSR
-
-    !> Output unit for human readable messages
-    integer, intent(in) :: output
 
     integer :: ii
 
@@ -350,7 +350,10 @@ module dftbp_reks_reksio
 
 
   !> print Relaxed FONs for target L-th microstate
-  subroutine printRelaxedFONsL(tmpRho, Lstate, Nc, Na, output)
+  subroutine printRelaxedFONsL(output, tmpRho, Lstate, Nc, Na)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
@@ -363,9 +366,6 @@ module dftbp_reks_reksio
 
     !> Number of active orbitals
     integer, intent(in) :: Na
-
-    !> Output unit for human readable messages
-    integer, intent(in) :: output
 
     integer :: ii
 
@@ -460,7 +460,10 @@ module dftbp_reks_reksio
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> print SA-REKS(2,2) result in standard output
-  subroutine printReksSAInfo22_(Eavg, enLtot, energy, FONs, Efunction, Plevel, output)
+  subroutine printReksSAInfo22_(output, Eavg, enLtot, energy, FONs, Efunction, Plevel)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Total energy for averaged state in REKS
     real(dp), intent(in) :: Eavg
@@ -479,9 +482,6 @@ module dftbp_reks_reksio
 
     !> Print level in standard output file
     integer, intent(in) :: Plevel
-
-    !> Output unit for human readable messages
-    integer, intent(in) :: output
 
     real(dp) :: n_a, n_b
     integer :: iL, Lmax, ist, nstates

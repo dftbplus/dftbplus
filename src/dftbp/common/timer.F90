@@ -101,7 +101,7 @@ contains
 
 
   !> Writes the current measured times.
-  subroutine writeTimes(this, msg, unit, node)
+  subroutine writeTimes(this, msg, output, node)
 
     !> Instance.
     class(TTimer), intent(in) :: this
@@ -109,17 +109,17 @@ contains
     !> Message to print along the timings
     character(*), intent(in) :: msg
 
-    !> File in which to write the times
-    integer, intent(in) :: unit
+    !> Output unit to write the times into
+    integer, intent(in) :: output
 
     !> Node information (default: no node information is printed)
     integer, intent(in), optional :: node
 
     if (present(node)) then
-      write(unit, "(A,1X,I5.5,A,1X,A,T48,A,1X,F8.2,5X,A,1X,F8.2)") 'NODE', node, '|TIME',&
+      write(output, "(A,1X,I5.5,A,1X,A,T48,A,1X,F8.2,5X,A,1X,F8.2)") 'NODE', node, '|TIME',&
           & trim(msg), 'CPU:', this%getCpuTime(), 'WALL:', this%getWallClockTime()
     else
-      write(unit, "(A,1X,A,T48,A,1X,F8.2,5X,A,1X,F8.2)") 'TIME', trim(msg), 'CPU:',&
+      write(output, "(A,1X,A,T48,A,1X,F8.2,5X,A,1X,F8.2)") 'TIME', trim(msg), 'CPU:',&
           & this%getCpuTime(), 'WALL:', this%getWallClockTime()
     end if
 
