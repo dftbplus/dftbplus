@@ -9,11 +9,12 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module transporttools_parser
+  use dftbp_common_environment, only : TEnvironment
   use transporttools_helpsetupgeom, only : setupGeometry
   use transporttools_inputdata, only : TInputData
   use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp, lc, mc
   use dftbp_common_constants, only : Bohr__AA
-  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_globalenv, only : tIoProc
   use dftbp_common_unitconversion, only : lengthUnits
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld
   use dftbp_dftbplus_oldcompat, only : convertOldHsd
@@ -84,7 +85,10 @@ contains
 
 
   !> Parse input from an HSD/XML file
-  subroutine parseHsdInput(input)
+  subroutine parseHsdInput(env, input)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Returns initialised input variables on exit
     type(TInputData), intent(out) :: input
@@ -93,32 +97,32 @@ contains
     type(fnode), pointer :: root, tmp, child, placeholder
     type(TParserflags) :: parserFlags
 
-    write(stdOut, "(/, A, /)") "***  Parsing and initializing"
+    write(env%stdOut, "(/, A, /)") "***  Parsing and initializing"
 
     ! Read in the input
     call parseHSD(rootTag, hsdInputName, hsdTree)
     call getChild(hsdTree, rootTag, root)
 
-    write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
-    write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
-    write(stdout, "(A)") repeat("-", 80)
+    write(env%stdOut, '(A,1X,I0,/)') 'Parser version:', parserVersion
+    write(env%stdOut, "(A)") "Interpreting input file '" // hsdInputName // "'"
+    write(env%stdOut, "(A)") repeat("-", 80)
 
     ! Handle parser options
     call getChildValue(root, "ParserOptions", placeholder, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dontMarkProcessed=.true.)
-    call readParserOptions(child, root, parserFlags)
+    call readParserOptions(env, child, root, parserFlags)
 
     ! Read in the different blocks
 
     ! Atomic geometry and boundary conditions
     call getChild(root, "Geometry", tmp)
-    call readGeometry(tmp, input)
+    call readGeometry(env, tmp, input)
 
     call getChild(root, "Transport", child, requested=.false.)
 
     ! Read in transport and modify geometry if it is only a contact calculation
     if (associated(child)) then
-      call readTransportGeometry(child, input%geom, input%transpar)
+      call readTransportGeometry(env, child, input%geom, input%transpar)
     else
       input%transpar%ncont=0
       allocate(input%transpar%contacts(0))
@@ -130,12 +134,12 @@ contains
     input%tInitialized = .true.
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
+    call warnUnprocessedNodes(env%stdOut, root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcInputName)
-      write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
+      write(env%stdOut, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
 
@@ -146,13 +150,16 @@ contains
 
     call destroyNode(hsdTree)
 
-    write(stdout,*) 'Geometry processed. Job finished'
+    write(env%stdOut,*) 'Geometry processed. Job finished'
 
   end subroutine parseHsdInput
 
 
   !> Read in parser options (options not passed to the main code)
-  subroutine readParserOptions(node, root, flags)
+  subroutine readParserOptions(env, node, root, flags)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -178,16 +185,16 @@ contains
           &"Sorry, no compatibility mode for parser version " &
           &// i2c(inputVersion) // " (too old)")
     elseif (inputVersion /= parserVersion) then
-      write(stdout, "(A,I2,A,I2,A)") "***  Converting input from version ", &
+      write(env%stdOut, "(A,I2,A,I2,A)") "***  Converting input from version ", &
           &inputVersion, " to version ", parserVersion, " ..."
-      call convertOldHSD(root, inputVersion, parserVersion)
-      write(stdout, "(A,/)") "***  Done."
+      call convertOldHSD(env%stdOut, root, inputVersion, parserVersion)
+      write(env%stdOut, "(A,/)") "***  Done."
     end if
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
     call getChildValue(node, "WriteXMLInput", flags%tWriteXML, .false.)
     if (.not. (flags%tWriteHSD .or. flags%tWriteXML)) then
-      call detailedWarning(node, &
+      call detailedWarning(env%stdOut, node, &
           &"WriteHSDInput and WriteXMLInput both turned off. You are not&
           & guaranteed" &
           &// newline // &
@@ -203,7 +210,10 @@ contains
 
 
   !> Read in Geometry
-  subroutine readGeometry(node, input)
+  subroutine readGeometry(env, node, input)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -218,7 +228,7 @@ contains
     call getNodeName(value1, buffer)
     select case (char(buffer))
     case ("genformat")
-      call readTGeometryGen(value1, input%geom)
+      call readTGeometryGen(env, value1, input%geom)
     case default
       call setUnprocessed(value1)
       call readTGeometryHSD(child, input%geom)
@@ -228,7 +238,10 @@ contains
 
 
   !> Read geometry information for transport calculation
-  subroutine readTransportGeometry(root, geom, transpar)
+  subroutine readTransportGeometry(env, root, geom, transpar)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Root node containing the current block
     type(fnode), pointer :: root
@@ -272,11 +285,11 @@ contains
     select case (char(buffer))
     case ("setupgeometry")
 
-      call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, nPLs)
-      call getSKcutoff(pTask, geom, skCutoff)
-      write(stdOut,*) 'Maximum SK cutoff:', SKcutoff*Bohr__AA,'(A)'
+      call readContacts(env, pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, nPLs)
+      call getSKcutoff(env, pTask, geom, skCutoff)
+      write(env%stdOut,*) 'Maximum SK cutoff:', SKcutoff*Bohr__AA,'(A)'
       call getChildValue(pTask, "printInfo", printDebug, .false.)
-      call setupGeometry(geom, iAtInRegion, transpar%contacts, skCutoff, nPLs, printDebug)
+      call setupGeometry(env, geom, iAtInRegion, transpar%contacts, skCutoff, nPLs, printDebug)
 
     case default
 
@@ -291,7 +304,11 @@ contains
 
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, task, iAtInRegion, nPLs)
+  subroutine readContacts(env, pNodeList, contacts, geom, task, iAtInRegion, nPLs)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
+
     type(fnodeList), pointer :: pNodeList
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
@@ -340,7 +357,7 @@ contains
           selectionRange(:) = [1, size(geom%species)]
           ishift = 0
         end if
-        call getSelectedAtomIndices(pTmp, char(buffer), geom%speciesNames, geom%species, &
+        call getSelectedAtomIndices(env%stdOut, pTmp, char(buffer), geom%speciesNames, geom%species, &
             & iAtInRegion(ii)%data, selectionRange=selectionRange)
         iAtInRegion(ii)%data = iAtInRegion(ii)%data + ishift
         call init(vecBuffer)
@@ -383,7 +400,11 @@ contains
   end subroutine readContacts
 
 
-  subroutine getSKcutoff(node, geo, mSKCutoff)
+  subroutine getSKcutoff(env, node, geo, mSKCutoff)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
+
     !> Node to get the information from
     type(fnode), pointer :: node
 
@@ -407,10 +428,10 @@ contains
 
     call getChild(node, "TruncateSKRange", child, requested=.false.)
     if (associated(child)) then
-      call warning("Artificially truncating the SK table, this is normally a bad idea!")
+      call warning(env%stdOut, "Artificially truncating the SK table, this is normally a bad idea!")
       call SKTruncations(child, mSKCutOff, skInterMeth)
     else
-      call readSKFiles(node, geo%nSpecies, geo%speciesNames, mSKCutOff)
+      call readSKFiles(env, node, geo%nSpecies, geo%speciesNames, mSKCutOff)
     end if
     ! The fudge distance is added to get complete cutoff
     select case(skInterMeth)
@@ -425,7 +446,11 @@ contains
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
-  subroutine readSKFiles(node, nSpecies, speciesNames, maxSKcutoff)
+  subroutine readSKFiles(env, node, nSpecies, speciesNames, maxSKcutoff)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
+
     !> Node to get the information from
     type(fnode), pointer :: node
 
@@ -514,17 +539,17 @@ contains
       end do
     end select
 
-    write(stdout, "(A)") "Reading SK-files:"
+    write(env%stdOut, "(A)") "Reading SK-files:"
     do iSp1 = 1, nSpecies
       do iSp2 = iSp1, nSpecies
         call get(skFiles(iSp2, iSp1), fileName, 1)
-        write(stdout,*) trim(fileName)
+        write(env%stdOut,*) trim(fileName)
         call readFromFile(skData, fileName, (iSp1 == iSp2))
         maxSKcutoff = max(maxSKcutoff, skData%dist * size(skData%skHam,1))
       end do
     end do
-    write(stdout, "(A)") "Done."
-    write(stdout, *)
+    write(env%stdOut, "(A)") "Done."
+    write(env%stdOut, *)
 
     do iSp1 = 1, nSpecies
       do iSp2 = 1, nSpecies

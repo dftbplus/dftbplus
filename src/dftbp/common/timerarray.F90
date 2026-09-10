@@ -10,7 +10,6 @@
 !> Machinery for timers for code
 module dftbp_common_timerarray
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_timer, only : TTimer
   implicit none
 
@@ -35,7 +34,7 @@ module dftbp_common_timerarray
     real(dp), allocatable :: wallClockTimes(:)
     integer :: maxLevel
     character(:), allocatable :: header
-    integer :: unit
+    integer :: output
   contains
     procedure :: startTimer
     procedure :: stopTimer
@@ -46,7 +45,7 @@ module dftbp_common_timerarray
 contains
 
   !> Initializes a global timer
-  subroutine TTimerArray_init(this, timerItems, maxLevel, header, unit)
+  subroutine TTimerArray_init(this, timerItems, output, maxLevel, header)
 
     !> Instance
     type(TTimerArray), intent(out) :: this
@@ -54,14 +53,14 @@ contains
     !> Names of the sub-timers to use
     type(TTimerItem), intent(in) :: timerItems(:)
 
+    !> Output unit to write the statistics to
+    integer, intent(in) :: output
+
     !> Last timer level to be included in printing (default: all)
     integer, intent(in), optional :: maxLevel
 
     !> Optional header message for the timings
     character(*), intent(in), optional :: header
-
-    !> File unit to write the statistics to (default: standard output)
-    integer, intent(in), optional :: unit
 
     integer :: nTimer
 
@@ -77,11 +76,7 @@ contains
       this%header = "Timing"
     end if
 
-    if (present(unit)) then
-      this%unit = unit
-    else
-      this%unit = stdOut
-    end if
+    this%output = output
 
     this%timerNames = timerItems(:)%name
     this%timerLevels = timerItems(:)%level
@@ -166,7 +161,7 @@ contains
     totalCpu = this%myTimer%getCpuTime()
     totalWall = this%myTimer%getWallClockTime()
 
-    fp = this%unit
+    fp = this%output
     write(fp, *)
     write(fp, "(A)") repeat("-", 80)
     write(fp, "(A,T46,A,T66,A)") this%header, 'cpu [s]', 'wall clock [s]'

@@ -11,9 +11,7 @@
 module dftbp_md_tempprofile
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_common_constants, only : Boltzmann
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_charmanip, only : tolower
-  use dftbp_io_commonformats, only : format2U
   implicit none
 
   private
@@ -186,8 +184,6 @@ contains
     real(dp), intent(out) :: temp
 
     temp = this%curTemp
-    write(stdOut, format2U)"Target MD temperature", this%curTemp, 'a.u.', this%curTemp / Boltzmann,&
-        & 'K'
 
   end subroutine getTemperature
 
