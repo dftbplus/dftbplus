@@ -2350,7 +2350,7 @@ contains
     real(dp), intent(in) :: H0(:)
 
     !> Local sparse storage for non-SCC hamiltonian
-    real(dp), allocatable, intent(out) :: ham0(:)
+    real(dp), allocatable, intent(inout) :: ham0(:)
 
     !> Square dipole matrix
     complex(dp), intent(inout), optional :: Dsqr(:,:,:,:)
@@ -2450,8 +2450,7 @@ contains
     allocate(rhoPrim(size(ints%hamiltonian, dim=1), this%nSpin))
     allocate(ErhoPrim(size(ints%hamiltonian, dim=1)))
     this%sparseSize = size(H0)
-    allocate(ham0(size(H0)))
-    ham0(:) = H0
+
 
   #:if WITH_SCALAPACK
     nLocalRows = size(eigvecsReal, dim=1)
@@ -2469,6 +2468,12 @@ contains
     end if
 
     if (.not. this%tReadRestart) then
+      ! ham0 is intent(inout), so it survives between calls (runDynamics() calls this routine
+      ! once per kick polarisation direction) and must only be allocated the first time.
+      if (.not. allocated(ham0)) then
+        allocate(ham0(size(H0)))
+      end if
+      ham0(:) = H0
       Ssqr(:,:,:) = 0.0_dp
       Sinv(:,:,:) = 0.0_dp
 
