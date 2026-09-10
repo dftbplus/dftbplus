@@ -12,6 +12,10 @@ Unreleased
 Added
 -----
 
+- Partial diagonalisation for the ELPA solver, calculating the occupied
+  states together with an adaptively chosen number of empty ones
+  (EmptyStates)
+
 - Option (FromParameters) to automatically set spin-constants for xTB
   models
 

@@ -213,6 +213,9 @@ module dftbp_elecsolvers_elsisolver
     !> If Meth-Paxton, order of scheme
     integer :: muMpOrder
 
+    !> Electronic temperature last passed to the library, negative before the first one
+    real(dp) :: muBroadenWidth = -1.0_dp
+
     !> Whether solver had been already initialised
     logical :: tSolverInitialised = .false.
 
@@ -297,6 +300,7 @@ module dftbp_elecsolvers_elsisolver
   contains
 
     procedure :: reset => TElsiSolver_reset
+    procedure :: setNState => TElsiSolver_setNState
     procedure :: updateGeometry => TElsiSolver_updateGeometry
     procedure :: updateElectronicTemp => TElsiSolver_updateElectronicTemp
     procedure :: getDensity => TElsiSolver_getDensity
@@ -312,8 +316,8 @@ contains
 
 
   !> Initialise ELSI solver
-  subroutine TElsiSolver_init(this, inp, inpElpa, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin,&
-      & nKPoint, iKPoint, kWeight, tWriteHS, providesElectronEntropy)
+  subroutine TElsiSolver_init(this, inp, inpElpa, env, nBasisFn, nState, nEl, iDistribFn, nSpin,&
+      & iSpin, nKPoint, iKPoint, kWeight, tWriteHS, providesElectronEntropy)
 
     !> control structure for solvers, including ELSI data
     class(TElsiSolver), intent(out) :: this
@@ -329,6 +333,10 @@ contains
 
     !> number of orbitals in the system
     integer, intent(in) :: nBasisFn
+
+    !> number of states the eigensolver should return, which is smaller than the number of orbitals
+    !! for a partial diagonalisation
+    integer, intent(in) :: nState
 
     !> number of electrons
     real(dp), intent(in) :: nEl(:)
@@ -371,8 +379,8 @@ contains
 
     case (electronicSolverTypes%elpa)
       this%solver = elsiEnum%ELPA_SOLVER
-      ! ELPA is asked for all states
-      this%nState = nBasisFn
+      ! ELPA is asked for all states, unless a partial diagonalisation was requested
+      this%nState = min(nState, nBasisFn)
 
     case (electronicSolverTypes%omm)
       this%solver = elsiEnum%OMM_SOLVER
@@ -605,6 +613,41 @@ contains
   end subroutine TELsiSolver_final
 
 
+  !> Changes the number of states the solver returns.
+  !!
+  !! The number of states is fixed when the ELSI handle is created, so the handle has to be
+  !! discarded and built again. This is only expected to happen a few times during a calculation,
+  !! as the number of empty states is doubled whenever it is found to be insufficient.
+  subroutine TElsiSolver_setNState(this, nState)
+
+    !> Instance
+    class(TElsiSolver), intent(inout) :: this
+
+    !> Number of states to calculate from now on
+    integer, intent(in) :: nState
+
+  #:if WITH_ELSI
+
+    if (nState == this%nState) then
+      return
+    end if
+
+    if (this%tSolverInitialised) then
+      call elsi_finalize(this%handle)
+      this%tSolverInitialised = .false.
+    end if
+    this%nState = nState
+    call this%reset()
+
+  #:else
+
+    call error("Internal error: TElsiSolver_setNState() called despite missing ELSI support")
+
+  #:endif
+
+  end subroutine TElsiSolver_setNState
+
+
   !> reset the ELSI solver - safer to do this on geometry change, due to the lack of a Choleskii
   !> refactorization option
   subroutine TElsiSolver_reset(this)
@@ -612,8 +655,9 @@ contains
     !> Instance
     class(TElsiSolver), intent(inout) :: this
 
-
   #:if WITH_ELSI
+
+    real(dp) :: muBroadenWidth
 
     if (this%tSolverInitialised) then
 
@@ -752,6 +796,12 @@ contains
       if (this%OutputLevel == 3) then
         call elsi_set_output_log(this%handle, 1)
       end if
+      if (this%muBroadenWidth >= 0.0_dp) then
+        ! a new handle starts from the library defaults, so the broadening of an earlier one has to
+        ! be applied again. This happens when the number of states changes during a calculation.
+        muBroadenWidth = this%muBroadenWidth
+        call this%updateElectronicTemp(muBroadenWidth)
+      end if
       this%tSolverInitialised = .true.
     end if
 
@@ -818,6 +868,7 @@ contains
 
   #:if WITH_ELSI
 
+    this%muBroadenWidth = tempElec
     call elsi_set_mu_broaden_scheme(this%handle, this%muBroadenScheme)
     if (this%muBroadenScheme == 2) then
       call elsi_set_mu_mp_order(this%handle, this%muMpOrder)
