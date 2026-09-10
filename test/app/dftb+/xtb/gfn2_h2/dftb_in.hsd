@@ -9,6 +9,7 @@ Driver {}
 
 Hamiltonian = xtb {
   method = "GFN2-xTB"
+  SccTolerance = 1E-8
 }
 
 Options { WriteAutotestTag = Yes }

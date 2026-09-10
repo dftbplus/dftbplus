@@ -10,7 +10,7 @@ Driver = {}
 Hamiltonian = xTB {
   Method = "GFN2-xTB"
   SCC = Yes
-  SCCTolerance = 1.0E-007
+  SCCTolerance = 1.0E-008
   MaxSCCIterations = 1000
   Mixer = Simple { MixingParameter = 5.0E-002 }
   Charge = 0.0
