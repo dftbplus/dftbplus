@@ -223,7 +223,7 @@ contains
       iSolver = solverTypes%relativelyRobust
     case ("magma")
     #:if WITH_MAGMA
-      call TGpuEnv_init(gpu)
+      call TGpuEnv_init(gpu, env%stdOut)
     #:else
       call error("Magma-solver selected, but program was compiled without MAGMA")
     #:endif

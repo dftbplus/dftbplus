@@ -380,7 +380,7 @@ contains
   !> Writes the greeting message of dftb+ code(s) on env%stdout
   subroutine printDFTBHeader(output, text, year)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Additional text to print next to project name

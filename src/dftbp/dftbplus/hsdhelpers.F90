@@ -70,7 +70,7 @@ contains
   !> Execute parser related tasks (warning, processed input dumping) needed after parsing
   subroutine doPostParseJobs(output, hsdTree, parserFlags)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Tree representation of the HSD input

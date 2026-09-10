@@ -1046,7 +1046,7 @@ contains
     !> Self-consistency error
     real(dp), intent(in) :: sccErrorQ
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
      if (this%tSccCalc) then
@@ -4775,7 +4775,7 @@ contains
   !> Checks for the presence of a stop file on disc.
   function hasStopFile(output, fileName) result(tStop)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Name of file to check for
@@ -8276,7 +8276,7 @@ contains
   !> Prints information about maximal forces in the system.
   subroutine printMaxForces(output, derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtoms)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Gradients on atoms ]3, nAtom]

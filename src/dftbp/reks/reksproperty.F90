@@ -584,7 +584,7 @@ module dftbp_reks_reksproperty
   !> get the oscillator strength between the states
   subroutine getReksOsc(output, tdp, energy)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> transition dipole moment between states

@@ -2652,7 +2652,7 @@ contains
     !> Default temperature for filling
     real(dp), intent(in) :: temperatureDefault
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(fnode), pointer :: value1, child, child2, child3, field
@@ -2745,7 +2745,7 @@ contains
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(fnode), pointer :: value1, child
@@ -3014,7 +3014,7 @@ contains
   !> Set the maximum number of SCC cycles, depending on k-point behaviour
   subroutine maxSelfConsIterations(output, node, ctrl, label, maxSccIter)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Relevant node in input tree
@@ -5861,7 +5861,7 @@ contains
     !> Atomic geometry of the system, including atomic species information
     type(TGeometry), intent(in) :: geom
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     type(fnode), pointer :: value1, value2, child, child2
@@ -5979,7 +5979,7 @@ contains
     !> Atomic geometry of the system, including atomic species information
     type(TGeometry), intent(in) :: geom
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     select case(ctrl%hamiltonian)

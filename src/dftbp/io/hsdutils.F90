@@ -1844,7 +1844,7 @@ contains
   subroutine getSelectedAtomIndices(output, node, selectionExpr, speciesNames, species, selectedIndices,&
         & selectionRange, indexRange)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Top node for detailed errors.
@@ -1898,7 +1898,7 @@ contains
   !> Converts a string containing indices and ranges to a list of indices.
   subroutine getSelectedIndices(output, node, selectionExpr, selectionRange, selectedIndices, indexRange)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Top node for detailed errors.
@@ -3606,7 +3606,7 @@ contains
   !> Prints detailed warning, including line number and path
   subroutine detailedWarning(output, node, msg)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Node where the error occurred.

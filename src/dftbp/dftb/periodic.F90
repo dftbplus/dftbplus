@@ -995,7 +995,7 @@ contains
   !> Returns the nr. of neighbours for a given cutoff for all atoms.
   subroutine getNrOfNeighboursForAll(output, nNeighbourSK, neigh, cutoff)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Contains the nr. of neighbours for each atom on exit.
@@ -1028,7 +1028,7 @@ contains
   !> Returns the nr. of neighbours for a given atom.
   function getNrOfNeighbours(output, neigh, cutoff, iAtom) result(nNeighbour)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Intialised neihgborlist.
@@ -1322,7 +1322,7 @@ contains
   !> Computes a domain decomposition of n atoms
   subroutine distributeAtoms(output, mpiRank, mpiSize, nAtom, startAtom, endAtom, error)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Current MPI rank

@@ -2614,7 +2614,7 @@ contains
   !> Write the energy second derivative matrix
   subroutine writeHessianOut(output, fileName, pDynMatrix, indMovedAtoms, errStatus)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> File name
@@ -2672,7 +2672,7 @@ contains
   !> Write the dipole derivative wrt.coordinates matrix/Born charges
   subroutine writeBornChargesOut(output, fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> File name
@@ -2729,7 +2729,7 @@ contains
   !> Write the Derivatives of the polarizability
   subroutine writeBornDerivs(output, fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> File name
@@ -4332,7 +4332,7 @@ contains
   subroutine writeCharges(output, fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, densityMatrix,&
       & tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts, multipoles)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> File name for charges to be written to
@@ -4733,7 +4733,7 @@ contains
   !> Write out final status of the geometry driver.
   subroutine writeFinalDriverStatus(output, tGeoOpt, tGeomEnd, tMd, tDerivs)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Is the geometry being optimised?
@@ -4774,7 +4774,7 @@ contains
   !> Prints geometry step information to standard out
   subroutine printGeoStepInfo(output, tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Are coordinates being optimised
@@ -4803,7 +4803,7 @@ contains
   !> Prints the line above the start of the SCC cycle data
   subroutine printSccHeader(output)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     write(output, "(A5, A18, A18, A18)") "iSCC", " Total electronic ", "  Diff electronic ",&
@@ -4815,7 +4815,7 @@ contains
   !> Prints the line above the start of the electronic constraints cycle data
   subroutine printElecConstrHeader(output)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     write(output, "(A6,A5,3A18)") repeat(" ", 6), "iConst", "  Total electronic",&
@@ -4827,7 +4827,7 @@ contains
   !> Prints the line above the start of the REKS SCC cycle data
   subroutine printReksSccHeader(output, reks)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> data type for REKS
@@ -4847,7 +4847,7 @@ contains
 
   subroutine printBlankLine(output)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     write(output, *)
@@ -4857,7 +4857,7 @@ contains
   !> Prints info about scc convergence.
   subroutine printSccInfo(output, tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Are orbital potentials being used
@@ -4887,7 +4887,7 @@ contains
   !> Prints info about electronic constraint convergence.
   subroutine printElecConstrInfo(output, elecConstraint, iConstrIter, Eelec)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Represents electronic contraints
@@ -4919,7 +4919,7 @@ contains
   !> Prints info about scc convergence.
   subroutine printReksSccInfo(output, iSccIter, Eavg, diffTotal, sccErrorQ, reks)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Iteration count
@@ -5133,7 +5133,7 @@ contains
   !> Prints pressure and free energy.
   subroutine printPressureAndFreeEnergy(output, pressure, cellPressure, EGibbs)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> applied external pressure
@@ -5156,7 +5156,7 @@ contains
   !> Writes maximal force component.
   subroutine printMaxForce(output, maxForce)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> maximum of the atomic forces
@@ -5170,7 +5170,7 @@ contains
   !> Writes norm of the force
   subroutine printForceNorm(output, forceNorm)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Norm of the force
@@ -5184,7 +5184,7 @@ contains
   !> Print maximal lattice force component
   subroutine printMaxLatticeForce(output, maxLattForce)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Maximum energy derivative with respect to lattice vectors
@@ -5198,7 +5198,7 @@ contains
   !> Print norm of lattice force
   subroutine printLatticeForceNorm(output, lattForceNorm)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Norm of the lattice force
@@ -5213,7 +5213,7 @@ contains
   subroutine printMdInfo(output, tSetFillingTemp, eField, tPeriodic, tempElec, tempIon,&
       & cellPressure, pressure, energy, tempProfile)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Is the electronic temperature set by the thermostat method?
@@ -6235,7 +6235,7 @@ contains
   !> Write cavity information as cosmo file
   subroutine writeCosmoFile(output, solvation, species0, speciesNames, coords0, energy)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Instance of the solvation model

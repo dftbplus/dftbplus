@@ -47,7 +47,7 @@ contains
   !> Converts an HSD input for an older parser to the current format
   subroutine convertOldHSD(output, root, oldVersion, curVersion)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -142,7 +142,7 @@ contains
   !> Converts input from version 2 to 3. (Version 3 introduced in Nov. 2006)
   subroutine convert_2_3(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -218,7 +218,7 @@ contains
   !> Converts input from version 3 to 4. (Version 4 introduced in Mar. 2010)
   subroutine convert_3_4(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -261,7 +261,7 @@ contains
   !> Helper function for Range keyword in convert_3_4
   subroutine replaceRange(output, node)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> node to process
@@ -288,7 +288,7 @@ contains
   !> Converts input from version 4 to 5. (Version 5 introduced in Dec. 2014)
   subroutine convert_4_5(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -397,7 +397,7 @@ contains
   !> Converts input from version 5 to 6. (Version 6 introduced in May. 2018)
   subroutine convert_5_6(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -454,7 +454,7 @@ contains
   !> Converts input from version 6 to 7. (Version 7 introduced in April 2019)
   subroutine convert_6_7(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -481,7 +481,7 @@ contains
   !> Converts input from version 7 to 8. (Version 8 introduced in October 2019)
   subroutine convert_7_8(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -534,7 +534,7 @@ contains
   !> Converts input from version 8 to 9. (Version 9 introduced in August 2020)
   subroutine convert_8_9(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -588,7 +588,7 @@ contains
   !> Converts input from version 9 to 10. (Version 10 introduced in November 2021)
   subroutine convert_9_10(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -769,7 +769,7 @@ contains
   !> Converts input from version 10 to 11. (Version 11 introduced in April 2022)
   subroutine convert_10_11(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -801,7 +801,7 @@ contains
   !> Converts input from version 11 to 12. (Version 12 introduced in June 2022)
   subroutine convert_11_12(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -832,7 +832,7 @@ contains
   !> Converts input from version 12 to 13. (Version 13 introduced in February 2023)
   subroutine convert_12_13(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -896,7 +896,7 @@ contains
   !> Converts input from version 13 to 14. (Version 14 introduced in August 2023)
   subroutine convert_13_14(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -987,7 +987,7 @@ contains
   !> Converts input from version 14 to 15. (Version 15 introduced in December 2025)
   subroutine convert_14_15(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
@@ -1047,7 +1047,7 @@ contains
   !> Update values in the DftD3 block to match behaviour of v6 parser
   subroutine handleD3Defaults(output, root)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root node of the HSD-tree
@@ -1081,7 +1081,7 @@ contains
   !> Helper routine to update values in the DftD3 block to match behaviour of v6 parser
   subroutine useDftb3Default(output, root, option, default)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Root node of the HSD-tree

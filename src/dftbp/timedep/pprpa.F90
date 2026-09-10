@@ -259,7 +259,7 @@ contains
   subroutine buildAndDiagppRPAmatrix(output, tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
       & denseDesc, gamma_eri, stimc, cc, pp_eval, vr, err)
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Tamm-Dancoff approximation?

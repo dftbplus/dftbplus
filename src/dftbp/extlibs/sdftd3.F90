@@ -361,7 +361,7 @@ contains
     !> Instance of DFTD3 data
     class(TSDFTD3), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Current coordinates

@@ -429,7 +429,7 @@ contains
     !> Name of the file to create
     character(len=*), intent(in) :: fileName
 
-    !> Output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> First two comment lines of the file

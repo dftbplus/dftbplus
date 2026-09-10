@@ -346,7 +346,7 @@ contains
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     call TGpuEnv_init(this%gpu, output)

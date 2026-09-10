@@ -184,7 +184,7 @@ contains
   subroutine initQFromFile(output, qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
       & errStatus, magnetisation, nEl, hybridXcAlg, coeffsAndShifts, multipoles)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> The charges per lm,atom,spin

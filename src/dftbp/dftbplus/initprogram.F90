@@ -5876,7 +5876,7 @@ contains
   !> Writes MBD-related info
   subroutine writeMbdInfo(output, input)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> MBD input parameters
@@ -6035,7 +6035,7 @@ contains
   !> Print out the reference occupations for atoms
   subroutine printCustomReferenceOccupations(output, orb, species, customOccAtoms, customOccFillings)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Atomic orbital information
@@ -6254,7 +6254,7 @@ contains
   subroutine ensureLinRespConditions(output, tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
       & isHybLinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected, input)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Is the calculation SCC?
@@ -6946,7 +6946,7 @@ contains
   !> Print information about a REKS calculation
   subroutine printReksInitInfo(output, reks, orb, speciesName, nType)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Data type for REKS

@@ -32,7 +32,7 @@ contains
   !> Write the Hamiltonian self consistent shifts to file
   subroutine writeShifts(output, fShifts, orb, shiftPerL)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> filename where shifts are stored
@@ -118,7 +118,7 @@ contains
   !> Writes the contact potential shifts per shell (for transport)
   subroutine writeContactShifts(output, filename, orb, shiftPerL, charges, Ef, blockCharges, tWriteAscii)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> filename where shifts are written
@@ -222,7 +222,7 @@ contains
   !> Read contact potential shifts from file
   subroutine readContactShifts(output, shiftPerL, charges, tp, orb, blockUp)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> shifts for atoms in contacts

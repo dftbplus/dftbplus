@@ -52,7 +52,7 @@ contains
     !> Instance
     type(TScaleExtEField), intent(out) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Solvent model

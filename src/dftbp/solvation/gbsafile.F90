@@ -32,7 +32,7 @@ contains
   !> Read GBSA parameters from file
   subroutine readParamGBSA(output, file, input, solvent, speciesNames, node)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Name of the parametrisation file
@@ -197,7 +197,7 @@ contains
   !> Read a whole line from a formatted IO unit
   subroutine nextLine(output, lineReader, line, lineno, file, node)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Line reader able to provide the next line from an open file

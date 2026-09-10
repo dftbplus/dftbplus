@@ -39,7 +39,7 @@ module dftbp_reks_reksfon
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     real(dp) :: x
@@ -69,7 +69,7 @@ module dftbp_reks_reksfon
   !> Optimize FONs in REKS(2,2) case with Newton-Raphson method
   subroutine getFONs22_(output, x, hess0, enLtot, delta, maxIter, opt)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> converged x (= n_a/2)

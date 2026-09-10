@@ -71,7 +71,7 @@ module dftbp_extlibs_poisson
 
     logical :: isInitialised_ = .false.
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer :: output
 
   contains
@@ -704,7 +704,7 @@ contains
         call error("Unable to build box for Poisson solver")
       end if
       period = period .and. all(overrideBC == poissonBCsEnum%periodic)
-      call check_parameters()
+      call check_parameters(env%stdOut)
       call check_localbc(env%stdOut)
       call write_parameters(env%stdOut)
       call check_contacts(env%stdOut, iErr)
@@ -728,7 +728,7 @@ contains
 
   subroutine create_directory_(output, dirName, iErr)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     character(*), intent(in) :: dirName
@@ -756,7 +756,7 @@ contains
   !> Release gDFTB varibles in Poisson library
   subroutine poiss_destroy_(output)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     if (active_id) then

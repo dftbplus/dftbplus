@@ -42,7 +42,7 @@ contains
   !> Checks stacksize settings for optimal user experience/performance.
   subroutine checkStackSize(output)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !! Current stacksize

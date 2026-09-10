@@ -81,7 +81,7 @@ contains
     !> Instance of the transformation filter
     type(TFilter), intent(out) :: this
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Input to create transformation filter

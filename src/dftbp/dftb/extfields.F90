@@ -84,7 +84,7 @@ contains
   subroutine addUpExternalField(output, eField, tPeriodic, neighbourList, nNeighbourSK, iCellVec,&
       & cellVec, deltaT, iGeoStep, coord0Fold, coord, potential)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Whether an external field is present

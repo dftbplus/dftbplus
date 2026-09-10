@@ -29,7 +29,7 @@ contains
   subroutine project(output, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
       & atomicMasses)
 
-    !> output for write processes
+    !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Dynamical matrix
