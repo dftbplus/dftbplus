@@ -4955,12 +4955,6 @@ contains
       !> Workspace for the derivatives
       real(dp), allocatable, intent(inout) :: tmpderiv(:,:)
 
-      !! Holds long-range gamma derivatives of a single interaction
-      real(dp) :: tmp(3)
-
-      !! Atom indices
-      integer :: iAt1, iAt2
-
       !! Spin channel index
       integer :: iSpin
 

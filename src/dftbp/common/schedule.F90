@@ -151,12 +151,13 @@ contains
     !> Index array to be iterated over
     integer, allocatable, intent(out) :: indices(:)
 
-    integer :: ii
-
   #:if WITH_MPI
     call getIndicesWithWorkload(env%mpi%groupComm%size, env%mpi%groupComm%rank, globalFirst,&
         & globalLast, workload, indices)
   #:else
+
+    integer :: ii
+
     allocate(indices(globalLast - globalFirst + 1))
     indices(:) = [(ii, ii = globalFirst, globalLast)]
   #:endif
