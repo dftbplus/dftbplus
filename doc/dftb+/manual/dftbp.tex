@@ -1307,8 +1307,9 @@ XlbomdFast {
   simulations with finite electronic temperature) or to \is{'DynamicsT0'} (for
   simulations at 0~K electronic temperature) in the \is{DFTB} block (see
   p.~\pref{sec:dftbp.ForceEvaluation}).
-\item The extended Lagrangian implementation only works for the $(N,V,E)$
-  ensemble so far, so neither thermostats nor barostats are allowed.
+\item The extended Lagrangian implementation only works for either the
+  $(N,V,E)$ ensemble or the Langevin (sec.~\ref{sec:dftbp.Langevin})
+  thermostat so far.
 \item The extended Lagrangian implementation currently cannot be used for
   spin-polarised or spin-orbit systems, or when electron filling methods other
   than \iscb{Fermi} filling (see p.~\pref{sec:dftbp.Fermi}) are used.
