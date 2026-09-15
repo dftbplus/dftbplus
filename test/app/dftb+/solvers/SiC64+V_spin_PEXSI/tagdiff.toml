@@ -1,0 +1,7 @@
+# NOTE: PEXSI is numerically very unstable when changing the nr. of k-points
+# so we are overriding the global tolerances with quite loose local ones.
+
+[[rule]]
+pattern = "mermin_energy:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-5, rtol = 0.0}

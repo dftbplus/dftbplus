@@ -1,0 +1,46 @@
+#
+# Specific rules for selected quantities
+#
+[[rule]]
+pattern = "orbital_charges:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-6, rtol = 0.0}
+
+[[rule]]
+pattern = "forces:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-6, rtol = 0.0}
+
+[[rule]]
+pattern = "total_localdos:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-5, rtol = 0.0}
+
+[[rule]]
+pattern = "dEidV:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-6, rtol = 0.0}
+
+
+#
+# Generic rules based on data type
+#
+[[rule]]
+pattern = ".*:real:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-6, rtol = 0.0}
+
+[[rule]]
+pattern = ".*:complex:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-6, rtol = 0.0}
+
+[[rule]]
+pattern = ".*:integer:"
+diffmethod = "all_close"
+diffargs = {atol = 0, rtol = 0}
+
+[[rule]]
+pattern = ".*:logical:"
+diffmethod = "all_close"
+diffargs = {atol = 0, rtol = 0}
