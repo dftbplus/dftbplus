@@ -115,7 +115,8 @@ else()
     "How to run the modes code for tests")
 endif()
 
-option(TEST_AUTO_DOWNLOAD "Automatically download test data (slakos, gbsa) at configure time" TRUE)
+# Whether data necessary for the tests should be downloaded if not present yet
+option(TEST_DOWNLOAD_DATA "Download test data (slakos, gbsa) at configure time if not present yet" TRUE)
 
 # Turn it on to include the unit tests (needs the Fortuno unit testing framework)
 option(WITH_UNIT_TESTS "Whether the unit tests should be built" FALSE)

@@ -722,3 +722,49 @@ function (dftbp_check_minimal_compiler_version lang compiler_versions)
     endif()
   endwhile()
 endfunction()
+
+
+# Download the external data (SK-files, GBSA-data) needed for testing, if not present yet.
+function (dftbp_download_test_data)
+  _dftbp_download_test_data_from_github(
+    dftbplus
+    testparams
+    1f5aefe45b7951f3fd1c0b63e40b80f80fdab612
+    external/slakos
+    "SK-files"
+  )
+  _dftbp_download_test_data_from_github(
+    grimme-lab
+    gbsa-parameters
+    6836c4d997e4135e418cfbe273c96b1a3adb13e2
+    external/gbsa
+    "GBSA-data"
+  )
+endfunction ()
+
+
+# Helper function to download external test data
+function (_dftbp_download_test_data_from_github owner repository commit_id targetdir content)
+  set(targetdirpath "${PROJECT_SOURCE_DIR}/${targetdir}")
+  if (EXISTS "${targetdirpath}/origin")
+    message(STATUS "Directory '${targetdir}/origin' exists, skipping download of ${content}")
+  else()
+    message(STATUS "Fetching ${content} into directory '${targetdir}'")
+    file(DOWNLOAD
+      "https://github.com/${owner}/${repository}/archive/${commit_id}.tar.gz"
+      "${targetdirpath}/origin.tar.gz"
+      STATUS download_status
+      )
+    list(GET download_status 0 status_code)
+    if (NOT status_code EQUAL 0)
+      list(GET download_status 1 status_message)
+      if (EXISTS "${targetdirpath}/origin.tar.gz")
+        file(REMOVE "${targetdirpath}/origin.tar.gz")
+      endif ()
+      message(FATAL_ERROR "Download of ${content} failed: ${status_message} (code: ${status_code})")
+    endif ()
+    file(ARCHIVE_EXTRACT INPUT "${targetdirpath}/origin.tar.gz" DESTINATION "${targetdirpath}")
+    file(RENAME "${targetdirpath}/${repository}-${commit_id}" "${targetdirpath}/origin")
+    file(REMOVE "${targetdirpath}/origin.tar.gz")
+  endif ()
+endfunction ()
