@@ -89,6 +89,9 @@ Fixed
 
 - Corrected f_xyz orbital label
 
+- Orbital ordering for d-orbitals in xTB calculations follows now the usual
+  (m=-l,...,l) convention (fix in the upstream tblite library).
+
 
 25.1 (2025-12-18)
 =================
