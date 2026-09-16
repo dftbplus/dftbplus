@@ -6,6 +6,3 @@ set(WITH_OpenMP ${WITH_OMP})
 set(WITH_JSON FALSE)
 
 add_subdirectory(${MCTC-LIB_SOURCE_DIR} ${MCTC-LIB_BINARY_DIR})
-
-add_library(mctc-lib::mctc-lib INTERFACE IMPORTED GLOBAL)
-target_link_libraries(mctc-lib::mctc-lib INTERFACE mctc-lib)
