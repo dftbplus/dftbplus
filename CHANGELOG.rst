@@ -73,6 +73,9 @@ Fixed
   XYZ files containing both atomic populations and noncolinear spin
   vectors.
 
+- Orbital ordering for d-orbitals in xTB calculations follows now the usual
+  (m=-l,...,l) convention (fix in the upstream tblite library).
+
 
 25.1 (2025-12-18)
 =================
