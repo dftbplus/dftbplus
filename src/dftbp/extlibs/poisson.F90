@@ -17,7 +17,6 @@ module dftbp_extlibs_poisson
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : globalTimers, TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
@@ -69,6 +68,11 @@ module dftbp_extlibs_poisson
 
     ! Stores the shift vector to use in order to upload the shell potential
     real(dp), allocatable :: shellPotUpload_(:,:)
+
+    logical :: isInitialised_ = .false.
+
+    !> Output unit for human readable messages
+    integer :: output
 
   contains
 
@@ -330,6 +334,8 @@ contains
 
     integer :: nAtom
 
+    this%output = env%stdOut
+
     if (nInstances_ > 0) then
       call error("Internal error: There exists already an instance of PoissonSolver")
     end if
@@ -346,6 +352,7 @@ contains
   #:else
     call poiss_init_(env, input%poissonStruct, orb, input%hubbU, input%poissonInfo, success)
   #:endif
+    this%isInitialised_ = .true.
 
   end subroutine TPoisson_init
 
@@ -363,7 +370,8 @@ contains
   subroutine finalize_(this)
     type(TPoisson), intent(inout) :: this
 
-    call poiss_destroy_()
+    if (.not. this%isInitialised_) return
+    call poiss_destroy_(this%output)
     nInstances_ = nInstances_ - 1
 
   end subroutine finalize_
@@ -532,10 +540,10 @@ contains
     call mpifx_barrier(env%mpi%globalComm, iErr)
   #:endif
 
-    write(stdOut,*)
-    write(stdOut,*) 'Poisson Initialisation:'
-    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
-    write(stdOut,*)
+    write(env%stdOut,*)
+    write(env%stdOut,*) 'Poisson Initialisation:'
+    write(env%stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
+    write(env%stdOut,*)
 
     ! Directory for temporary files
     call set_scratch(poissoninfo%scratch)
@@ -543,7 +551,7 @@ contains
   #:if WITH_TRANSPORT
     if (id0 .and. transpar%ncont > 0) then
       ! only use a scratch folder on the lead node
-      call create_directory_(trim(scratchfolder),iErr)
+      call create_directory_(env%stdOut, trim(scratchfolder),iErr)
     end if
   #:endif
 
@@ -551,17 +559,17 @@ contains
       ! processors over which the right hand side of the Poisson equation is parallelised
 
       iErr = 0
-      call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
+      call init_structure(env%stdOut, structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
           & structure%latVecs, structure%isperiodic)
 
-      call init_skdata(orb%nShell, orb%angShell, hubbU)
+      call init_skdata(env%stdOut, orb%nShell, orb%angShell, hubbU)
 
-      call init_charges()
+      call init_charges(env%stdOut)
 
       ! Initialise renormalization factors for grid projection
 
       if (iErr.ne.0) then
-        call poiss_destroy_()
+        call poiss_destroy_(env%stdOut)
         initinfo = .false.
         return
       endif
@@ -633,15 +641,15 @@ contains
 
       ! if deltaR_max > 0 is a radius cutoff, if < 0 a tolerance
       if (deltaR_max < 0.0_dp) then
-        write(stdOut,*) "Atomic density tolerance: ", -deltaR_max
+        write(env%stdOut,*) "Atomic density tolerance: ", -deltaR_max
         deltaR_max = getAtomDensityCutoff_(-deltaR_max, uhubb)
       end if
 
-      write(stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
+      write(env%stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
 
     #:if WITH_TRANSPORT
       if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
-        call checkDensityCutoff_(deltaR_max, transpar%contacts(:)%length)
+        call checkDensityCutoff_(env, deltaR_max, transpar%contacts(:)%length)
       end if
     #:endif
 
@@ -687,19 +695,19 @@ contains
       fixed_renorm = .not.(poissoninfo%numericNorm)
 
       ! Performs parameters checks
-      call check_biasdir(iErr)
+      call check_biasdir(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
-      call check_poisson_box(iErr)
+      call check_poisson_box(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
       period = period .and. all(overrideBC == poissonBCsEnum%periodic)
-      call check_parameters()
-      call check_localbc()
-      call write_parameters()
-      call check_contacts(iErr)
+      call check_parameters(env%stdOut)
+      call check_localbc(env%stdOut)
+      call write_parameters(env%stdOut)
+      call check_contacts(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build contact potentials for Poisson solver")
       end if
@@ -711,14 +719,17 @@ contains
       ! DoTip,tip_atom,base_atom1,base_atom2
       !-----------------------------------------------------------------------------+
 
-      write(stdOut,'(79(">"))')
+      write(env%stdOut,'(79(">"))')
 
     endif
 
   end subroutine poiss_init_
 
 
-  subroutine create_directory_(dirName, iErr)
+  subroutine create_directory_(output, dirName, iErr)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     character(*), intent(in) :: dirName
 
@@ -734,21 +745,24 @@ contains
     call execute_command_line("mkdir "//trim(dirName), exitstat=iErr, cmdstat=cstat,&
         & cmdmsg=cmsg)
     if (iErr /= 0) then
-      write (stdOut,*) 'error status of mkdir: ', iErr
-      write (stdOut,*) 'command status: ', cstat
-      write (stdOut,*) "command msg:  ", trim(cmsg)
+      write (output,*) 'error status of mkdir: ', iErr
+      write (output,*) 'command status: ', cstat
+      write (output,*) "command msg:  ", trim(cmsg)
     end if
 
   end subroutine create_directory_
 
 
   !> Release gDFTB varibles in Poisson library
-  subroutine poiss_destroy_()
+  subroutine poiss_destroy_(output)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     if (active_id) then
-      write(stdOut,'(A)')
-      write(stdOut,'(A)') 'Release Poisson Memory:'
-      call poiss_freepoisson()
+      write(output,'(A)')
+      write(output,'(A)') 'Release Poisson Memory:'
+      call poiss_freepoisson(output)
     endif
 
   end subroutine poiss_destroy_
@@ -789,12 +803,12 @@ contains
       select case(PoissFlag)
       case(0)
         if (verbose.gt.30) then
-          write(stdOut,*)
-          write(stdOut,'(80("="))')
-          write(stdOut,*) '                       SOLVING POISSON EQUATION         '
-          write(stdOut,'(80("="))')
+          write(env%stdOut,*)
+          write(env%stdOut,'(80("="))')
+          write(env%stdOut,*) '                       SOLVING POISSON EQUATION         '
+          write(env%stdOut,'(80("="))')
         end if
-        call init_PoissBox(iErr)
+        call init_PoissBox(env, iErr)
         if (iErr /= 0) then
           call error("Failure during initialisation of the Poisson box")
         end if
@@ -804,7 +818,7 @@ contains
       end select
 
       if (verbose.gt.30) then
-        write(stdOut,'(80("*"))')
+        write(env%stdOut,'(80("*"))')
       end if
     end if
 
@@ -916,7 +930,10 @@ contains
 #:if WITH_TRANSPORT
 
   !> Checks whether density cutoff fits into the PLs and stop if not.
-  subroutine checkDensityCutoff_(rr, pllens)
+  subroutine checkDensityCutoff_(env, rr, pllens)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Density cutoff.
     real(dp), intent(in) :: rr
@@ -930,9 +947,9 @@ contains
     ! have a factor 2 in front of pllens
     do ii = 1, size(pllens)
       if (rr > 2.0_dp * pllens(ii) + 1e-12_dp) then
-        write(stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the principle&
+        write(env%stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the principle&
             & layer width in contact ", ii, "."
-        write(stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
+        write(env%stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
         call error("Either enlarge PL width in the contact or increase AtomDensityCutoff or&
             & AtomDensityTolerance.")
       end if

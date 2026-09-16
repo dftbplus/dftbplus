@@ -18,7 +18,6 @@
 module dftbp_poisson_parcheck
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : Bohr__AA, hartree__eV
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : warning, error
   use dftbp_poisson_mpi_poisson, only : id0, numprocs
   use dftbp_poisson_parameters, only : cluster, cntr_gate, contdir, contnames, deltaR_max,&
@@ -41,7 +40,10 @@ contains
  ! ---------------------------------------------------------------------------
  ! Perform parameters checks
  ! ---------------------------------------------------------------------------
- subroutine check_poisson_box(iErr)
+ subroutine check_poisson_box(output, iErr)
+
+   !> Output unit for human readable messages
+   integer, intent(in) :: output
 
    integer, intent(out), optional :: iErr
 
@@ -60,9 +62,9 @@ contains
       if (.not.FoundBox) then
          PoissBox(:,:)=boxsiz(:,:)
          if (verbose > VBT) then
-            call warning('Box for Poisson not Found: Setting equal to supercell box')
+            call warning(output, 'Box for Poisson not Found: Setting equal to supercell box')
             do i=1,3
-               write(stdOut,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
+               write(output,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
             end do
          end if
       else
@@ -75,9 +77,9 @@ contains
    else
       if (.not.FoundBox) then
         if (verbose > VBT) then
-          call warning('Box for Poisson not Found')
+          call warning(output, 'Box for Poisson not Found')
         end if
-        @:ERROR_HANDLING(iErr, -1, 'No way to build box for Poisson')
+        @:ERROR_HANDLING(output, iErr, -1, 'No way to build box for Poisson')
       end if
    end if
 
@@ -93,7 +95,10 @@ contains
  end subroutine check_poisson_box
 
 
- subroutine check_biasdir(iErr)
+ subroutine check_biasdir(output, iErr)
+
+   !> Output unit for human readable messages
+   integer, intent(in) :: output
 
    integer, intent(out), optional :: iErr
 
@@ -110,11 +115,11 @@ contains
        !if(mu(nf(1)).eq.0.d0) mu(nf(1))=bias
        if (contdir(1).ne.contdir(2)) then
          if (localBC(1).eq.0) then
-           @:ERROR_HANDLING(iErr, -1,&
+           @:ERROR_HANDLING(output, iErr, -1,&
                & 'Local BC should be used when contacts are in different directions')
          endif
          if(DoCilGate) then
-           @:ERROR_HANDLING(iErr, -2,&
+           @:ERROR_HANDLING(output, iErr, -2,&
                & 'Contacts must be in the same direction when using cylindrical gate')
          endif
        end if
@@ -147,13 +152,16 @@ contains
    end if
 
    if (period_dir(3) .and. numprocs>1) then
-     @:ERROR_HANDLING(iErr, -3,&
+     @:ERROR_HANDLING(output, iErr, -3,&
          & 'Periodicity along z is incompatible with grid parallelization strategy')
    end if
 
  end subroutine check_biasdir
 
- subroutine check_parameters()
+ subroutine check_parameters(output)
+
+   !> Output unit for human readable messages
+   integer, intent(in) :: output
 
    if (OxLength < GateLength_l) OxLength = GateLength_l
    print *,'Oxlength=', OxLength, 'GateLength_l=', GateLength_l
@@ -162,7 +170,8 @@ contains
        call error('Insulator radius must be positive')
      end if
      if (Rmin_ins > Rmin_gate) then
-       call warning('Insulator radius is larger than gate radius: setting Rmin_ins=Rmin_gate')
+       call warning(output,&
+           & 'Insulator radius is larger than gate radius: setting Rmin_ins=Rmin_gate')
        Rmin_ins = Rmin_gate
      end if
      if (dr_eps < 0.5_dp) dr_eps = 0.5d0 !TODO: should be changed to one grid spacing
@@ -176,7 +185,10 @@ contains
  end subroutine check_parameters
 
    !-------WRITE DOWN FEEDBACK ABOUT INPUT FILE -------------------!
- subroutine write_parameters()
+ subroutine write_parameters(output)
+
+   !> Output unit for human readable messages
+   integer, intent(in) :: output
 
    integer i
 
@@ -201,49 +213,49 @@ contains
       !endif
 
       if (DoPoisson) then
-        write(stdOut,'(a,3(f10.4),a)') ' Input PoissonBox=',PoissBox(1,1)*Bohr__AA,&
+        write(output,'(a,3(f10.4),a)') ' Input PoissonBox=',PoissBox(1,1)*Bohr__AA,&
             & PoissBox(2,2)*Bohr__AA, PoissBox(3,3)*Bohr__AA, '  A'
-         write(stdOut,*) 'PoissAcc=',PoissAcc
+         write(output,*) 'PoissAcc=',PoissAcc
          if(initPot) then
-            write(stdOut,*) 'Bulk Boundary Potential:    Yes'
+            write(output,*) 'Bulk Boundary Potential:    Yes'
          else
-            write(stdOut,*) 'Bulk Boundary Potential:    No'
+            write(output,*) 'Bulk Boundary Potential:    No'
          endif
 
-         write(stdOut,*) 'Atomic cutoff radius=', deltaR_max*Bohr__AA,'A'
+         write(output,*) 'Atomic cutoff radius=', deltaR_max*Bohr__AA,'A'
 
          if (DoGate) then
-            write(stdOut,*) 'Gate: Planar'
-            write(stdOut,*) 'Gate bias=',gate*hartree__eV,'V'
-            write(stdOut,*) 'Gate length l=',GateLength_l*Bohr__AA,'A'
-            write(stdOut,*) 'Gate length t=',GateLength_t*Bohr__AA,'A'
-            write(stdOut,*) 'Gate distance=',Rmin_Gate*Bohr__AA,'A'
-            write(stdOut,*) 'Oxide length l=',OxLength_l*Bohr__AA,'A'
-            write(stdOut,*) 'Oxide length t=',OxLength_t*Bohr__AA,'A'
-            write(stdOut,*) 'Oxide distance=',Rmin_Ins*Bohr__AA,'A'
-            write(stdOut,*) 'Dielectric constant of gate insulator=',eps_r
-            if (dr_eps/=0.0_dp) write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
+            write(output,*) 'Gate: Planar'
+            write(output,*) 'Gate bias=',gate*hartree__eV,'V'
+            write(output,*) 'Gate length l=',GateLength_l*Bohr__AA,'A'
+            write(output,*) 'Gate length t=',GateLength_t*Bohr__AA,'A'
+            write(output,*) 'Gate distance=',Rmin_Gate*Bohr__AA,'A'
+            write(output,*) 'Oxide length l=',OxLength_l*Bohr__AA,'A'
+            write(output,*) 'Oxide length t=',OxLength_t*Bohr__AA,'A'
+            write(output,*) 'Oxide distance=',Rmin_Ins*Bohr__AA,'A'
+            write(output,*) 'Dielectric constant of gate insulator=',eps_r
+            if (dr_eps/=0.0_dp) write(output,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
          endif
          if (DoCilGate) then
-            write(stdOut,*) 'Gate: Cylindrical'
-            write(stdOut,*) 'Gate bias=',gate*hartree__eV,'V'
-            write(stdOut,*) 'Gate length=',GateLength_l*Bohr__AA,'A'
-            write(stdOut,*) 'Oxide length=',OxLength*Bohr__AA,'A'
-            write(stdOut,*) 'Inner gate radius=',Rmin_Gate*Bohr__AA,'A'
-            write(stdOut,*) 'Inner oxide radius=',Rmin_Ins*Bohr__AA,'A'
-            write(stdOut,*) 'Dielectric constant of gate insulator=',eps_r
-            if (dr_eps/=0.0_dp) write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
-            write(stdOut,'(a,3(f10.4),a)') ' Cylindrical gate center=',cntr_gate(1)*Bohr__AA,&
+            write(output,*) 'Gate: Cylindrical'
+            write(output,*) 'Gate bias=',gate*hartree__eV,'V'
+            write(output,*) 'Gate length=',GateLength_l*Bohr__AA,'A'
+            write(output,*) 'Oxide length=',OxLength*Bohr__AA,'A'
+            write(output,*) 'Inner gate radius=',Rmin_Gate*Bohr__AA,'A'
+            write(output,*) 'Inner oxide radius=',Rmin_Ins*Bohr__AA,'A'
+            write(output,*) 'Dielectric constant of gate insulator=',eps_r
+            if (dr_eps/=0.0_dp) write(output,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
+            write(output,'(a,3(f10.4),a)') ' Cylindrical gate center=',cntr_gate(1)*Bohr__AA,&
                 & cntr_gate(2)*Bohr__AA, cntr_gate(3)*Bohr__AA, '  A'
          end if
          if (any(localBC.gt.0)) then
             do i=1,ncont
-               if (localBC(i).eq.1) write(stdOut,*) 'Local Boundary Conditions= Circular'
-               if (localBC(i).eq.2) write(stdOut,*) 'Local Boundary Conditions= Squared'
-               write(stdOut,'(a9,i2,a2,f8.3,a1)') ' dR_cont(',i,')=',dR_cont(i)*Bohr__AA,'A'
+               if (localBC(i).eq.1) write(output,*) 'Local Boundary Conditions= Circular'
+               if (localBC(i).eq.2) write(output,*) 'Local Boundary Conditions= Squared'
+               write(output,'(a9,i2,a2,f8.3,a1)') ' dR_cont(',i,')=',dR_cont(i)*Bohr__AA,'A'
             enddo
          endif
-         write(stdOut,*)
+         write(output,*)
       endif
 
 
@@ -251,7 +263,10 @@ contains
 
  end subroutine write_parameters
 
- subroutine check_localbc()
+ subroutine check_localbc(output)
+
+   !> Output unit for human readable messages
+   integer, intent(in) :: output
 
    integer :: m, err
 
@@ -309,24 +324,27 @@ contains
       enddo
    endif
    if (err.eq.1 .and. id0) then
-      write(stdOut,*)
-      write(stdOut,*) 'ERROR: BoundaryRegion{} sets a Dirichlet BC'
-      write(stdOut,*) '       not compatible with overrideDefaultBC=Neumann'
+      write(output,*)
+      write(output,*) 'ERROR: BoundaryRegion{} sets a Dirichlet BC'
+      write(output,*) '       not compatible with overrideDefaultBC=Neumann'
    endif
    if (err.eq.2 .and. id0) then
-      write(stdOut,*)
-      write(stdOut,*) 'WARNING: '
-      write(stdOut,*) 'BoundaryRegion{} sets a mixed Neumann/Dirichlet BC'
-      write(stdOut,*) 'User setting OverrideDefaultBC = Dirichlet'
-      write(stdOut,*) 'has been disregarded !'
-      write(stdOut,*)
+      write(output,*)
+      write(output,*) 'WARNING: '
+      write(output,*) 'BoundaryRegion{} sets a mixed Neumann/Dirichlet BC'
+      write(output,*) 'User setting OverrideDefaultBC = Dirichlet'
+      write(output,*) 'has been disregarded !'
+      write(output,*)
    endif
 
  end subroutine check_localbc
 
 
  !--- WRITE INFOS ABOUT THE CONTACT STRUCTURES ---------------
- subroutine check_contacts(iErr)
+ subroutine check_contacts(output, iErr)
+
+   !> Output unit for human readable messages
+   integer, intent(in) :: output
 
    integer, intent(out), optional :: iErr
 
@@ -338,22 +356,22 @@ contains
 
    if(cluster) then
       if (id0) then
-          write(stdOut,'(1x,a)',advance='NO') 'System Type: UNCONTACTED '
+          write(output,'(1x,a)',advance='NO') 'System Type: UNCONTACTED '
           if(period) then
-             write(stdOut,'(a)',advance='NO') 'PERIODIC '
+             write(output,'(a)',advance='NO') 'PERIODIC '
           else
-             write(stdOut,'(a)',advance='NO') 'CLUSTER '
+             write(output,'(a)',advance='NO') 'CLUSTER '
           endif
-          write(stdOut,*) 'STRUCTURE'
-          write(stdOut,'(1x,a,I3)') 'periodicity direction:',contdir(1)
+          write(output,*) 'STRUCTURE'
+          write(output,'(1x,a,I3)') 'periodicity direction:',contdir(1)
       endif
    endif
 
 
    if(id0.and.verbose.gt.50) then
-      write(stdOut,'(a)') 'CENTRAL REGION'
-      write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatm(1), iatm(2)
-      write(stdOut,*)
+      write(output,'(a)') 'CENTRAL REGION'
+      write(output,'(1x,a,2I6)') 'Atom start - end = ',iatm(1), iatm(2)
+      write(output,*)
    endif
 
 
@@ -377,12 +395,12 @@ contains
          !endif
          ! ---------------------------------------------------
 
-         write(stdOut,'(a,I3,a,a)') 'CONTACT #', i, ' : ', trim(contnames(i))
-         write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
-         write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
-         write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree__eV,'eV'
-         write(stdOut,*) 'mu=',mu(i)*hartree__eV,'V'
-         write(stdOut,*)
+         write(output,'(a,I3,a,a)') 'CONTACT #', i, ' : ', trim(contnames(i))
+         write(output,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
+         write(output,'(1x,a,I3)') 'direction:',contdir(i)
+         write(output,*) 'Fermi Level=',Efermi(i)*hartree__eV,'eV'
+         write(output,*) 'mu=',mu(i)*hartree__eV,'V'
+         write(output,*)
 
       end do !ncont
    endif !cluster
@@ -394,13 +412,13 @@ contains
    if (.not.cluster) then
      do i=1,ncont
        if (iatc(1,i).lt.iatm(2)) then
-         @:ERROR_HANDLING(iErr, -1,&
+         @:ERROR_HANDLING(output, iErr, -1,&
              & 'The contacts MUST be defined after the scattering region')
        end if
      enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-     @:ERROR_HANDLING(iErr, -2, 'The number of atoms in the scattering region is higher than&
+     @:ERROR_HANDLING(output, iErr, -2, 'The number of atoms in the scattering region is higher than&
          & the total number of atoms')
    endif
    if (DoGate) then
@@ -408,7 +426,7 @@ contains
 !      @:ERROR_HANDLING(iErr, -3, 'Gate direction must be along y')
 !     end if
      if(any(abs(contdir(:)).eq.gatedir)) then
-       @:ERROR_HANDLING(iErr, -4, 'Gate direction along contacts!?')
+       @:ERROR_HANDLING(output, iErr, -4, 'Gate direction along contacts!?')
      end if
    endif
 

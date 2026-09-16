@@ -199,7 +199,7 @@ contains
     @:ASSERT(size(gradients,1) == 3)
 
     if (.not. main%tForces) then
-      call genericGradientInit(main, oldSettings)
+      call genericGradientInit(env, main, oldSettings)
     end if
 
     call recalcGeometry(env, main)
@@ -235,7 +235,7 @@ contains
     end if
 
     if (.not. main%tStress) then
-      call genericGradientInit(main, oldSettings)
+      call genericGradientInit(env, main, oldSettings)
       main%tLatticeChanged = .true.
       main%tStress = .true.
     end if
@@ -252,7 +252,10 @@ contains
 
 
   !> Generic initialisation for analytical first derivative data structures
-  subroutine genericGradientInit(main, oldSettings)
+  subroutine genericGradientInit(env, main, oldSettings)
+
+    !> Instance of computational environment
+    type(TEnvironment), intent(inout) :: env
 
     !> DFTB+ instance
     type(TDftbPlusMain), intent(inout) :: main
@@ -292,7 +295,8 @@ contains
     ! mark coordinates as tainted, forcing re-evaluation
     main%tCoordsChanged = .true.
 
-    call warning(["Generic derivatives settings initialised inside API an property request.",&
+    call warning(env%stdOut,&
+        & ["Generic derivatives settings initialised inside API an property request.",&
         & "For more control, setup forces at calculation initialisation.           "])
 
   end subroutine genericGradientInit
@@ -649,7 +653,7 @@ contains
     @:ASSERT(all(shape(chargeGradients) == [3, main%nExtChrg]))
 
     if (.not.main%tForces .or. .not.allocated(main%chrgForces)) then
-      call genericGradientInit(main, oldSettings)
+      call genericGradientInit(env, main, oldSettings)
       if (main%tPeriodic) main%tLatticeChanged = .true.
     end if
 
@@ -835,7 +839,7 @@ contains
         & main%qShell0)
     call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
-    call main%initializeCharges(errStatus)
+    call main%initializeCharges(env, errStatus)
     if (errStatus%hasError()) then
       call error(errStatus%message)
     end if
@@ -1100,7 +1104,7 @@ contains
       end if
 
       if (.not. main%tForces) then
-        call genericGradientInit(main, oldSettings)
+        call genericGradientInit(env, main, oldSettings)
         call recalcGeometry(env, main)
       end if
 
