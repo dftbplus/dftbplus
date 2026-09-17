@@ -50,7 +50,7 @@ module dftbp_extlibs_tblite
   use tblite_scf_potential, only : new_potential, potential_type
   use tblite_version, only : get_tblite_version
   use tblite_wavefunction_type, only : new_wavefunction, wavefunction_type
-  use tblite_xtb_calculator, only : new_xtb_calculator, xtb_calculator
+  use tblite_xtb_calculator, only : new_xtb_calculator, xtb_calculator, xtb_config
   use tblite_xtb_gfn1, only : new_gfn1_calculator
   use tblite_xtb_gfn2, only : new_gfn2_calculator
   use tblite_xtb_h0, only : get_hamiltonian, get_hamiltonian_gradient, get_occupation,&
@@ -441,18 +441,20 @@ contains
     type(xtb_calculator), intent(out) :: calc
 
     type(error_type), allocatable :: exc
+    type(xtb_config) :: cfg
 
+    cfg = xtb_config(smooth_cutoff=0.0_wp)
     select case(method)
     case default
       call error("Unknown method selector")
     case(tbliteMethod%gfn2xtb)
-      call new_gfn2_calculator(calc, mol, exc)
+      call new_gfn2_calculator(calc, mol, exc, config=cfg)
       if (allocated(exc)) call error("Failed to initialize gfn2 calculator")
     case(tbliteMethod%gfn1xtb)
-      call new_gfn1_calculator(calc, mol, exc)
+      call new_gfn1_calculator(calc, mol, exc, config=cfg)
       if (allocated(exc)) call error("Failed to initialize gfn2 calculator")
     case(tbliteMethod%ipea1xtb)
-      call new_ipea1_calculator(calc, mol, exc)
+      call new_ipea1_calculator(calc, mol, exc, config=cfg)
       if (allocated(exc)) call error("Failed to initialize gfn2 calculator")
     end select
     
