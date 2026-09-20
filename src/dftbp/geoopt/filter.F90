@@ -229,10 +229,19 @@ contains
   !> Project a lattice increment onto FixAngles / FixLengths / Isotropic.
   subroutine project_lattice_mode(fixAngles, fixLength, isotropic, latVec, mode)
 
+    !> Fix lattice angles
     logical, intent(in) :: fixAngles
+
+    !> Fix lattice vector lengths
     logical, intent(in) :: fixLength(3)
+
+    !> Allow only isotropic deformations
     logical, intent(in) :: isotropic
+
+    !> Lattice vectors
     real(dp), intent(in) :: latVec(:, :)
+
+    !> Lattice increment, projected in place onto active constraints
     real(dp), intent(inout) :: mode(:, :)
 
     integer :: ii
