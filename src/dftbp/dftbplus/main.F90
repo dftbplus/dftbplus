@@ -1411,7 +1411,7 @@ contains
                 & allocated(this%thirdOrd), this%isHybridXc, qNetAtom=this%qNetAtom,&
                 & isMdftb=allocated(this%quadrupoleMoment))
           end if
-          if (this%tWriteBandDat) then
+          if (this%tWriteBandDat .and. tWriteRestart) then
             if (this%geometryChanges%tMd .and. iGeoStep /= 0 .and. tWriteRestart) then
               call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
                   & isFileAppended=this%mdOutput%bandStructure)
@@ -1479,7 +1479,7 @@ contains
               & this%dangerousChanges, errStatus)
           if (errStatus%hasError()) call error(errStatus%message)
 
-          if (this%tWriteBandDat) then
+          if (this%tWriteBandDat .and. tWriteRestart) then
             if (this%deltaDftb%nDeterminant() == 1) then
               if (this%geometryChanges%tMd .and. iGeoStep /= 0 .and. tWriteRestart) then
                 ! the iGeoStep test is so that the initial step has a new file
