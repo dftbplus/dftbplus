@@ -1411,8 +1411,8 @@ contains
                 & allocated(this%thirdOrd), this%isHybridXc, qNetAtom=this%qNetAtom,&
                 & isMdftb=allocated(this%quadrupoleMoment))
           end if
-          if (this%tWriteBandDat) then
-            if (this%geometryChanges%tMd .and. iGeoStep /= 0 .and. tWriteRestart) then
+          if (this%tWriteBandDat .and. tWriteRestart) then
+            if (this%geometryChanges%tMd .and. iGeoStep /= 0) then
               call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
                   & isFileAppended=this%mdOutput%bandStructure)
             else
@@ -1479,9 +1479,9 @@ contains
               & this%dangerousChanges, errStatus)
           if (errStatus%hasError()) call error(errStatus%message)
 
-          if (this%tWriteBandDat) then
+          if (this%tWriteBandDat .and. tWriteRestart) then
             if (this%deltaDftb%nDeterminant() == 1) then
-              if (this%geometryChanges%tMd .and. iGeoStep /= 0 .and. tWriteRestart) then
+              if (this%geometryChanges%tMd .and. iGeoStep /= 0) then
                 ! the iGeoStep test is so that the initial step has a new file
                 call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
                     & isFileAppended=this%mdOutput%bandStructure)
@@ -1490,7 +1490,7 @@ contains
               end if
             else
               ! Multiple determinants
-              if (this%geometryChanges%tMd .and. iGeoStep /= 0 .and. tWriteRestart) then
+              if (this%geometryChanges%tMd .and. iGeoStep /= 0) then
                 ! the iGeoStep test is so that the initial step has a new file
                 call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) //&
                     & '_' //  bandOut, this%eigen, this%filling, this%kWeight,&
