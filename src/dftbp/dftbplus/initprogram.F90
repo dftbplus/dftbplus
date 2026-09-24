@@ -4277,12 +4277,6 @@ contains
           call error("Triplet perturbations currently disabled for electron dynamics with hybrid&
               & xc-functionals.")
         end if
-        if (input%ctrl%elecDynInp%tForces) then
-          call error("Forces for time propagation currently disabled for hybrid xc-functionals.")
-        end if
-        if (input%ctrl%elecDynInp%tIons) then
-          call error("Ion dynamics time propagation currently disabled for hybrid xc-functionals.")
-        end if
       end if
 
       allocate(this%electronDynamics)
