@@ -40,6 +40,8 @@ Added
 
 - Langevin thermostat added
 
+- Ehrenfest dynamics for hybrid functionals (molecules and gamma-point only)
+
 
 Changed
 -------

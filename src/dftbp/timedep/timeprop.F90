@@ -4031,6 +4031,10 @@ contains
         call packHS(rhoPrim(:,iSpin), real(rho(:,:,iKS), dp), neighbourList%iNeighbour,&
             & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
         call gemm(T1R, real(rho(:,:,iKS), dp), real(H1(:,:,iKS), dp))
+        if (this%isHybridXc) then
+          ! CAM contribution makes H1 complex, therefore add -Im(rho) * Im(H1) to get Re(rho * H1)
+          call gemm(T1R, aimag(rho(:,:,iKS)), aimag(H1(:,:,iKS)), alpha=-1.0_dp, beta=1.0_dp)
+        end if
         call her2k(T2R, real(Sinv(:,:,iKS), dp), T1R, 0.5_dp)
         call packHS(ErhoPrim, T2R, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSquare,&
             & iSparseStart, img2CentCell)
@@ -4091,11 +4095,10 @@ contains
       @:RAISE_ERROR(errStatus, -1, "MPI-parallel hybrid-DFTB matrix-based force evaluation not&
           & implemented for rTD-DFTB.")
     #:else
-      call hybridXc%addCamGradients_real(env, real(deltaRho, dp), real(sSqr(:,:, 1), dp),&
-          & skOverCont, orb, iSquare, neighbourList%iNeighbour, nNeighbourSK, this%derivator,&
-          & this%tPeriodic, derivs, symNeighbourList=symNeighbourList,&
-          & nNeighbourCamSym=nNeighbourCamSym)
-      @:PROPAGATE_ERROR(errStatus)
+      ! Time-dependent (complex) delta density matrix, consistent with the CAM Hamiltonian built
+      ! in updateH(), i.e. matrix-based and including the imaginary part of deltaRho
+      call hybridXc%addCamGradients_cmplx(env, deltaRho, real(sSqr(:,:, 1), dp), skOverCont, orb,&
+          & iSquare, this%derivator, this%tPeriodic, symNeighbourList, nNeighbourCamSym, derivs)
     #:endif
     end if
 
