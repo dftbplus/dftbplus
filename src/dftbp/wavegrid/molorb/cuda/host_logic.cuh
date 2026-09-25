@@ -126,7 +126,7 @@ class GpuLaunchConfig {
 
         // Determine max Z-slices that can fit in available (global) memory
         size_t bytes_per_slice = (size_t)grid->nPointsX * grid->nPointsY * calc->nEigOut * output_number_size;
-        int z_per_batch        = std::min(z_count, (int)(available_global / bytes_per_slice));
+        int z_per_batch = std::min((size_t)z_count, available_global / bytes_per_slice);
         if(!z_per_batch) throw std::runtime_error(
             "Insufficient global GPU memory available, unable to fit output array Z-slice.");
         return z_per_batch;

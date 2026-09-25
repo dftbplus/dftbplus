@@ -68,6 +68,7 @@ typedef struct {
     const cuDoubleComplex* eigVecsCmpl;    // [nOrb][nEigIn]
     double*                valueReal_out;  // [nPointsX][nPointsY][nPointsZ][nEigOut]
     cuDoubleComplex*       valueCmpl_out;  // [nPointsX][nPointsY][nPointsZ][nEigOut]
+    const double*          occupations;  // [nEigIn] (for total charge)
 } CalculationParams;
 
 void evaluate_on_device_c(

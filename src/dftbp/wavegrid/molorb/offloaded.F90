@@ -65,6 +65,7 @@ module dftbp_wavegrid_molorb_offloaded
     integer(c_int) :: nEigIn, nEigOut
     type(c_ptr) :: eigVecsReal, eigVecsCmpl
     type(c_ptr) :: valueReal_out, valueCmpl_out
+    type(c_ptr) :: occupations
   end type
 
   !> C binding for the evaluation kernel, passing all of the above structs.
@@ -82,7 +83,7 @@ module dftbp_wavegrid_molorb_offloaded
 contains
 #:if WITH_CUDA
   subroutine evaluateCuda(system, orbitals, periodic, kIndexes, phases, ctx, &
-      & eigVecsReal, eigVecsCmpl, valueReal, valueCmpl)
+      & eigVecsReal, eigVecsCmpl, valueReal, valueCmpl, occupationVec)
 
     !> System
     type(TSystemParams), intent(in), target :: system
@@ -113,6 +114,9 @@ contains
 
     !> Complex output grid (if not real)
     complex(dp), intent(out), target, contiguous :: valueCmpl(:, :, :, :)
+
+    real(dp), intent(in), optional :: occupationVec(:)
+    real(dp), allocatable, target :: occupations(:)
 
     type(TBasisParams), target :: basis
     type(TGridParamsC) :: grid_p
@@ -189,6 +193,14 @@ contains
     calc_p%eigVecsCmpl = c_loc(eigVecsCmpl)
     calc_p%valueReal_out = c_loc(valueReal)
     calc_p%valueCmpl_out = c_loc(valueCmpl)
+
+    calc_p%occupations = c_null_ptr
+    if (ctx%calcTotalChrg) then
+      @:ASSERT(present(occupationVec))
+      @:ASSERT(size(occupationVec) == calc_p%nEigIn)
+      occupations = occupationVec
+      calc_p%occupations = c_loc(occupations)
+    end if
 
     call evaluate_on_device_c(grid_p, system_p, periodic_p, basis_p, calc_p)
 

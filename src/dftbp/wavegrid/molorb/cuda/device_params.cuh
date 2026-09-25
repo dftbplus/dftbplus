@@ -116,6 +116,17 @@ class DeviceBuffer {
 class GpuLutTexture {
    public:
     GpuLutTexture(const double* lutData, int nPoints, int nOrbitals) {
+        int device = 0;
+        CHECK_CUDA(cudaGetDevice(&device));
+        cudaDeviceProp prop;
+        CHECK_CUDA(cudaGetDeviceProperties(&prop, device));
+        if (nPoints > prop.maxTexture2D[0] || nOrbitals > prop.maxTexture2D[1]) {
+            fprintf(stderr,
+                "WARNING: Radial lookup table %d x %d exceeds GPU %d "
+                "2D texture size %d x %d. Allocation may fail.\n",
+                nPoints, nOrbitals, device, prop.maxTexture2D[0], prop.maxTexture2D[1]);
+        }
+
         // Convert the Fortran passed doubles to floats.
         // (hardware limitation)
         std::vector<float> lutFloats((size_t)nOrbitals * nPoints);
@@ -221,6 +232,8 @@ struct DeviceData {
     DeviceBuffer<double>   eigVecsReal;
     DeviceBuffer<complexd> eigVecsCmpl;
 
+    DeviceBuffer<double> occupations;
+
     // Output (per-GPU batch buffer)
     DeviceBuffer<complexd> valueCmpl_out_batch;
     DeviceBuffer<double>   valueReal_out_batch;
@@ -247,6 +260,9 @@ struct DeviceData {
             phases      = DeviceBuffer<complexd>(reinterpret_cast<const complexd*>(periodic->phases), (size_t)system->nCell * calc->nEigIn);
             kIndexes    = DeviceBuffer<int>(periodic->kIndexes, calc->nEigIn);
         }
+
+        if (calc->calcTotalChrg)
+            occupations = DeviceBuffer<double>(calc->occupations, calc->nEigIn);
 
         // Allocate the per-GPU batch output array
         size_t batch_buffer_size_elems = (size_t)grid->nPointsX * grid->nPointsY * z_per_batch * calc->nEigOut;
@@ -289,6 +305,7 @@ struct DeviceKernelParams {
 
     // Eigenvectors
     const int       nEig, nEig_per_pass;
+    const double*   occupations;
     const double*   eigVecsReal;
     const complexd* eigVecsCmpl;
 
@@ -329,6 +346,7 @@ struct DeviceKernelParams {
         phases(data.phases.get()),
         // Eigenvectors
         nEig(calc->nEigIn),
+        occupations(data.occupations.get()),
         eigVecsReal(data.eigVecsReal.get()),
         eigVecsCmpl(data.eigVecsCmpl.get()),
         // Output batch buffers

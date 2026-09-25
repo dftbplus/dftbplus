@@ -40,7 +40,6 @@ using complexd = thrust::complex<double>;
  * @tparam calcAtomicDensity squares the basis wavefunction contributions. In this case, the
  *                           occupation should be passed as the eigenvector.
  * @tparam calcTotalChrg     accumulates the density over all states in valueReal_out of shape (x,y,z,1).
- *                           Here, occupation should be passed by multiplying the eigenvecs with sqrt(occupation).
  *
  * @param p The DeviceKernelParams struct containing all necessary parameters for the kernel.
  */
@@ -142,13 +141,14 @@ __global__ void evaluateKernel(const DeviceKernelParams p) {
             size_t out_idx = IDX4F(i1, i2, i3_batch, iEig, p.nPointsX, p.nPointsY, p.z_per_batch);
             if constexpr (isRealInput) {
                 if constexpr (calcTotalChrg)
-                    totChrgAcc += point_results_pass[iEig_offset] * point_results_pass[iEig_offset];
+                    totChrgAcc += p.occupations[iEig]
+                               * point_results_pass[iEig_offset] * point_results_pass[iEig_offset];
                 else
                     p.valueReal_out_batch[out_idx] = point_results_pass[iEig_offset];
 
             } else {
                 if constexpr (calcTotalChrg)
-                    totChrgAcc += thrust::norm(point_results_pass[iEig_offset]);
+                    totChrgAcc += p.occupations[iEig] * thrust::norm(point_results_pass[iEig_offset]);
                 else
                     p.valueCmpl_out_batch[out_idx] = point_results_pass[iEig_offset];
             }
@@ -218,7 +218,8 @@ extern "C" void evaluate_on_device_c(const GridParams* grid, const SystemParams*
     const StoBasisParams* basis, const CalculationParams* calc) {
     try {
         // We currently assume a hardcoded maximum for the number of powers.
-        if (calc->nEigIn * grid->nPointsX * grid->nPointsY * grid->nPointsZ == 0)
+        if (calc->nEigIn <= 0 || grid->nPointsX <= 0 || grid->nPointsY <= 0 ||
+            grid->nPointsZ <= 0)
             throw std::runtime_error("Error: Zero-sized dimension in input parameters.\n");
         if (calc->calcTotalChrg && calc->nEigOut != 1)
             throw std::runtime_error("Error: When calculating total charge density, nEigOut must be 1.\n");
@@ -242,25 +243,27 @@ extern "C" void evaluate_on_device_c(const GridParams* grid, const SystemParams*
 #endif
         // Do not assign GPUs empty Z-slice ranges.
         numGpus = std::min(numGpus, grid->nPointsZ);
-        elapsedTime_ms timings, threadTimings;
+        elapsedTime_ms timings;
         // Use OMP to split across available GPUs
         // This works irrespective of the number of threads set in OMP_NUM_THREADS.
         #pragma omp parallel num_threads(numGpus)
         {
 #ifdef _OPENMP
             int deviceId = omp_get_thread_num();
+            int numWorkers = omp_get_num_threads();
 #else
             int deviceId = 0;
+            int numWorkers = 1;
 #endif
             CHECK_CUDA(cudaSetDevice(deviceId));
-            GpuLaunchConfig config(deviceId, numGpus, grid, calc);
+            GpuLaunchConfig config(deviceId, numWorkers, grid, calc);
 
             if(DEBUG) {
                 #pragma omp critical
                 config.print_summary(grid, calc);
             }
 
-            threadTimings = runBatchOnDevice(config, grid, system, periodic, basis, calc);
+            auto threadTimings = runBatchOnDevice(config, grid, system, periodic, basis, calc);
             if (deviceId == 0) timings = threadTimings;
         } // End of omp parallel region
 
@@ -279,5 +282,3 @@ extern "C" void evaluate_on_device_c(const GridParams* grid, const SystemParams*
         exit(EXIT_FAILURE);
     }
 }
-
-

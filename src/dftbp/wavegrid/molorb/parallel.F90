@@ -64,20 +64,12 @@ contains
     !> Output valueReal and valueCmpl will collapse to one slice in the last dimension, (x,y,z,1).
     real(dp), intent(in), optional :: occupationVec(:)
 
-    !! Variables for total charge calculation
-    real(dp), allocatable :: coeffVecsReal(:,:)
-    complex(dp), allocatable :: coeffVecsCmpl(:,:)
-
-    ! To reduce repeated multiplications we bake the totalCharge occupations
-    ! directly into the eigenvector coefficients.
-    call prepareCoefficients(ctx, eigVecsReal, eigVecsCmpl, occupationVec, coeffVecsReal, coeffVecsCmpl)
-    
     ! Dispatch to CPU / GPU implementation
     if (ctx%runOnGPU) then
       #:if WITH_CUDA
         if (ctx%beVerbose) write(stdOut, "(A)") "Wavegrid: running on GPU using CUDA"
         call evaluateCuda(system, orbitals, periodic, kIndexes, phases, ctx, &
-            & coeffVecsReal, coeffVecsCmpl, valueReal, valueCmpl)
+            & eigVecsReal, eigVecsCmpl, valueReal, valueCmpl, occupationVec)
       #:else
         call error("Wavegrid: GPU offloaded molorb requested, but compiled without CUDA support.")
       #:endif
@@ -88,14 +80,14 @@ contains
         if (ctx%beVerbose) write(stdOut, "(A)") "Wavegrid: missing OMP, running serially on CPU"
       #:endif
       call evaluateOmp(system, orbitals, periodic, kIndexes, phases, ctx, &
-            & coeffVecsReal, coeffVecsCmpl, valueReal, valueCmpl)
+            & eigVecsReal, eigVecsCmpl, valueReal, valueCmpl, occupationVec)
     end if
 
   end subroutine evaluateParallel
 
 
   subroutine evaluateOmp(system, orbitals, periodic, kIndexes, phases, ctx, &
-      & eigVecsReal, eigVecsCmpl, valueReal, valueCmpl)
+      & eigVecsReal, eigVecsCmpl, valueReal, valueCmpl, occupationVec)
 
     !> System
     type(TSystemParams), intent(in) :: system
@@ -126,6 +118,9 @@ contains
 
     !> Complex output grid (if complex input)
     complex(dp), intent(out) :: valueCmpl(:, :, :, :)
+
+    !> Occupations for total density calculation
+    real(dp), intent(in), optional :: occupationVec(:)
 
     !! Thread private variables
     integer ::  ind, iSpecies
@@ -235,9 +230,9 @@ contains
 
             if (ctx%calcTotalChrg) then
               if (ctx%isRealInput) then
-                valueReal(i1, i2, i3, 1) = sum(orbValsPerPointReal(:)**2)
+                valueReal(i1, i2, i3, 1) = sum(occupationVec * orbValsPerPointReal(:)**2)
               else ! Complex
-                valueReal(i1, i2, i3, 1) = sum(abs(orbValsPerPointCmpl(:))**2)
+                valueReal(i1, i2, i3, 1) = sum(occupationVec * abs(orbValsPerPointCmpl(:))**2)
               end if
             end if
         end do lpI1
@@ -252,42 +247,4 @@ contains
     end if
     !$omp end parallel
   end subroutine evaluateOmp
-
-
-
-  !> Prepare coefficient vectors for calculation by, if required due to total charge calculation,
-  !> scaling the eigenvectors by sqrt(occupationVec).
-  subroutine prepareCoefficients(ctx, eigVecsReal, eigVecsCmpl, occupationVec, coeffVecReal, coeffVecCmpl)
-    type(TCalculationContext), intent(in) :: ctx
-    real(dp), intent(in) :: eigVecsReal(:,:)
-    complex(dp), intent(in) :: eigVecsCmpl(:,:)
-    real(dp), intent(in), optional :: occupationVec(:)
-    real(dp), allocatable, intent(out) :: coeffVecReal(:,:)
-    complex(dp), allocatable, intent(out) :: coeffVecCmpl(:,:)
-
-    integer :: iEig
-
-    allocate(coeffVecReal(size(eigVecsReal, dim=1), size(eigVecsReal, dim=2)))
-    allocate(coeffVecCmpl(size(eigVecsCmpl, dim=1), size(eigVecsCmpl, dim=2)))
-
-    if (ctx%calcTotalChrg) then
-      if(ctx%isRealInput) then
-        @:ASSERT(size(occupationVec) == size(eigVecsReal, dim=2))
-      else
-        @:ASSERT(size(occupationVec) == size(eigVecsCmpl, dim=2))
-      end if
-
-      do iEig = 1, size(eigVecsReal, dim=2)
-        coeffVecReal(:, iEig) = eigVecsReal(:, iEig) * sqrt(occupationVec(iEig))
-      end do
-      do iEig = 1, size(eigVecsCmpl, dim=2)
-        coeffVecCmpl(:, iEig) = eigVecsCmpl(:, iEig) * sqrt(occupationVec(iEig))
-      end do
-    else
-      coeffVecReal = eigVecsReal
-      coeffVecCmpl = eigVecsCmpl
-    end if
-
-  end subroutine prepareCoefficients
-
 end module dftbp_wavegrid_molorb_parallel

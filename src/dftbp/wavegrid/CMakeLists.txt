@@ -15,6 +15,7 @@ if(WITH_CUDA)
         molorb/cuda/host_logic.cu
     )
     add_library(wavegrid_cuda_objlib OBJECT ${sources_lib_cuda})
+    set_target_properties(wavegrid_cuda_objlib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     if(WITH_OMP)
         # Tell nvcc to pass -fopenmp to the host compiler (e.g. gcc)

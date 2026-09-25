@@ -48,6 +48,9 @@ program waveplot
   !> Indices of current level, K-point and spin
   integer :: levelIndex(3)
 
+  !> Species for atomic charges before expanding the geometry
+  integer, allocatable :: originalSpecies(:)
+
   !> Auxiliary variables
   integer :: i1, ioStat, nEig, iEig, iLevel, iKPoint, iSpin
   logical :: isFinished, doPlotLevel, hasIoError, doRepeatBox, doNeedCharge
@@ -69,6 +72,10 @@ program waveplot
   end if
   hasIoError = .false.
 
+  if (wp%opt%doCalcAtomDens) then
+    originalSpecies = wp%input%geo%species
+  end if
+
   ! Repeat boxes if necessary
   doRepeatBox = product(wp%opt%repeatBox) > 1
   if (doRepeatBox) then
@@ -85,12 +92,6 @@ program waveplot
   write(stdOut, "(2X,3(F0.5,1X))") 1.0_dp / norm2(wp%loc%gridVec, dim=1)
   write(stdOut, *)
 
-  ! Create density superposition of the atomic orbitals. Occupation is distributed equally on
-  ! orbitals with the same angular momentum.
-  if (wp%opt%doCalcAtomDens) then
-    call calcAtomicDensities(wp, env, hasIoError, atomicChrg, sumAtomicChrg)
-  end if
-
   if (wp%opt%beVerbose) then
     write(stdOut, "(/,A5,' ',A6,' ',A6,' ',A7,' ',A11,' ',A11)") "Spin", "KPoint", "State",&
         & "Action", "Norm", "W. Occup."
@@ -104,6 +105,13 @@ program waveplot
   if (wp%opt%doFillBox) then
     call fillPlottedRegion(wp)
   end if
+
+  ! Create density superposition of the atomic orbitals. Occupation is distributed equally on
+  ! orbitals with the same angular momentum.
+  if (wp%opt%doCalcAtomDens) then
+    call calcAtomicDensities(wp, env, originalSpecies, hasIoError, atomicChrg, sumAtomicChrg)
+  end if
+
  
   ! Wavegrid supports fast inplace accumulation for total charge.
   ! This avoids having to store all states in memory and can offer a
@@ -234,10 +242,11 @@ program waveplot
 
 contains
 
-  !> Calculates atomic densities and their sum and saves to disk if requested.
-  subroutine calcAtomicDensities(wp, env, hasIoError, atomicChrg, sumAtomicChrg)
+  !> Calculates atomic densities and saves to disk if requested.
+  subroutine calcAtomicDensities(wp, env, originalSpecies, hasIoError, atomicChrg, sumAtomicChrg)
     type(TProgramVariables), intent(in) :: wp
     type(TEnvironment), intent(in) :: env
+    integer, intent(in) :: originalSpecies(:)
     logical, intent(inout) :: hasIoError
     real(dp), allocatable, intent(out) :: atomicChrg(:,:,:,:)
     real(dp), intent(out) :: sumAtomicChrg
@@ -248,8 +257,8 @@ contains
     allocate(orbitalOcc(wp%input%nOrb, 1))
     if (env%tGlobalLead) then
       ind = 1
-      do iAtom = 1, wp%input%geo%nAtom
-        iSpecies = wp%input%geo%species(iAtom)
+      do iAtom = 1, size(originalSpecies)
+        iSpecies = originalSpecies(iAtom)
         do iOrb = 1, size(wp%basis%basis(iSpecies)%orbitals)
           iL = wp%basis%basis(iSpecies)%orbitals(iOrb)%o%angMom
           mAng = 2 * iL + 1
@@ -323,7 +332,6 @@ contains
     
     nBox = product(wp%opt%repeatBox)
     @:ASSERT(nBox > 1)
-    wp%input%nOrb = wp%input%nOrb * nBox
 
     if (wp%opt%beVerbose) then
       write(stdOut, "(A,I1,A)") "Expanding unit cell to supercell with ", nBox, " boxes."
