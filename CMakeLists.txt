@@ -44,6 +44,18 @@ if(WITH_MPI)
   message(STATUS "MPI_C_COMPILE_OPTIONS: ${MPI_C_COMPILE_OPTIONS}")
 endif()
 
+# Wavegrid GPU acceleration
+if(WITH_CUDA)
+    if(CMAKE_VERSION VERSION_LESS 3.24)
+        message(FATAL_ERROR "CUDA support requires CMake 3.24 or newer.")
+    endif()
+    # Require CMAKE_CUDA_ARCHITECTURES to be set
+    cmake_policy(SET CMP0104 NEW)
+    enable_language(CXX)
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+endif()
+
 if(WITH_OMP)
   if(NOT TARGET OpenMP::OpenMP_Fortran)
     find_package(OpenMP REQUIRED)
