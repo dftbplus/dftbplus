@@ -227,7 +227,8 @@ contains
 
     if (allocated(sccCalc)) then
       if (updateScc) then
-        call sccCalc%updateCharges(env, qInput, orb, species, q0)
+        call sccCalc%updateCharges(env, qInput, orb, species, errStatus, q0)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       call sccCalc%getShiftPerAtom(atomPot(:,1))

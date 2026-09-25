@@ -22,7 +22,7 @@ program polyvalue
   type(TFileDescr) :: fp
   integer :: iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
-  real(dp) :: rr, energy, dEnergy, d2Energy, rDummy
+  real(dp) :: rr, energy, dEnergy, d2Energy, rTemporary
 
   if (command_argument_count() == 0) then
     call error("Wrong number of arguments. Use 'polyvalue -h' to obtain help.")
@@ -57,8 +57,7 @@ program polyvalue
   if (homo) then
     read(fp%unit, *)
   end if
-  read(fp%unit, *) rDummy, polyRepInp%polyCoeffs, polyRepInp%cutoff, &
-      & (rDummy, ii = 11, 20)
+  read(fp%unit, *) rTemporary, polyRepInp%polyCoeffs, polyRepInp%cutoff, (rTemporary, ii = 11, 20)
   call closeFile(fp)
 
   call TPolyRep_init(polyRep, polyRepInp)

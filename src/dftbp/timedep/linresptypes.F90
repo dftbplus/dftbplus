@@ -77,6 +77,9 @@ module dftbp_timedep_linresptypes
     !> Whether X+Y data should be written
     logical :: writeXplusY = .false.
 
+    !> Whether X+Y data should be written as a text file
+    logical :: writeXplusYAscii = .true.   
+
     !> Should non-adiabatic couplings be computed?
     logical :: tNaCoupling = .false.
 
@@ -138,6 +141,12 @@ module dftbp_timedep_linresptypes
 
     !> Subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
+
+    !> Is a spectral folding used to get interior eigenvalues
+    logical :: isSpectrumFolded = .false.
+
+    !> shift value for RPA eigen-problem
+    real(dp) :: shiftSpace = 0.0_dp
 
     !> Whether the NACV file should be written
     logical :: writeNacv  = .false.

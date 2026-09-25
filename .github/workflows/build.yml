@@ -60,6 +60,10 @@ jobs:
         config: [Debug]
         version: [13]
 
+    concurrency:
+      group: ${{ github.head_ref || github.ref_name }}-${{ matrix.os }}-${{ matrix.mpi }}
+      cancel-in-progress: true
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -137,8 +141,6 @@ jobs:
     - name: Install requirements (pip)
       run: pip3 install cmake ninja fypp numpy
 
-    - name: Get external dependencies
-      run: echo "y" | ./utils/get_opt_externals ALL
 
     - name: Set extra CMake flags
       run: |
@@ -209,6 +211,10 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    concurrency:
+      group: ${{ github.head_ref || github.ref_name }}-intel
+      cancel-in-progress: true
+
     env:
       FC: ifx
       CC: icx
@@ -248,8 +254,6 @@ jobs:
     - name: Install requirements (pip)
       run: pip3 install cmake ninja fypp numpy
 
-    - name: Get external dependencies
-      run: echo "y" | ./utils/get_opt_externals ALL
 
     - name: Set extra CMake flags
       run: echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV

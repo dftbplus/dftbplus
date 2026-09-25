@@ -21,33 +21,24 @@ Installation
 Obtaining via Conda
 -------------------
 
-The preferred way of obtaining DFTB+ is to install it via the conda package
-management framework using `Miniconda
-<https://docs.conda.io/en/latest/miniconda.html>`_ or `Anaconda
-<https://www.anaconda.com/products/individual>`_. Make sure to add/enable the
-``conda-forge`` channel in order to be able to access DFTB+, and ensure that
-the ``conda-forge`` channel is the first repository to be searched for
-packages. (Please consult the conda documentation for how to set-up your conda
-environment.)
-
-We recommend the use of the `mamba installer <https://mamba.readthedocs.io/>`_,
-as we have experienced dependency resolution problems with the original conda
-installer in the past::
-
-  conda install -n base mamba
+The preferred way of to install DFTB+ is by using the conda package management
+system. We highly suggest using the `miniforge
+<https://github.com/conda-forge/miniforge>`_ conda distribution. You might use
+any other conda distribution as well, just make sure to select the `conda-forge
+<https://conda-forge.org/>`_ channel as the (only) source for packages.
 
 We provide several build variants, choose the one suiting your needs. For
 example, by issuing ::
 
-  mamba install 'dftbplus=*=nompi_*'
+  conda install 'dftbplus=*=nompi_*'
 
 or ::
 
-  mamba install 'dftbplus=*=mpi_mpich_*'
+  conda install 'dftbplus=*=mpi_mpich_*'
 
 or ::
 
-  mamba install 'dftbplus=*=mpi_openmpi_*'
+  conda install 'dftbplus=*=mpi_openmpi_*'
 
 to get the last stable release of DFTB+ with, respectively, serial
 (OpenMP-threaded) build or with MPI-parallelized build using either the MPICH or
@@ -90,17 +81,7 @@ If the configuration was successful, start the build with::
 
   cmake --build _build -- -j
 
-After successful build, you should test the code. First download the files
-needed for the test ::
-
-  ./utils/get_opt_externals slakos
-  ./utils/get_opt_externals gbsa
-
-or ::
-
-  ./utils/get_opt_externals ALL
-
-and then run the tests with ::
+After successful build, you should test the code. Run the tests with ::
 
   pushd _build; ctest -j; popd
 
@@ -114,9 +95,12 @@ For further details see the `detailed building instructions <INSTALL.rst>`_.
 Parameterisations
 =================
 
-In order to carry out calculations with DFTB+, you need according
-parameterisations (a.k.a. Slater-Koster files). You can download them from
-`dftb.org <https://dftb.org>`_.
+In order to carry out calculations with the DFTB models, you need
+suitable parameterisations (a.k.a. Slater-Koster files). You can
+download them from `dftb.org <https://dftb.org>`_.
+
+The shell variable *DFTBPLUS_PARAM_DIR* can be set to point to their
+downloaded location (see the manual for details).
 
 
 Documentation
@@ -170,12 +154,12 @@ DFTB+ is released under the GNU Lesser General Public License. See the included
 
 
 
-.. |DFTB+ logo| image:: https://www.dftbplus.org/fileadmin/DFTBPLUS/images/DFTB-Plus-Icon_06_f_150x150.png
+.. |DFTB+ logo| image:: https://www.dftbplus.org/_assets/DFTB-Plus-Icon_06_f_150x150.png
     :alt: DFTB+ website
     :scale: 100%
     :target: https://dftbplus.org/
 
-.. |lgpl badge| image:: http://www.dftbplus.org/fileadmin/DFTBPLUS/images/license-GNU-LGPLv3-blue.svg
+.. |lgpl badge| image:: http://www.dftbplus.org/_assets/license-GNU-LGPLv3-blue.svg
     :alt: LGPL v3.0
     :scale: 100%
     :target: https://opensource.org/licenses/LGPL-3.0

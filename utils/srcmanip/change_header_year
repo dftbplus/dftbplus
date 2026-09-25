@@ -29,6 +29,7 @@ IGNORED_FILES = [
     "*.mgf",
     "*.egg",
     "*.skf",
+    "*.bin",
 ]
 
 

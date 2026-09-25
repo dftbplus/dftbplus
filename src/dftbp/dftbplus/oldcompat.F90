@@ -11,6 +11,7 @@
 !> Note: parserVersion is set in parser.F90
 module dftbp_dftbplus_oldcompat
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_release, only : TVersionMap
   use dftbp_extlibs_xmlf90, only : char, destroyNode, destroyNodeList, fnode, fnodeList, getItem1,&
       & getLength, getNodeName, removeChild, string
   use dftbp_io_charmanip, only : i2c, newline, tolower
@@ -22,7 +23,23 @@ module dftbp_dftbplus_oldcompat
   implicit none
 
   private
-  public :: convertOldHSD
+  public :: convertOldHSD, minVersion, parserVersion, versionMaps
+
+
+  !> Actual input version <-> parser version maps (must be updated at every public release)
+  type(TVersionMap), parameter :: versionMaps(*) = [&
+      & TVersionMap("26.1", 15), TVersionMap("25.1", 14),&
+      & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
+      & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
+      & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
+      & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
+
+  !> Version of the oldest parser for which compatibility is still maintained
+  integer, parameter :: minVersion = 1
+
+  !> Version of the current parser (as latest version)
+  integer, parameter :: parserVersion = maxval(versionMaps(:)%parserVersion)
+
 
 contains
 
@@ -84,6 +101,9 @@ contains
       case (13)
         call convert_13_14(root)
         version = 14
+      case (14)
+        call convert_14_15(root)
+        version = 15
       end select
     end do
 
@@ -259,7 +279,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, par, dummy
+    type(fnode), pointer :: ch1, ch2, ch3, par, tmpNodeRef
     logical :: tVal
 
     call getDescendant(root, "Hamiltonian/DFTB/Eigensolver/Standard", ch1)
@@ -272,10 +292,10 @@ contains
     if (associated(ch1)) then
       call getChildValue(ch1, "", tVal)
       call detailedWarning(ch1, "Keyword moved to Analysis block.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
-      call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
-          & allowEmptyValue=.true., dummyValue=.true.)
+      call getChildValue(root, "Analysis", tmpNodeRef, "", child=ch1, list=.true., &
+          & allowEmptyValue=.true., dontMarkProcessed=.true.)
       if (.not.associated(ch1)) then
         call setChild(root, "Analysis", ch1)
       end if
@@ -287,10 +307,10 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "AtomResolvedEnergies", tVal)
       call detailedWarning(ch1, "Keyword moved to Analysis block.")
-      dummy => removeChild(par,ch1)
+      tmpNodeRef => removeChild(par,ch1)
       call destroyNode(ch1)
-      call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
-          &allowEmptyValue=.true., dummyValue=.true.)
+      call getChildValue(root, "Analysis", tmpNodeRef, "", child=ch1, list=.true., &
+          &allowEmptyValue=.true., dontMarkProcessed=.true.)
       if (.not.associated(ch1)) then
         call setChild(root, "Analysis", ch1)
       end if
@@ -302,10 +322,10 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "WriteEigenvectors", tVal)
       call detailedWarning(ch1, "Keyword moved to Analysis block.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
-      call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
-          &allowEmptyValue=.true., dummyValue=.true.)
+      call getChildValue(root, "Analysis", tmpNodeRef, "", child=ch1, list=.true., &
+          &allowEmptyValue=.true., dontMarkProcessed=.true.)
       if (.not.associated(ch1)) then
         call setChild(root, "Analysis", ch1)
       end if
@@ -317,10 +337,10 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "WriteBandOut", tVal)
       call detailedWarning(ch1, "Keyword moved to Analysis block.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
-      call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
-          & allowEmptyValue=.true., dummyValue=.true.)
+      call getChildValue(root, "Analysis", tmpNodeRef, "", child=ch1, list=.true., &
+          & allowEmptyValue=.true., dontMarkProcessed=.true.)
       if (.not.associated(ch1)) then
         call setChild(root, "Analysis", ch1)
       end if
@@ -332,10 +352,10 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "CalculateForces", tVal)
       call detailedWarning(ch1, "Keyword moved to Analysis block.")
-      dummy => removeChild(par,ch1)
+      tmpNodeRef => removeChild(par,ch1)
       call destroyNode(ch1)
-      call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
-          &allowEmptyValue=.true., dummyValue=.true.)
+      call getChildValue(root, "Analysis", tmpNodeRef, "", child=ch1, list=.true., &
+          &allowEmptyValue=.true., dontMarkProcessed=.true.)
       if (.not.associated(ch1)) then
         call setChild(root, "Analysis", ch1)
       end if
@@ -365,7 +385,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, tmpNodeRef
     logical :: tVal
     real(dp) :: rTmp
 
@@ -392,9 +412,9 @@ contains
         call getChildValue(par, "DampXHExponent", rTmp)
       end if
       call detailedWarning(ch1, "Keyword DampXH moved to HCorrection block")
-      dummy => removeChild(par,ch1)
+      tmpNodeRef => removeChild(par,ch1)
       call destroyNode(ch1)
-      dummy => removeChild(par,ch2)
+      tmpNodeRef => removeChild(par,ch2)
       call destroyNode(ch2)
 
       ! clean out any HCorrection entry
@@ -544,15 +564,15 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, tmpNodeRef
     logical :: tVal1, tVal2
 
     call getDescendant(root, "ExcitedState/Casida", ch1)
     if (associated(ch1)) then
       call getChildValue(ch1, "WriteStatusArnoldi", tVal1, default=.false., child=ch2)
-      dummy => removeChild(ch1, ch2)
+      tmpNodeRef => removeChild(ch1, ch2)
       call getChildValue(ch1, "TestArnoldi", tVal2, default=.false., child=ch2)
-      dummy => removeChild(ch1, ch2)
+      tmpNodeRef => removeChild(ch1, ch2)
       call detailedWarning(ch1, "Keyword moved to Diagonaliser block.")
       call setUnprocessed(ch1)
       call setChild(ch1, "Diagonaliser", ch2)
@@ -571,7 +591,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentSCCOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian", ch1)
       call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
@@ -582,7 +602,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentSCCOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -597,7 +617,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -612,7 +632,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -627,7 +647,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -642,7 +662,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -657,7 +677,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -672,7 +692,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -687,7 +707,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -702,7 +722,7 @@ contains
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
       call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
-      dummy => removeChild(par, ch1)
+      tmpNodeRef => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
       if (associated(ch3)) then
@@ -840,7 +860,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, par, dummy, hybridAlgorithm
+    type(fnode), pointer :: ch1, ch2, ch3, par, tmpNodeRef, hybridAlgorithm
     type(string) :: buffer
     logical :: isScc, isNoneAlgorithm
     integer :: iOrder
@@ -884,7 +904,7 @@ contains
               & and is incorrect."
           call detailedError(ch2, strTmp)
         end if
-        dummy => removeChild(par, ch2)
+        tmpNodeRef => removeChild(par, ch2)
         call destroyNode(ch2)
         iOrder = iOrder - 1
         call setChildValue(ch1, "Order", iOrder, child=ch2)
@@ -913,13 +933,70 @@ contains
       if (rTol < 1.0_dp) then
         call detailedError(ch1, "Perturbation degeneracy tolerance must be above 1x")
       end if
-      dummy => removeChild(par,ch1)
+      tmpNodeRef => removeChild(par,ch1)
       call destroyNode(ch1)
       call setChildValue(par, "PerturbDegenTol", rTol * epsilon(0.0_dp), child=ch1)
       call detailedWarning(par, "Keyword renamed to 'PerturbDegenTol'.")
     end if
 
   end subroutine convert_13_14
+
+
+  !> Converts input from version 14 to 15. (Version 15 introduced in December 2025)
+  subroutine convert_14_15(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2, par, hamil, tmpNodeRef
+    logical :: isRecomputed
+
+    call getDescendant(root, "Hamiltonian/xTB/SpinConstants", ch1)
+    if (associated(ch1)) then
+      call setChildValue(ch1, "FromParameters", .false., child=ch2)
+      call detailedWarning(ch1, 'Keyword "FromParameters" for xTB set as false.')
+      call setUnprocessed(ch2)
+    end if
+
+    ! Move RecomputeAfterDensity to the Hamiltonian block.
+    ! The normal default is RecomputeAfterDensity=.true.
+    ! Check if Poisson block is present. If NOT RecomputeAfterDensity will take the new default.
+    call getDescendant(root, "Hamiltonian/DFTB/Electrostatics/Poisson", ch1, parent=par)
+    if (associated(ch1))  then
+      call getDescendant(root, "Hamiltonian/DFTB/Electrostatics/Poisson/RecomputeAfterDensity", &
+          & ch1, parent=par)
+      if (associated(ch1)) then
+        call getChildValue(par, "RecomputeAfterDensity", isRecomputed)
+        call detailedWarning(ch1, "Keyword Moved to Hamiltonian {} block.")
+        tmpNodeRef => removeChild(par, ch1)
+        call destroyNode(ch1)
+      else
+         isRecomputed = .false.
+      end if
+      ! Check if the tag is already present and issue an error.
+      call getDescendant(root, "Hamiltonian/DFTB/RecomputeAfterDensity", ch1)
+      if (associated(ch1)) call detailedError(ch1, "RecomputeAfterDensity is already present.")
+      call getDescendant(root, "Hamiltonian/DFTB", hamil)
+      call setChildValue(hamil, "RecomputeAfterDensity", isRecomputed, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Dispersion/Ts/EnergyAccuracy", ch1)
+    if (associated(ch1)) then
+      call setUnprocessed(ch1)
+      call detailedWarning(ch1, "The energy accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+      call destroyNode(ch1)
+    end if
+    call getDescendant(root, "Hamiltonian/DFTB/Dispersion/Ts/ForceAccuracy", ch1)
+    if (associated(ch1)) then
+      call setUnprocessed(ch1)
+      call detailedWarning(ch1, "The force accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+      call destroyNode(ch1)
+    end if
+
+  end subroutine convert_14_15
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

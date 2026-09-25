@@ -25,7 +25,7 @@ module dftbp_extlibs_chimes
 
 #:if not WITH_CHIMES
 
-  !> Dummy placeholder type
+  !> Fake placeholder type
   type :: TChimesCalc
   end type TChimesCalc
 

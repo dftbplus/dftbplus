@@ -210,19 +210,19 @@ contains
     real(dp), intent(inout) :: vecs(:,:)
 
     integer :: ii, jj
-    real(dp) :: dummyReal
+    real(dp) :: projection
 
     ! Obviously, not optimal in terms of communication, can be optimized if necessary. Assumes vecs
     ! are column block distributed (not block cyclic column and row) if parallel.
     do ii = iStart, iEnd
       do jj = 1, ii - 1
-        dummyReal = dot_product(vecs(:,ii), vecs(:,jj))
-        call assembleChunks(env, dummyReal)
-        vecs(:,ii) = vecs(:,ii) - dummyReal * vecs(:,jj)
+        projection = dot_product(vecs(:,ii), vecs(:,jj))
+        call assembleChunks(env, projection)
+        vecs(:,ii) = vecs(:,ii) - projection * vecs(:,jj)
       end do
-      dummyReal = dot_product(vecs(:,ii), vecs(:,ii))
-      call assembleChunks(env, dummyReal)
-      vecs(:,ii) = vecs(:,ii) / sqrt(dummyReal)
+      projection = dot_product(vecs(:,ii), vecs(:,ii))
+      call assembleChunks(env, projection)
+      vecs(:,ii) = vecs(:,ii) / sqrt(projection)
     end do
 
   end subroutine orthonormalizeVectors
@@ -327,7 +327,7 @@ contains
   end function product_real
 
 
-  !> unitary transformation of a matrix X' = U X U^T or X' = U^T X U
+  !> unitary (or projective) transformation of a matrix X' = U X U^T or X' = U^T X U
   subroutine makeSimilarityTrans_real(xx, uu, side)
 
     !> matrix in original basis, U X U^T* on return.
@@ -366,7 +366,7 @@ contains
   end subroutine makeSimilarityTrans_real
 
 
-  !> unitary transformation of a matrix X' = U X U^T* or X' = U^T* X U
+  !> unitary (or projective) transformation of a matrix X' = U X U^T* or X' = U^T* X U
   subroutine makeSimilarityTrans_cmplx(xx, uu, side)
 
     !> matrix in original basis, U X U^T* on return.
@@ -658,31 +658,31 @@ contains
     !> Inverse of matrix square root
     real(dp), intent(out) :: matSqrtInv(:,:)
 
-    real(dp), allocatable :: dummyEV(:), dummyM(:, :), dummyM2(:, :)
+    real(dp), allocatable :: eigenvals(:), eigenvectors(:, :), weightedMatrix(:, :)
     integer :: ii, spaceDim
 
     spaceDim = size(matIn, dim=2)
-    allocate(dummyEV(spaceDim))
-    allocate(dummyM(spaceDim, spaceDim))
-    allocate(dummyM2(spaceDim, spaceDim))
+    allocate(eigenvals(spaceDim))
+    allocate(eigenvectors(spaceDim, spaceDim))
+    allocate(weightedMatrix(spaceDim, spaceDim))
 
-    dummyM(:,:) = matIn
+    eigenvectors(:,:) = matIn
 
-    call heev(dummyM, dummyEV, 'U', 'V')
+    call heev(eigenvectors, eigenvals, 'U', 'V')
 
     ! Calculate matrix sqrt
     do ii = 1, spaceDim
-      dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
+      weightedMatrix(:,ii) = sqrt(eigenvals(ii)) * eigenvectors(:,ii)
     end do
 
-    call gemm(matSqrt, dummyM2, dummyM, transB='T')
+    call gemm(matSqrt, weightedMatrix, eigenvectors, transB='T')
 
-    ! Calculate invverse of matrix sqrt
+    ! Calculate inverse of matrix sqrt
     do ii = 1, spaceDim
-      dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
+      weightedMatrix(:,ii) = eigenvectors(:,ii) / sqrt(eigenvals(ii))
     end do
 
-    call gemm(matSqrtInv, dummyM2, dummyM, transB='T')
+    call gemm(matSqrtInv, weightedMatrix, eigenvectors, transB='T')
 
   end subroutine calcMatrixSqrt
 

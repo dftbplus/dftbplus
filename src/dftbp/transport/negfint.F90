@@ -16,7 +16,7 @@ module dftbp_transport_negfint
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIOproc
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_boundarycond, only : TBoundaryConds
+  use dftbp_geometry_boundarycond, only : TBoundaryConds
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_extlibs_negf, only : associate_current, associate_ldos, associate_lead_currents,&
@@ -2153,7 +2153,8 @@ contains
 
     if (tIoProc) then
       write(stdOut,*)
-      call writeXYZFormat("supercell.xyz", lc_coord, lc_species, speciesName)
+      call writeXYZFormat("supercell.xyz", lc_coord, lc_species,&
+          & speciesName)
       write(stdOut,*) " <<< supercell.xyz written on file"
     end if
 

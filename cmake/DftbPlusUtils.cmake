@@ -62,8 +62,16 @@ function (dftbp_add_fypp_defines fyppflags)
       list(APPEND _fyppflags -DWITH_CUDA)
   endif()
 
+  if (WITH_API)
+    list(APPEND _fyppflags -DWITH_API)
+  endif()
+
   if(WITH_OMP)
     list(APPEND _fyppflags -DWITH_OMP)
+  endif()
+
+  if(WITH_CXX AND WITH_C_EXECUTABLES)
+    list(APPEND _fyppflags -DWITH_CXX)
   endif()
 
   if(WITH_ARPACK)
@@ -96,6 +104,10 @@ function (dftbp_add_fypp_defines fyppflags)
 
   if(ELSI_WITH_PEXSI)
     list(APPEND _fyppflags -DWITH_PEXSI)
+  endif()
+
+  if(WITH_ELPA)
+    list(APPEND _fyppflags -DWITH_ELPA)
   endif()
 
   if(WITH_GPU)
@@ -177,7 +189,7 @@ endfunction()
 #
 function(dftbp_get_api_version apiversion apimajor apiminor apipatch)
 
-  file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/dftbp/api/mm/API_VERSION _api
+  file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/dftbp/api/API_VERSION _api
     REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
   string(REGEX MATCHALL "[0-9]+" _api_list "${_api}")
   list(GET _api_list 0 _api_major)
@@ -203,8 +215,12 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with PEXSI requires MPI-parallel build and ELSI enabled")
   endif()
 
-  if(WITH_GPU AND WITH_MPI AND NOT WITH_ELSI)
-    message(FATAL_ERROR "GPU support in MPI-parallelized applications requires the ELSI library (built with GPU support)")
+  if(WITH_ELPA AND NOT WITH_MPI)
+    message(FATAL_ERROR "Building with ELPA requires MPI-parallel build enabled")
+  endif()
+
+  if(WITH_GPU AND WITH_MPI AND (NOT WITH_ELSI) AND (NOT WITH_ELPA))
+    message(FATAL_ERROR "GPU support in MPI-parallelized applications requires ELSI or ELPA (built with GPU support)")
   endif()
 
   if(INSTANCE_SAFE_BUILD)
@@ -228,7 +244,7 @@ function (dftbp_ensure_config_consistency)
   endif()
 
   # Check minimal compiler versions
-  set(fortran_minimal_versions "GNU;12.2" "Intel;2021.5" "IntelLLVM;2024.2" "NAG;7.2")
+  set(fortran_minimal_versions "GNU;13.2" "Intel;2021.5" "IntelLLVM;2024.2" "NAG;7.2")
   dftbp_check_minimal_compiler_version("Fortran" "${fortran_minimal_versions}")
 
   # Note: The consistency check below will / can not be executed in multi-config mode
@@ -710,3 +726,49 @@ function (dftbp_check_minimal_compiler_version lang compiler_versions)
     endif()
   endwhile()
 endfunction()
+
+
+# Download the external data (SK-files, GBSA-data) needed for testing, if not present yet.
+function (dftbp_download_test_data)
+  _dftbp_download_test_data_from_github(
+    dftbplus
+    testparams
+    1f5aefe45b7951f3fd1c0b63e40b80f80fdab612
+    external/slakos
+    "SK-files"
+  )
+  _dftbp_download_test_data_from_github(
+    grimme-lab
+    gbsa-parameters
+    6836c4d997e4135e418cfbe273c96b1a3adb13e2
+    external/gbsa
+    "GBSA-data"
+  )
+endfunction ()
+
+
+# Helper function to download external test data
+function (_dftbp_download_test_data_from_github owner repository commit_id targetdir content)
+  set(targetdirpath "${PROJECT_SOURCE_DIR}/${targetdir}")
+  if (EXISTS "${targetdirpath}/origin")
+    message(STATUS "Directory '${targetdir}/origin' exists, skipping download of ${content}")
+  else()
+    message(STATUS "Fetching ${content} into directory '${targetdir}'")
+    file(DOWNLOAD
+      "https://github.com/${owner}/${repository}/archive/${commit_id}.tar.gz"
+      "${targetdirpath}/origin.tar.gz"
+      STATUS download_status
+      )
+    list(GET download_status 0 status_code)
+    if (NOT status_code EQUAL 0)
+      list(GET download_status 1 status_message)
+      if (EXISTS "${targetdirpath}/origin.tar.gz")
+        file(REMOVE "${targetdirpath}/origin.tar.gz")
+      endif ()
+      message(FATAL_ERROR "Download of ${content} failed: ${status_message} (code: ${status_code})")
+    endif ()
+    file(ARCHIVE_EXTRACT INPUT "${targetdirpath}/origin.tar.gz" DESTINATION "${targetdirpath}")
+    file(RENAME "${targetdirpath}/${repository}-${commit_id}" "${targetdirpath}/origin")
+    file(REMOVE "${targetdirpath}/origin.tar.gz")
+  endif ()
+endfunction ()

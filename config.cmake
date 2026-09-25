@@ -21,8 +21,10 @@ option(WITH_CUDA "Whether CUDA support should be enabled" FALSE)
 # Enable GPU offloading support for waveplot via the wavegrids routines for MO calculations
 
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
-# Works only with MPI-parallel build. If WITH_GPU was selected above, the ELSI library must be
-# enabled (and must have been built with GPU support).
+# Works only with MPI-parallel build.
+
+option(WITH_ELPA "Whether DFTB+ with MPI-parallelism should use the ELPA library" FALSE)
+# Works only with MPI-parallel build.
 
 option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 # Works only when building static libraries (see option BUILD_SHARED_LIBS)
@@ -115,6 +117,9 @@ else()
   set(MODES_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
     "How to run the modes code for tests")
 endif()
+
+# Whether data necessary for the tests should be downloaded if not present yet
+option(TEST_DOWNLOAD_DATA "Download test data (slakos, gbsa) at configure time if not present yet" TRUE)
 
 # Turn it on to include the unit tests (needs the Fortuno unit testing framework)
 option(WITH_UNIT_TESTS "Whether the unit tests should be built" FALSE)

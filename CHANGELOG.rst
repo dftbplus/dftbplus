@@ -8,6 +8,78 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+
+Added
+-----
+
+- Option (FromParameters) to automatically set spin-constants for xTB
+  models
+
+- VelocityVerlet: new PrintTrajectoryForces option to append fx fy fz to
+  OutputPrefix.xyz (units: eV/Angstrom).
+
+- MPI parallelism for real-time propagation
+
+- Evaluate bond currents for time propagation
+
+- Excited state forces for multiple excited states
+
+- Periodic geometry halogen corrections
+
+- DFTB3 model coupled-perturbed atom derivatives
+
+- Coupled-perturbed derivatives with respect to external (MM) charges
+
+- API bindings for coupled-perturbed derivatives
+
+- Pairwise bond populations, bond energies and Mayer bond orders
+
+- Direct integration of ELPA (requires version 2022.05.001 or later)
+  with optional MPI redistribution to a lower number of ranks for all
+  ELPA calls
+
+- Langevin thermostat added
+
+
+Changed
+-------
+
+- Binary X+Y data export from time dependent calculations
+
+- Improve control for single-shot transport calculations in cases
+  where charges are read from a file
+
+- Removed mm/ from API path in code, also renaming getDftbPlusApi to
+  getDftbPlusApiVersion and dftbp_api to dftbp_api_version for the
+  Fortran and C API bindings. The Fortran API module for imports is
+  now called dftbp_api. Bumped the API version to 0.6.0 as this
+  renaming is a breaking change.
+
+- Better scaling algorithm for k-point inversion folding
+
+- The cmake system replaces the functionality of the get_opt_externals
+  script, which has been removed.
+
+
+Fixed
+-----
+
+- Corrected variable order printed out during electronic constraint
+  enforcement
+
+- API include file now can also be used for C++ codes
+
+- Removed incorrect scaling factor applied to spin-vectors (only) in
+  XYZ files containing both atomic populations and noncolinear spin
+  vectors.
+
+- Kick calculations with Ehrenfest ion dynamics for pump-probe simulations
+  now work correctly.
+
+
+25.1 (2025-12-18)
+=================
+
 Added
 -----
 
@@ -34,20 +106,26 @@ Added
 
 - Density Matrix construction on GPU using MAGMA-BLAS routines
 
-- More control over output of data and band structures during MD
-  calculations. By default, requesting printing of atomic charges,
-  energies or forces in the input leads them to also be included in
-  the md.out file.
+- More control over output of data and band structures during MD calculations.
+  By default, requesting printing of atomic charges, energies or forces in the
+  input leads them to also be included in the md.out file.
+
+- Printing of atom-resolved dispersion energies in detailed.out
 
 - MAGMA GPU accelerated solver for the modes code
 
 - Explicit keyword for gaussian electron temperature smearing (MP order 0)
 
+- Linear response derivatives for atom positions (DFTB1/DFTB2 only) for cluster
+  boundary conditions in low symmetry (non-degenerate) systems (and currently
+  not MPI parallel)
+
 - Addition of developer documentation for code internals in doc/dftb+/code/
 
-- Optional GPU acceleration for the modes code via the MAGMA library
-  and support for the divide and conquer and relatively robust LAPACK
-  solvers
+- Optional GPU acceleration for the modes code via the MAGMA library and support
+  for the divide and conquer and relatively robust LAPACK solvers
+
+- ASI interface for accessing H, S and density matrix
 
 
 Changed
@@ -55,17 +133,14 @@ Changed
 
 - Components of xtb energies are now resolved
 
-- Use least squares solution instead of inversion for XLBOMD force
-  corrections
+- Use least squares solution instead of inversion for XLBOMD force corrections
 
 - Raise error if a non-SCC calculation is using hybrid functionals
 
-- Raise a warning if neither the input of parser version is set in the
-  input
+- Raise a warning if neither the input of parser version is set in the input
 
-
-- Degeneracy tolerance for perturbation theory switched to absolute
-  tolerance of differences between eigenvalues.
+- Degeneracy tolerance for perturbation theory switched to absolute tolerance of
+  differences between eigenvalues.
 
 
 Fixed
@@ -78,35 +153,40 @@ Fixed
 - Incorrect excited gradients for spin-polarized long-range corrected
   linear-response TD-DFTB calculations.
 
-- Temporarily remove free energy for Delta-DFTB calculations, as this
-  is not formally derived in the general case.
+- Temporarily remove free energy for Delta-DFTB calculations, as this is not
+  formally derived in the general case.
 
 - DeltaDFTB purified forces used correctly.
 
-- COSMO solvent models had a bug leading to the energy showing a
-  dependence on the ordering of the atoms in the system.
+- COSMO solvent models had a bug leading to the energy showing a dependence on
+  the ordering of the atoms in the system.
 
-- Solvents where RadiiScaling was specified with a unit conversion
-  were scaled by the square of the conversion. Affects calculations
-  using constructs of the form:
-  Radii = * [AA] = {}
-  where * is Values, vanDerWaalsRadiiBondi vanDerWaalsRadiiCosmo or
-  vanDerWaalsRadiiD3
+- The GBSA model had a bug, leading to differences for various GFN models from
+  xTB results (also affects DFTB hamiltonians).
 
-- Corrected the order of Methfestle-Paxton filling. It was producing
-  filling that was 1 order lower than the one requested in the input.
-  This is probably safe in most applications, the lowest order beyond
-  Gauss smearing (0th order) is default for several other codes and
-  already has linear and quadratic independence of the free energy wrt
-  temperature. Default for Methfestle-Paxton smearing is now set to 1
-  (matching the results from the old default value).
+- Solvents where RadiiScaling was specified with a unit conversion were scaled
+  by the square of the conversion. Affects calculations using constructs of the
+  form: Radii = * [AA] = {} where * is Values, vanDerWaalsRadiiBondi
+  vanDerWaalsRadiiCosmo or vanDerWaalsRadiiD3
+
+- Corrected the order of Methfessel-Paxton filling. It was producing filling
+  that was 1 order lower than the one requested in the input. This is probably
+  safe in most applications, the lowest order beyond Gauss smearing (0th order)
+  is default for several other codes and already has linear and quadratic
+  independence of the free energy wrt temperature. Default for Methfessel-Paxton
+  smearing is now set to 1 (matching the results from the old default value).
 
 - Remove duplicate printing of internal energy in results.tag
 
-- Correct testing for incompatible Poisson boundary overrides when
-  only one side of the box is marked as periodic
+- Correct testing for incompatible Poisson boundary overrides when only one side
+  of the box is marked as periodic
 
 - Geometry error for periodic structures with open boundary contacts
+
+- Enable CI test cases and fix a parser bug
+
+- Fix backward compatibility bug from release 22.2 which led to dftb_pin.hsd
+  files containing obsolete keywords
 
 
 24.1 (2024-02-12)
@@ -140,6 +220,7 @@ Added
 
 - Born charges and derivatives can now be calculated for a subset of the desired
   atoms (similar to the Hessian).
+
 
 Changed
 -------
@@ -488,7 +569,7 @@ Added
 - Caching for transition charges in excited state.
 
 - DFTB+ can be compiled as a library and accessed via high level API (version
-  number is in the file api/mm/API_VERSION below the main directory).
+  number is in the file api/API_VERSION below the main directory).
 
 - Onsite corrected hamiltonian for ground state energies.
 

@@ -1025,8 +1025,6 @@ contains
     @:ASSERT(size(a,dim=2)>=ka)
     @:ASSERT(ldb>=im)
     @:ASSERT(ldc>=im)
-    @:ASSERT(size(B,dim=2)>=in)
-    @:ASSERT(size(C,dim=2)>=in)
 
     call dsymm ( side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc )
 
@@ -1521,7 +1519,7 @@ contains
   #:for LABEL, VTYPE, VPREC, NAME in [('real', 'real', 'rsp', 'ssyr2k'),&
   & ('cmplx', 'complex', 'rsp', 'cher2k'), ('dble', 'real', 'rdp', 'dsyr2k'),&
   & ('dblecmplx', 'complex', 'rdp', 'zher2k')]
-  !> Rank-k update
+  !> Rank-2k update
   subroutine her2k_${LABEL}$(C,A,B,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated

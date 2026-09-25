@@ -140,8 +140,20 @@ module dftbp_io_taggedoutput
     !> final molecular orbitals occupations after real-time (Ehrenfest) propagation
     character(lenLabel) :: tdprojocc = 'final_td_proj_occ'
 
+    !> final total current in the cartesian directions by real-time time propagation
+    character(lenLabel) :: tdcurrents = 'final_td_current'
+
     !> Sum of bond populaion values (should be number of electrons)
     character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
+
+    !> Pairwise Mulliken bond populations matrix
+    character(lenLabel) :: bondPopulations = 'bond_populations'
+
+    !> Pairwise non-SCC bond energies matrix
+    character(lenLabel) :: bondEnergies = 'bond_energies'
+
+    !> Pairwise Mayer bond order matrix
+    character(lenLabel) :: bondOrders = 'bond_orders'
 
     !> final atom-resolved energies
     character(lenLabel) :: atomenergies = 'atomic_energies'
@@ -211,6 +223,15 @@ module dftbp_io_taggedoutput
 
     !> Static net charge (onsite) response with respect to potential at an atom
     character(lenLabel) :: dqnetdV = 'dqnetdV'
+
+    !> Derivatives of gross atomic charges wrt. x
+    character(lenLabel) :: dqdx = 'dqdx'
+
+    !> Derivatives of gross atomic charges wrt. external charges
+    character(lenLabel) :: dqdxExt = 'dqdxext'
+
+    !> Born effective charges
+    character(lenLabel) :: borncharges = 'borncharges'
 
     !> two-electron addition/removal energies in ppRPA formalism
     character(lenLabel) :: egyppRPA = '2e_add-rem_energies'

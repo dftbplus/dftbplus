@@ -26,17 +26,11 @@ module dftbp_solvation_gbsafile
   public :: readParamGBSA
 
 
-  !> Read GBSA parametrisation data
-  interface readParamGBSA
-    module procedure :: readParamGBSAFile
-  end interface readParamGBSA
-
-
 contains
 
 
   !> Read GBSA parameters from file
-  subroutine readParamGBSAFile(file, input, solvent, speciesNames, node)
+  subroutine readParamGBSA(file, input, solvent, speciesNames, node)
 
     !> Name of the parametrisation file
     character(len=*), intent(in) :: file
@@ -194,7 +188,7 @@ contains
 
     call closeFile(fd)
 
-  end subroutine readParamGBSAFile
+  end subroutine readParamGBSA
 
 
   !> Read a whole line from a formatted IO unit

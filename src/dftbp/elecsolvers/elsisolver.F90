@@ -20,6 +20,7 @@ module dftbp_elecsolvers_elsisolver
   use dftbp_dftb_spin, only : ud2qm
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elecsolvers_elpa, only : TElpaInp
   use dftbp_elecsolvers_elsicsc, only : TElsiCsc
   use dftbp_extlibs_elsiiface, only : elsi_handle, elsi_rw_handle
   use dftbp_io_message, only : cleanshutdown, error, warning
@@ -56,20 +57,30 @@ module dftbp_elecsolvers_elsisolver
   public :: TElsiSolver, TElsiSolver_init, TElsiSolver_final
 
 
+  !> List of ELSI solvers from elsi_interface/src/elsi_constant.f90
+  type :: TElsiEnum
+    integer :: AUTO_SOLVER = 0
+    integer :: ELPA_SOLVER = 1
+    integer :: OMM_SOLVER = 2
+    integer :: PEXSI_SOLVER = 3
+    integer :: EIGENEXA_SOLVER = 4
+    integer :: SIPS_SOLVER = 5
+    integer :: NTPOLY_SOLVER = 6
+    integer :: MAGMA_SOLVER = 7
+    integer :: BSEPACK_SOLVER = 8
+    integer :: CHASE_SOLVER = 9
+    integer :: DLAF_SOLVER = 10
+  end type TElsiEnum
+
+  !> Actual values for ELSI solvers
+  type(TElsiEnum), parameter :: elsiEnum = TElsiEnum()
+
+
   !> Input data for the ELSI solvers
   type :: TElsiSolverInp
 
     !> Choice of the solver
     integer :: iSolver
-
-    !> Choice of ELPA solver
-    integer :: elpaSolver = 2
-
-    !> Enable ELPA autotuning
-    logical :: elpaAutotune = .false.
-
-    !> Enable GPU usage in ELPA
-    logical :: elpaGpu = .false.
 
     !> Iterations of ELPA solver before OMM minimization
     integer :: ommIterationsElpa = 5
@@ -301,14 +312,17 @@ contains
 
 
   !> Initialise ELSI solver
-  subroutine TElsiSolver_init(this, inp, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin, nKPoint,&
-      & iKPoint, kWeight, tWriteHS, providesElectronEntropy)
+  subroutine TElsiSolver_init(this, inp, inpElpa, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin,&
+      & nKPoint, iKPoint, kWeight, tWriteHS, providesElectronEntropy)
 
     !> control structure for solvers, including ELSI data
     class(TElsiSolver), intent(out) :: this
 
     !> input structure for ELSI
     type(TElsiSolverInp), intent(in) :: inp
+
+    !> input structure for ELPA
+    type(TElpaInp), intent(in), allocatable :: inpElpa
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -356,12 +370,12 @@ contains
     select case(this%iSolver)
 
     case (electronicSolverTypes%elpa)
-      this%solver = 1
+      this%solver = elsiEnum%ELPA_SOLVER
       ! ELPA is asked for all states
       this%nState = nBasisFn
 
     case (electronicSolverTypes%omm)
-      this%solver = 2
+      this%solver = elsiEnum%OMM_SOLVER
       ! OMM solves only over occupied space
       ! spin degeneracies for closed shell
       if (nSpin == 1) then
@@ -371,21 +385,29 @@ contains
       end if
 
     case (electronicSolverTypes%pexsi)
-      this%solver = 3
+      this%solver = elsiEnum%PEXSI_SOLVER
       ! ignored by PEXSI:
       this%nState = nBasisFn
 
     case (electronicSolverTypes%ntpoly)
-      this%solver = 6
+      this%solver = elsiEnum%NTPOLY_SOLVER
       ! ignored by NTPoly, but set anyway:
       this%nState = nBasisFn
 
     case (electronicSolverTypes%elpadm)
-      this%solver = 1
+      this%solver = elsiEnum%ELPA_SOLVER
       ! ignored by density matrix from ELPA, but set anyway:
       this%nState = nBasisFn
 
     end select
+
+  #:block DEBUG_CODE
+    if (this%solver == elsiEnum%ELPA_SOLVER) then
+      @:ASSERT(allocated(inpElpa))
+    else
+      @:ASSERT(.not.allocated(inpElpa))
+    end if
+  #:endblock DEBUG_CODE
 
     ! parallelism with multiple processes
     this%parallel = 1
@@ -451,16 +473,18 @@ contains
     end if
 
     ! ELPA settings
-    this%elpaSolverOption = inp%elpaSolver
-    if (inp%elpaAutotune) then
-      this%elpaAutotune = 1
-    else
-      this%elpaAutotune = 0
-    end if
-    if (inp%elpaGpu) then
-      this%elpaGpu = 1
-    else
-      this%elpaGpu = 0
+    if (allocated(inpElpa)) then
+      this%elpaSolverOption = inpElpa%solver
+      if (inpElpa%autotune) then
+        this%elpaAutotune = 1
+      else
+        this%elpaAutotune = 0
+      end if
+      if (inpElpa%gpu) then
+        this%elpaGpu = 1
+      else
+        this%elpaGpu = 0
+      end if
     end if
 
     ! OMM settings
@@ -606,7 +630,7 @@ contains
 
     else
 
-      ! initialise solver
+      ! initialise ELSI library solver
 
       call elsi_init(this%handle, this%solver, this%parallel, this%denseBlacs, this%nBasis,&
           & this%nElectron, this%nState)

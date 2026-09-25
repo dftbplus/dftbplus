@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22...4.2)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "24.1")
+set(DFTBPLUS_VERSION "25.1")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -28,6 +28,9 @@ dftbp_get_release_name(RELEASE)
 
 if(WITH_API)
   dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
+  option(WITH_CXX "Whether C++ compiler is required" FALSE)
+else()
+  set(WITH_CXX FALSE)
 endif()
 
 if(WITH_MPI)
@@ -98,9 +101,7 @@ if(WITH_ELSI AND NOT TARGET elsi::elsi)
 
   if(TARGET elsi::pexsi)
     set(ELSI_WITH_PEXSI TRUE)
-    enable_language(CXX)
-    # Avoid to link everything associated with PEXSI with C++
-    set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
+    set(WITH_CXX TRUE)
   else()
     set(ELSI_WITH_PEXSI FALSE)
   endif()
@@ -118,6 +119,18 @@ if(WITH_ELSI AND NOT TARGET elsi::elsi)
 
 else()
   list(APPEND FYPP_FLAGS -DELSI_VERSION=0)
+endif()
+
+if(WITH_ELPA AND NOT TARGET elpa::elpa)
+  set(ELPA_MIN_VERSION "2022.05.001")
+  find_package(elpa ${ELPA_MIN_VERSION} REQUIRED)
+  if(elpa_VERSION VERSION_GREATER "2023.05.001")
+    list(APPEND FYPP_FLAGS -DELPA_HAS_SETUP_GPU)
+  endif()
+
+  if(WITH_GPU)
+    find_package(CUDAToolkit REQUIRED)
+  endif()
 endif()
 
 if(WITH_PLUMED)
@@ -143,6 +156,15 @@ if(WITH_MAGMA)
   list(APPEND PKG_CONFIG_REQUIRES magma)
 endif()
 
+if(WITH_CHIMES)
+  set(WITH_CXX TRUE)
+endif()
+
+if(WITH_CXX)
+ enable_language(CXX)
+ # Avoid linking everything associated with C++ with that compiler
+ set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
+endif()
 
 #
 # Preprocessor details
@@ -187,11 +209,6 @@ if(WITH_SOCKETS)
   add_subdirectory(external/fsockets EXCLUDE_FROM_ALL)
 endif()
 
-if(WITH_CHIMES)
-  enable_language(CXX)
-  set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
-endif()
-
 # If INCLUDE_INDIRECT_DEPS is non-empty, indirect dependencies must also be explicitely treated
 string(REGEX MATCH "(^|;)[Ss]ubmodule(^|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONFIG_METHODS}")
 
@@ -204,7 +221,7 @@ string(REGEX MATCH "(^|;)[Ss]ubmodule(^|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONF
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
-  set(MPIFX_GIT_TAG "aca7a212f68778aacb33ed33925d45f83dab91ca")  # do not change manually!
+  set(MPIFX_GIT_TAG "dcc3f6098ccc32e5b98cd405ab5a010d49ed6cd0")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
@@ -212,7 +229,7 @@ if(WITH_MPI)
   find_package(CustomScalapack REQUIRED)
 
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "c6ca5329f921e9929030fa14015d1eb4b9d55367")  # do not change manually!
+  set(SCALAPACKFX_GIT_TAG "0953da9f69235e1b03b55c7c4d104e70bcb822ab")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")

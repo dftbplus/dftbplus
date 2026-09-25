@@ -7,6 +7,7 @@ set(DftbPlus_WITH_GPU @WITH_GPU@)
 set(DftbPlus_WITH_MAGMA @WITH_MAGMA@)
 set(DftbPlus_WITH_ELSI @WITH_ELSI@)
 set(DftbPlus_ELSI_WITH_PEXSI @ELSI_WITH_PEXSI@)
+set(DftbPlus_WITH_ELPA @WITH_ELPA@)
 set(DftbPlus_WITH_TRANSPORT @WITH_TRANSPORT@)
 set(DftbPlus_WITH_POISSON @WITH_POISSON@)
 set(DftbPlus_WITH_TBLITE @WITH_TBLITE@)
@@ -56,6 +57,10 @@ if(NOT TARGET DftbPlus::DftbPlus)
 
   if(DftbPlus_WITH_ELSI AND NOT TARGET elsi::elsi)
     find_dependency(elsi)
+  endif()
+
+  if(DftbPlus_WITH_ELPA AND NOT TARGET elpa::elpa)
+    find_dependency(elpa)
   endif()
 
   if(DftbPlus_WITH_MAGMA AND NOT TARGET Magma::Magma)

@@ -15,8 +15,8 @@
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, lc, mc, sc
-  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann, gfac,&
-      & Hartree__eV, quaternionName, spinName
+  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
+      & gfac, Hartree__eV, pi, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : abortProgram, destructGlobalEnv, stdOut
@@ -36,10 +36,12 @@ module dftbp_dftbplus_mainio
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_extlibs_xmlf90, only : xml_ADDXMLDeclaration, xml_Close, xml_EndElement,&
       & xml_NewElement, xml_OpenFile, xmlf_t
+  use dftbp_geometry_control, only : TGeomChanges
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_commonformats, only : format1U, format1U1e, format1Ue, format2U, format2Ue,&
       & formatBorn, formatdBorn, formatGeoOut, formatHessian
-  use dftbp_io_formatout, only : writeGenFormat, writeSparse, writeSparseAsSquare, writeXYZFormat
+  use dftbp_io_formatout, only : writeGenFormat, writeSparse, writeSparseAsSquare,&
+      & writeXYZFormat
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
@@ -80,24 +82,27 @@ module dftbp_dftbplus_mainio
 #:endif
   public :: writeProjectedEigenvectors
   public :: writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
+  public :: writeBondInfo
   public :: writeDerivBandOut, writeHessianOut, writeBornChargesOut, writeBornDerivs
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7
   public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10
+  public :: permitivityPrint
   public :: writeMdOut1, writeMdOut2
   public :: writeCharges
   public :: writeEsp
-  public :: writeCurrentGeometry, writeFinalDriverStatus
+  public :: writeCurrentGeometry, writeExtendedGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printSccHeader, printElecConstrHeader
-  public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies, printVolume
+  public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
-  public :: printForceNorm, printLatticeForceNorm
+  public :: printForceNorm, printLatticeForceNorm, printLatticeInfo
   public :: printMdInfo, printBlankLine
   public :: printReksSccHeader, printReksSccInfo
   public :: writeReksDetailedOut1
   public :: readEigenvecs
+  public :: writeExcitedStateForces
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -2035,6 +2040,108 @@ contains
   end subroutine writeAutotestTag
 
 
+  !> Writes pairwise Mulliken bond populations, non-SCC bond energies and/or
+  !! Mayer bond orders as plain-text N x N matrices.
+  subroutine writeBondInfo(bondPop, bondEner, bondOrder, tWriteAutotest, autotestFile,&
+      & tWriteResultsTag, resultsFile, taggedWriter)
+
+    !> Pairwise Mulliken bond populations (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondPop(:,:)
+
+    !> Pairwise non-SCC bond energies (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondEner(:,:)
+
+    !> Pairwise Mayer bond orders (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondOrder(:,:)
+
+    !> Whether tagged output should be appended for regression testing
+    logical, intent(in) :: tWriteAutotest
+
+    !> Name of the autotest tag file to append to (mode = "a")
+    character(*), intent(in) :: autotestFile
+
+    !> Whether tagged output should be appended for results file
+    logical, intent(in) :: tWriteResultsTag
+
+    !> Name of the results tag file to append to (mode = "a")
+    character(*), intent(in) :: resultsFile
+
+    !> Tagged-output writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    type(TFileDescr) :: fd
+    integer :: nAtom, iAt
+
+    if (.not.any([allocated(bondPop), allocated(bondEner), allocated(bondOrder)])) return
+    if (.not.any([tWriteAutotest, tWriteResultsTag])) return
+
+    if (allocated(bondPop)) then
+      nAtom = size(bondPop, dim=1)
+      call openFile(fd, "bond_pop.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Mulliken bond populations: B_AB = sum_{mu in A, nu in B} P_{mu nu} S_{mu nu}"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondPop(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (allocated(bondEner)) then
+      nAtom = size(bondEner, dim=1)
+      call openFile(fd, "bond_energy.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Non-SCC bond energies: E_AB = sum_{mu in A, nu in B} P_{mu nu} H0_{mu nu} (a.u.)"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondEner(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (allocated(bondOrder)) then
+      nAtom = size(bondOrder, dim=1)
+      call openFile(fd, "bond_order.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Mayer bond orders: B_AB = sum_{mu in A, nu in B} (PS)_{mu nu} (PS)_{nu mu}"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondOrder(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (tWriteAutotest) then
+      call openFile(fd, autotestFile, mode="a")
+      if (allocated(bondPop)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondPopulations, bondPop)
+      end if
+      if (allocated(bondEner)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondEnergies, bondEner)
+      end if
+      if (allocated(bondOrder)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondOrders, bondOrder)
+      end if
+      call closeFile(fd)
+    end if
+
+    if (tWriteResultsTag) then
+      call openFile(fd, resultsFile, mode="a")
+      if (allocated(bondPop)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondPopulations, bondPop)
+      end if
+      if (allocated(bondEner)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondEnergies, bondEner)
+      end if
+      if (allocated(bondOrder)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondOrders, bondOrder)
+      end if
+      call closeFile(fd)
+    end if
+
+  end subroutine writeBondInfo
+
+
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, pBornMatrix, tPeriodic, cellVol,&
@@ -2558,7 +2665,7 @@ contains
   end subroutine writeHessianOut
 
 
-  !> Write the dipole derivative wrt.coordinates matrix/Born charges
+  !> Write the dipole derivative wrt.coordinates matrix (i.e. Born charges)
   subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
@@ -2612,13 +2719,13 @@ contains
   end subroutine writeBornChargesOut
 
 
-  !> Write the Derivatives of the polarizability
+  !> Write the Derivatives of the polarizability with respect to atom positions
   subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
     character(*), intent(in) :: fileName
 
-    !> Born (dipole derivatives or force wrt electric field)
+    !> Born matrix (dipole derivatives wrt positions or forces wrt external electric field)
     real(dp), intent(in) :: pdBornMatrix(:, :, :)
 
     !> Indices of moved atoms
@@ -3448,6 +3555,17 @@ contains
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
             & Hartree__eV * energy%atomTotal(iAt), ' eV'
       end do
+      if (allocated(dispersion)) then
+        if (dispersion%energyAvailable()) then
+          write(fd, *)
+          write(fd, "(A)") 'Atom resolved dispersion energies '
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
+            write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomDisp(iAt), ' H',&
+                & Hartree__eV * energy%atomDisp(iAt), ' eV'
+          end do
+        end if
+      end if
       write(fd, *)
     end if
 
@@ -3879,7 +3997,7 @@ contains
 
 
   !> Tenth group of data for detailed.out (derivatives with respect to an external electric field)
-  subroutine writeDetailedOut10(fd, orb, polarisability, dqOut, dEfdE)
+  subroutine writeDetailedOut10(fd, orb, polarisability, dqOut, dEfdE, omega)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3896,7 +4014,10 @@ contains
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
 
-    integer :: iCart, iAt, nAtom, iS, nSpin, iOmega
+    !> Driving frequencies (including potentially 0 for static)
+    real(dp), allocatable, intent(in) :: omega(:)
+
+    integer :: iCart, iAt, nAtom, iS, nSpin
 
     if (allocated(dqOut)) then
       nAtom = size(dqOut, dim=2)
@@ -3944,17 +4065,44 @@ contains
     end if
 
     if (allocated(polarisability)) then
-      write(fd,*)
-      write(fd,"(A)")'Electric polarisability (a.u.)'
-      do iOmega = 1, size(polarisability, dim=3)
-        do iCart = 1, 3
-          write(fd,"(3E20.12)")polarisability(:, iCart, iOmega)
-        end do
-      end do
-      write(fd,*)
+      @:ASSERT(allocated(omega))
+      call permitivityPrint(fd, polarisability, omega)
     end if
 
   end subroutine writeDetailedOut10
+
+
+  !> Print the electric field polarisability
+  subroutine permitivityPrint(fd, polarisability, omega)
+
+    !> File id for data
+    integer, intent(in) :: fd
+
+    !> Electric polarisability
+    real(dp), intent(in) :: polarisability(:,:,:)
+
+    !> Driving frequencies (including potentially 0 for static)
+    real(dp), intent(in) :: omega(:)
+
+    integer :: iCart, iOmega
+
+    write(fd,*)
+    write(fd,*)'Electric field polarisability (a.u.)'
+    do iOmega = 1, size(omega)
+      write(fd,*)
+      if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
+        write(fd, "(A, T32, F18.10, T51, A, T54, F16.4, T71, A)")"Polarisability at omega = ",&
+            & omega(iOmega), ' H ', omega(iOmega) * Hartree__eV, ' eV'
+      else
+        write(fd, *)"Static polarisability:"
+      end if
+      do iCart = 1, 3
+        write(fd,"(3E20.12)")polarisability(:, iCart, iOmega)
+      end do
+    end do
+    write(fd,*)
+
+  end subroutine permitivityPrint
 
 
   !> First group of output data during molecular dynamics
@@ -4384,7 +4532,7 @@ contains
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
       & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
-      & iLatGeoStep, nSpin, qOutput, velocities, coord, extendedGeomFile, species)
+      & iLatGeoStep, nSpin, qOutput, velocities, writeTrajectoryForces, derivs)
 
     !> File for geometry output
     character(*), intent(in) :: geoOutFile
@@ -4440,17 +4588,13 @@ contains
     !> Atomic velocities
     real(dp), intent(in), allocatable :: velocities(:,:)
 
-    !> Coordinates of all atoms (including images, if extended)
-    real(dp), allocatable, intent(inout) :: coord(:,:)
+    !> Should per-atom forces be printed in the trajectory
+    logical, intent(in) :: writeTrajectoryForces
 
-    !> If the extended structure outside of the central cell be outputed, name of file prefix
-    character(lc), intent(in) :: extendedGeomFile
-
-    !> Species for each atom (in whole structure, if extended)
-    integer, intent(in) :: species(:)
+    !> Energy derivatives with respect to atomic coordinates
+    real(dp), intent(in), allocatable :: derivs(:,:)
 
     integer :: nAtom
-    integer :: ii, jj
     character(lc) :: comment, fname
 
     nAtom = size(pCoord0Out, dim=2)
@@ -4463,6 +4607,100 @@ contains
     end if
 
     fname = trim(geoOutFile) // ".xyz"
+
+    call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
+
+    if (writeTrajectoryForces) then
+      @:ASSERT(allocated(velocities))
+      @:ASSERT(allocated(derivs))
+      if (tPrintMulliken) then
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, charges=sum(qOutput(:,:,1),&
+            & dim=1), velocities=velocities, forces=-derivs, comment=comment, append=tAppendGeo)
+      else
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+            & forces=-derivs, comment=comment, append=tAppendGeo)
+      end if
+    else
+      if (tPrintMulliken) then
+        ! For non-colinear spin without velocities write magnetisation into the velocity field
+        if (nSpin == 4 .and. .not. allocated(velocities)) then
+          call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+              & charges=sum(qOutput(:,:,1), dim=1),&
+              & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
+              & append=tAppendGeo)
+        else
+          call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+              & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+              & append=tAppendGeo)
+        end if
+      else
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+            & comment=comment, append=tAppendGeo)
+      end if
+    end if
+
+  end subroutine writeCurrentGeometry
+
+
+  !> Write geometry including periodic images to disc
+  subroutine writeExtendedGeometry(geoOutFile, tLatOpt, tMd, tAppendGeo, speciesName, iGeoStep,&
+      & iLatGeoStep, coord, species)
+
+    !> File for geometry output
+    character(*), intent(in) :: geoOutFile
+
+    !> Is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Is this a molecular dynamics calculation?
+    logical, intent(in) :: tMd
+
+    !> Should the geometry be added to the end, or the file cleared first
+    logical, intent(in) :: tAppendGeo
+
+    !> Label for each atomic chemical species
+    character(*), intent(in) :: speciesName(:)
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Current lattice step
+    integer, intent(in) :: iLatGeoStep
+
+    !> Coordinates of all atoms (including images, if extended)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Species for each atom (in whole structure, if extended)
+    integer, intent(in) :: species(:)
+
+    character(lc) :: comment
+
+    call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
+
+    call writeXYZFormat(trim(geoOutFile), coord, species, speciesName, comment=comment,&
+        & append=tAppendGeo)
+
+  end subroutine writeExtendedGeometry
+
+
+  !> Internal routine to set up comment line text for xyz format
+  subroutine geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
+
+    !> Resulting comment line
+    character(lc), intent(out) :: comment
+
+    !> Is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Is this a molecular dynamics calculation?
+    logical, intent(in) :: tMd
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Current lattice step
+    integer, intent(in) :: iLatGeoStep
+
     if (tLatOpt) then
       write(comment, "(A, I0, A, I0)") '** Geometry step: ', iGeoStep, ', Lattice step: ',&
           & iLatGeoStep
@@ -4472,29 +4710,7 @@ contains
       write(comment,"(A, I0)") 'Geometry Step: ', iGeoStep
     end if
 
-    if (tPrintMulliken) then
-      ! For non-colinear spin without velocities write magnetisation into the velocity field
-      if (nSpin == 4 .and. .not. allocated(velocities)) then
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1), dim=1),&
-            & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
-            & append=tAppendGeo)
-      else
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
-            & append=tAppendGeo)
-      end if
-    else
-      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
-          & comment=comment, append=tAppendGeo)
-    end if
-
-    if (len(trim(extendedGeomFile)) > 0) then
-      call writeXYZFormat(trim(extendedGeomFile), coord, species, speciesName,&
-          & comment=comment, append=tAppendGeo)
-    end if
-
-  end subroutine writeCurrentGeometry
+  end subroutine geometryComment_
 
 
   !> Write out final status of the geometry driver.
@@ -4653,7 +4869,7 @@ contains
     ! Get maximum derivative of energy functional with respect to Vc
     dWdVcMax = elecConstraint%getMaxEnergyDerivWrtVc()
 
-    write(stdOut, "(T6,I5,3E18.8)") iConstrIter, Eelec, deltaWTotal, dWdVcMax
+    write(stdOut, "(T6,I5,3E18.8)") iConstrIter, Eelec, dWdVcMax, deltaWTotal
 
   end subroutine printElecConstrInfo
 
@@ -4840,15 +5056,41 @@ contains
   end subroutine printEnergies
 
 
-  !> Prints cell volume.
-  subroutine printVolume(cellVol)
+  !> Prints periodic cell information
+  subroutine printLatticeInfo(fd, geoControl, latVec, cellVol)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Geometry change control
+    type(TGeomChanges), intent(in) :: geoControl
+
+    !> Lattice vectors
+    real(dp), intent(in) :: latVec(:,:)
 
     !> unit cell volume
     real(dp), intent(in) :: cellVol
 
-    write(stdOut, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
+    integer :: ii, jj
+    real(dp) :: norm(3,3), mag
 
-  end subroutine printVolume
+    write(fd,"(A)")'Lattice vectors (AA)'
+    do ii = 1, 3
+      mag = sqrt(sum(latvec(:,ii)**2))
+      norm(:,ii) = latvec(:,ii) / mag
+      write(fd, "(3F20.6,' :',E14.6)")latvec(:,ii) * Bohr__AA, mag * Bohr__AA
+    end do
+    write(fd,"(A)")'Angles (degrees) between lattice vectors'
+    do ii = 1, 3
+      do jj = ii + 1, 3
+        write(fd, "(1X, 'vector',I2, ' and vector', I2, ' : ', F12.6)")ii, jj,&
+            & acos(dot_product(norm(:,ii), norm(:,jj)))*180.0_dp/pi
+      end do
+    end do
+
+    write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
+
+  end subroutine printLatticeInfo
 
 
   !> Prints pressure and free energy.
@@ -5303,12 +5545,12 @@ contains
 
     integer, allocatable :: iOrbs(:)
     integer :: valShape(1)
-    integer :: iReg, dummy
+    integer :: iReg, placeholder
 
     do iReg = 1, size(fd)
       call elemShape(iOrbRegion, valshape, iReg)
       allocate(iOrbs(valshape(1)))
-      call intoArray(iOrbRegion, iOrbs, dummy, iReg)
+      call intoArray(iOrbRegion, iOrbs, placeholder, iReg)
       write(fd(iReg)%unit, "(f13.6,f10.6)") Hartree__eV * eigval, sum(fracs(iOrbs))
       deallocate(iOrbs)
     end do
@@ -5333,12 +5575,12 @@ contains
 
     integer, allocatable :: iOrbs(:)
     integer :: valShape(1)
-    integer :: iReg, dummy
+    integer :: iReg, placeholder
 
     do iReg = 1, size(fd)
       call elemShape(iOrbRegion, valshape, iReg)
       allocate(iOrbs(valshape(1)))
-      call intoArray(iOrbRegion, iOrbs, dummy, iReg)
+      call intoArray(iOrbRegion, iOrbs, placeholder, iReg)
       write(fd(iReg)%unit, "(f13.6,4f10.6)") Hartree__eV * eigval, sum(fracs(:,iOrbs), dim=2)
       deallocate(iOrbs)
     end do
@@ -5541,12 +5783,13 @@ contains
 
   #:if WITH_SCALAPACK
 
+    eigenvecs(:,:) = 0.0_dp
     call error("Eigenvector reading not currently supported for ScaLAPACK enabled builds")
 
   #:else
 
     type(TFileDescr) :: file
-    integer :: iMO, nOrb, dummy, ioStat
+    integer :: iMO, nOrb, tmpJobId, ioStat
 
     nOrb = size(eigenvecs,dim=1)
 
@@ -5554,9 +5797,9 @@ contains
     if (ioStat /= 0) then
       call error('no ' // eigvecBin // ' file!')
     end if
-    read(file%unit) dummy
+    read(file%unit) tmpJobId
     if (present(jobId)) then
-      jobId = dummy
+      jobId = tmpJobId
     end if
     do iMO = 1, nOrb
       read(file%unit) eigenvecs(:,iMO)
@@ -6024,4 +6267,56 @@ contains
   end subroutine writeMdftbEnergies
 
 
+  !> Write excited state forces
+  subroutine writeExcitedStateForces(env, fileName, derivs, excitedDerivs, indNACouplings)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> File name
+    character(*), intent(in) :: fileName
+
+    !> Ground state derivatives
+    real(dp), intent(in) :: derivs(:,:) 
+
+    !> Derivatives of the excited state energies
+    real(dp), intent(in) :: excitedDerivs(:,:,:)
+
+    !> Start and end index of excited state forces
+    integer, intent(in) :: indNACouplings(:)
+
+    type(TFileDescr) :: fd
+    integer :: ii, iAt, offSet
+
+  #:if WITH_MPI
+    if (.not. env%mpi%tGlobalLead) return
+  #:endif
+
+    offSet = indNACouplings(1)
+    call openFile(fd, fileName, mode="w")
+    write(fd%unit, "(A)") "Forces (au)"
+
+    if(indNACouplings(1) == 0) then
+      write(fd%unit, "(A, i5)") "State ", 0
+      do iAt = 1, size(derivs, dim=2)
+        write(fd%unit, "(3E24.12)") -derivs(:, iAt)
+      end do
+      offSet = 1
+    end if
+
+    if(size(excitedDerivs, dim=3) /= indNACouplings(2)-offSet+1) then
+      call error("Mismatch of number of gradient entries with NACV size.")
+    end if
+    
+    do ii = 1, size(excitedDerivs, dim=3)
+      write(fd%unit, "(A, i5)") "State ", ii + offSet - 1
+      do iAt = 1, size(derivs, dim=2)
+        write(fd%unit, "(3E24.12)") -derivs(:, iAt)-excitedDerivs(:,iAt,ii)
+      end do
+    enddo
+
+    call closeFile(fd)
+
+  end subroutine writeExcitedStateForces
+  
 end module dftbp_dftbplus_mainio

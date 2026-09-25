@@ -327,7 +327,7 @@ module dftbp_reks_reksinterface
     type(TReksCalc), intent(inout) :: this
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     !> List of neighbouring atoms (symmetric version)
     type(TAuxNeighbourList), intent(in), allocatable, optional :: symNeighbourList
@@ -633,7 +633,7 @@ module dftbp_reks_reksinterface
       & skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk, &
       & species, img2CentCell, iSparseStart, orb, &
       & dispersion, coord, q0, invLatVec, cellVol, totalStress, &
-      & totalLatDeriv, intPressure, this)
+      & totalLatDeriv, intPressure, this, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -704,6 +704,9 @@ module dftbp_reks_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     real(dp), allocatable :: tmpRhoSp(:,:)
     real(dp), allocatable :: tmpStress(:,:)
 
@@ -735,9 +738,9 @@ module dftbp_reks_reksinterface
         end if
 
         ! this%qOutputL has (qm) component
-        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, q0)
-        call sccCalc%updateShifts(env, orb, species, &
-            & neighbourList%iNeighbour, img2CentCell)
+        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, errStatus, q0)
+        @:PROPAGATE_ERROR(errStatus)
+        call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
 
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         ! this%rhoSqrL has (my_qm) component
@@ -868,7 +871,7 @@ module dftbp_reks_reksinterface
     type(TReksCalc), intent(inout) :: this
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     !> List of neighbouring atoms (symmetric version)
     type(TAuxNeighbourList), intent(in), allocatable, optional :: symNeighbourList
@@ -912,7 +915,8 @@ module dftbp_reks_reksinterface
       derivs(:,:) = 0.0_dp
 
       ! qOutput_L has (qm) component
-      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, q0)
+      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, errStatus, q0)
+      @:PROPAGATE_ERROR(errStatus)
       call sccCalc%updateShifts(env, orb, species, &
           & neighbourList%iNeighbour, img2CentCell)
       if (this%tExtChrg) then

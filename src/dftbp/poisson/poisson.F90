@@ -21,20 +21,22 @@ module dftbp_poisson_poisson
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
+    use dftbp_io_message, only : warning
   use dftbp_poisson_bulkpot, only : compbulk_pot, create_phi_bulk, destroy_phi_bulk, readbulk_pot,&
       & super_array
-  use dftbp_poisson_fancybc, only : bndyc, cilgate_bound, coef, coef_cilgate, coef_gate, coef_tip,&
-      & gate_bound, local_bound, tip_bound
+  use dftbp_poisson_fancybc, only : bndyc, cilgate_bound, coef, coef_cilgate,&
+      & coef_cilgate_sharp_bc, coef_gate, coef_tip, gate_bound, local_bound, tip_bound
   use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate, writePoissMemInfo,&
       & writePoissPeakInfo
   use dftbp_poisson_gewald, only : getalpha, long_pot, rezvol, short_pot
   use dftbp_poisson_mpi_poisson, only : active_id, id, id0, numprocs
   use dftbp_poisson_parameters, only : base_atom1, base_atom2, bias_dEf, biasdir, bufferBox,&
-      & cluster, cntr_cont, cntr_gate, contdir, delta, deltaR_max, dmin, do_renorm, DoCilGate,&
-      & DoGate, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r, etb, fictcont, fixed_renorm,&
-      & FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc, iatm, init_defaults, InitPot,&
-      & LmbMax, localBC, maxiter, MAXNCONT, maxpoissiter, mbound_end, mixed, mu, ncdim, ncont, nf,&
-      & ni, overrBulkBC, overrideBC, OxLength, PoissAcc, poissBC, PoissBounds, PoissBox,&
+      & cluster, cntr_cont, cntr_gate, cntr_gate_set, contdir, delta, deltaR_max, dmin, do_renorm,&
+      & DoCilGate, DoGate, DoInsulator, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r,&
+      & etb, fictcont, fixed_renorm, FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc,&
+      & iatm, insLength_t, insLength_l, insSharpBC, init_defaults, InitPot, LmbMax, localBC,&
+      & maxiter, MAXNCONT, maxpoissiter, mbound_end, mixed, mu, ncdim, ncont, nf, ni, overrBulkBC,&
+      & overrideBC, OxLength, OxLength_t, OxLength_l, PoissAcc, poissBC, PoissBounds, PoissBox,&
       & PoissPlane, R_cont, racc, ReadBulk, Readold, Rmin_Gate, Rmin_Ins, SaveHS, SaveNNList,&
       & SavePOT, scratchfolder, set_accuracy, set_builtin, set_cluster, set_cont_indices,&
       & set_contdir, set_contlabels, set_dopoisson, set_fermi, set_mol_indeces, set_ncont,&
@@ -58,13 +60,14 @@ module dftbp_poisson_poisson
   public :: iatc, iatm, ncdim, mbound_end, maxiter, localBC, poissBC
   public :: overrideBC, overrBulkBC, maxpoissiter
   public :: Temp, telec, deltaR_max, LmbMax, gate
-  public :: GateLength_l, GateLength_t, OxLength, Efermi
-  public :: bias_dEf, Rmin_Ins, Rmin_Gate, dr_eps
-  public :: eps_r, cntr_gate, tip_atom, base_atom1, base_atom2, tipbias
+  public :: GateLength_l, GateLength_t, OxLength, OxLength_t, OxLength_l, insLength_t, insLength_l
+  public :: Efermi
+  public :: bias_dEf, Rmin_Ins, Rmin_Gate, dr_eps, insSharpBC
+  public :: eps_r, cntr_gate, cntr_gate_set, tip_atom, base_atom1, base_atom2, tipbias
   public :: DOS, delta, racc, PoissAcc, dmin, PoissBox, PoissBounds
   public :: PoissPlane,mu,cntr_cont,R_cont,dR_cont,x0,y0,z0,bufferBox
   public :: etb ,cluster ,SavePot ,SaveNNList,SaveHS,FictCont,FoundBox,DoPoisson
-  public :: Readold,InitPot,DoGate,DoCilGate,DoTip,ReadBulk,mixed
+  public :: Readold,InitPot,DoGate,DoCilGate,DoInsulator,DoTip,ReadBulk,mixed
   public :: do_renorm, fixed_renorm
   public :: scratchfolder
   public :: init_defaults
@@ -336,7 +339,7 @@ module dftbp_poisson_poisson
      biasdir = abs(contdir(1))
 
      if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-       @:ERROR_HANDLING(iErr, -6, 'Gate insulator is longer than Poisson box!')
+       call warning('Gate insulator is longer than Poisson box (use with caution)')
      end if
 
      do i = 1,3
@@ -353,8 +356,12 @@ module dftbp_poisson_poisson
   ! Gate geometry mid point definition
   !---------------------------------------
   if (DoGate.or.DoCilGate) then
+     ! Set cntr_gate components: use user value if set, otherwise use center of PoissBounds
      do i = 1,3
-        cntr_gate(i) = ( PoissBounds(i,2) + PoissBounds(i,1) )/2.d0
+        if (.not. cntr_gate_set(i)) then
+           ! Component not explicitly set by user, use default from PoissBounds center
+           cntr_gate(i) = ( PoissBounds(i,2) + PoissBounds(i,1) )/2.d0
+        end if
      end do
   end if
 
@@ -783,7 +790,11 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
         if (DoGate) then
            call mud3(iparm,fparm,work,coef_gate,bndyc,rhs_,phi_,mgopt,err)
         elseif (DoCilGate) then
-           call mud3(iparm,fparm,work,coef_cilgate,bndyc,rhs_,phi_,mgopt,err)
+           if (insSharpBC) then
+              call mud3(iparm,fparm,work,coef_cilgate_sharp_bc,bndyc,rhs_,phi_,mgopt,err)
+           else
+              call mud3(iparm,fparm,work,coef_cilgate,bndyc,rhs_,phi_,mgopt,err)
+           end if
         elseif (DoTip) then
            call mud3(iparm,fparm,work,coef_tip,bndyc,rhs_,phi_,mgopt,err)
         elseif (cluster.and.period) then
@@ -1720,10 +1731,13 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 
    if (id0.and.DoGate) then
      call openFile(fp, 'gate.dat', mode="w")
+     write(fp%unit,'(A)') 'gatedir, biasdir'
      write(fp%unit,'(i2)') gatedir, biasdir
 
      z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0
      z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
+     write(fp%unit,'(2A)') 'cntr_gate(biasdir) - GateLength_l/2.d0', 'cntr_gate(biasdir)&
+         & + GateLength_l/2.d0'
      write(fp%unit,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
 
      do i=1,3
@@ -1731,12 +1745,16 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      enddo
      z_min_gate = cntr_gate(i) - GateLength_t/2.d0
      z_max_gate = cntr_gate(i) + GateLength_t/2.d0
+     write(fp%unit,'(2A)') 'cntr_gate(i) - GateLength_l/2.d0', 'cntr_gate(i) + GateLength_l/2.d0'
      write(fp%unit,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
 
-     z_min_ox = cntr_gate(gatedir) - OxLength/2.d0
-     z_max_ox = cntr_gate(gatedir) + OxLength/2.d0
-     write(fp%unit,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     z_min_ox = cntr_gate(gatedir) - OxLength_l/2.d0
+     z_max_ox = cntr_gate(gatedir) + OxLength_t/2.d0
+     write(fp%unit,'(2A)') 'cntr_gate(i) - GateLength_l/2.d0', 'cntr_gate(i) + GateLength_l/2.d0'
+          write(fp%unit,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     write(fp%unit,'(2A)') 'Rmin_Gate', 'Rmin_Ins'
      write(fp%unit,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
+     write(fp%unit,'(2A)') 'cntr_gate(1)', 'cntr_gate(2)', 'cntr_gate(3)'
      write(fp%unit,'(E17.8,E17.8)')cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
      call closeFile(fp)
    end if

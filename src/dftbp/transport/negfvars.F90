@@ -5,20 +5,23 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 module dftbp_transport_negfvars
   use dftbp_common_accuracy, only : dp, lc, mc
   use dftbp_type_wrappedintr, only : TWrappedInt1
   implicit none
 
   private
+#:if WITH_TRANSPORT
   public :: TNEGFTunDos
   public :: TNEGFGreenDensInfo
-  public :: TTransPar
-  public :: ContactInfo
   public :: TElph
+#:endif
+  public :: ContactInfo
+  public :: TTransPar
 
-
-
+#:if WITH_TRANSPORT
   !> Options for electron-phonon model
   type TElPh
 
@@ -38,7 +41,7 @@ module dftbp_transport_negfvars
     integer, allocatable :: orbsperatm(:)
 
   end type TElPh
-
+#:endif
 
   !Structure for contact information in a transport calculation
   type ContactInfo
@@ -85,6 +88,7 @@ module dftbp_transport_negfvars
   end type ContactInfo
 
 
+#:if WITH_TRANSPORT
   !> Options for Landauer (Tunneling and DOS) calculation
   type TNEGFTunDos
 
@@ -208,7 +212,7 @@ module dftbp_transport_negfvars
     type(Telph) :: bp
 
   end type TNEGFGreenDensInfo
-
+#:endif
 
   !> Options from Transport section (geometry and task)
   type TTransPar
@@ -231,7 +235,7 @@ module dftbp_transport_negfvars
     !> PL indices (starting atom)
     integer, allocatable, dimension(:) :: PL
 
-    !> False: run the full OBC calculation / True: upload contact phase
+    !> False: run the full open boundary calculation / True: upload contact phase
     logical :: taskUpload = .false.
 
     !> Should contacts be written in binary format
@@ -279,6 +283,7 @@ module dftbp_transport_negfvars
 
   end type TTransPar
 
+#:if WITH_TRANSPORT
 contains
 
   !> Copies contents of a Green's function density calculation structure
@@ -464,6 +469,6 @@ contains
     end if
 
   end subroutine copyTranspar
-
+#:endif
 
 end module dftbp_transport_negfvars

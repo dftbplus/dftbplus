@@ -188,7 +188,7 @@ contains
     type(fnode), pointer :: xmlDoc
 
     logical, parameter :: parsedTypes(nSeparator) = .true.
-    type(fnode), pointer :: rootNode, dummy
+    type(fnode), pointer :: rootNode, returnedPlaceholder
     logical :: tFinished
     integer :: curLine
     character(:), allocatable :: rootName, curFile, residual
@@ -203,7 +203,7 @@ contains
     rootName = tolower(initRootName)
     xmlDoc => createDocumentNode()
     rootNode => createElement(trim(rootName))
-    dummy => appendChild(xmlDoc, rootNode)
+    returnedPlaceholder => appendChild(xmlDoc, rootNode)
     curLine = 0
     lineReader = TLineReader(fd)
     tFinished = parse_recursive(rootNode, 0, residual, .false., lineReader, curFile, 0, curLine,&
@@ -250,7 +250,7 @@ contains
 
     character(:), allocatable :: strLine, word
 
-    type(fnode), pointer :: childNode, dummy
+    type(fnode), pointer :: childNode, returnedPlaceholder
     type(string) :: buffer
     type(TFileDescr) :: newFile
     type(TLineReader) :: newLineReader
@@ -363,7 +363,7 @@ contains
           else
             childNode => createTextNode(trim(strLine))
           end if
-          dummy => appendChild(curNode, childNode)
+          returnedPlaceholder => appendChild(curNode, childNode)
         end if
         nodetype = -1
 
@@ -516,7 +516,7 @@ contains
     !> Pointer to the new (appended) child node
     type(fnode), pointer :: newChild
 
-    type(fnode), pointer :: dummy, sameChild
+    type(fnode), pointer :: returnedPlaceholder, sameChild
     character(:), allocatable :: lowerName, truncName, modifier
     logical :: tModifier, tCreate
     integer :: pos1, pos2, iType
@@ -581,7 +581,7 @@ contains
           newChild => null()
           return
         elseif (iType == 5) then
-          dummy => removeChild(parentNode, sameChild)
+          returnedPlaceholder => removeChild(parentNode, sameChild)
           call destroyNode(sameChild)
           tCreate = .true.
         else
@@ -605,7 +605,7 @@ contains
     !! Create and append the node
     if (tCreate) then
       newChild => createElement(trim(lowerName))
-      dummy => appendChild(parentNode, newChild)
+      returnedPlaceholder => appendChild(parentNode, newChild)
     end if
 
     !! Set useful attributes

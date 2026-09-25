@@ -16,17 +16,22 @@ module dftbp_elecsolvers_elecsolvertypes
   !> Namespace for possible electronic solver methods
   type :: TElecSolverTypesEnum
 
+    ! Non-initialised solver
+    integer :: none = 0
+
     ! lapack/scalapack solvers
     integer :: qr = 1
     integer :: divideandconquer = 2
     integer :: relativelyrobust = 3
 
-    ! elsi provided solvers
+    ! either provided by elsi or included standalone
     integer :: elpa = 4
+
+    ! elsi provided solvers
     integer :: omm = 5
     integer :: pexsi = 6
-    integer :: dummy1 = 7
-    integer :: dummy2 = 8
+    integer :: unused1 = 7
+    integer :: unused2 = 8
     integer :: ntpoly = 9
     integer :: elpadm = 10
 

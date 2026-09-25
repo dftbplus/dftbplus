@@ -15,7 +15,7 @@ module dftbp_dftbplus_input_geoopt
   use dftbp_io_charmanip, only : unquote
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildValue, getSelectedAtomIndices,&
       & setChild
-  use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
+  use dftbp_io_hsdutils2, only : convertUnitHsd, localiseName
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
@@ -36,7 +36,7 @@ module dftbp_dftbplus_input_geoopt
     type(TOptTolerance) :: tolerance
 
     !> Number of allowed geometry optimization steps
-    integer :: nGeoSteps = huge(1) - 1
+    integer :: nGeoSteps
 
     !> Prefix of the output file name
     character(len=:), allocatable :: outFile
@@ -62,10 +62,10 @@ contains
     !> calculations)
     character(len=*), intent(in) :: atomsRange
 
-    type(fnode), pointer :: child, value1
+    type(fnode), pointer :: child
     type(string) :: buffer
 
-    call renameChildren(node, "Optimizer", "Optimiser")
+    call localiseName(node, "Optimizer", "Optimiser")
     call getChildValue(node, "Optimiser", child, "Rational")
     call readOptimizerInput(child, input%optimiser)
 

@@ -62,6 +62,9 @@ module dftbp_timedep_linresp
     !> Number of excited states to find
     integer :: nStat
 
+    !> Was nstat set by the user?
+    logical :: tnStat
+    
     !> Symmetry of states being calculated
     character :: sym
 
@@ -88,6 +91,9 @@ module dftbp_timedep_linresp
 
     !> Write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
+
+    !> Write X+Y vector as text
+    logical :: tXplusYAscii
 
     !> Should CI be optimized
     logical :: isCIopt
@@ -125,6 +131,9 @@ module dftbp_timedep_linresp
     !> Diagnose output of Arnoldi solver
     logical :: tDiagnoseArnoldi
 
+    !> Shift eigenspectrum and fold if requiring interior states for higher energy transitions
+    real(dp), allocatable :: shiftSpace
+
   end type TLinrespini
 
 
@@ -161,14 +170,37 @@ contains
     this%iLinRespSolver = ini%iLinRespSolver
 
     if (any([linrespSolverTypes%Arpack, linrespSolverTypes%Stratmann] == this%iLinRespSolver)) then
+
+      if (this%iLinRespSolver == linrespSolverTypes%Arpack) then
+        if (allocated(ini%shiftSpace)) then
+          this%isSpectrumFolded = .true.
+          this%shiftSpace = ini%shiftSpace**2
+        else
+          this%isSpectrumFolded = .false.
+          this%shiftSpace = 0.0_dp
+        end if
+      else
+        if (allocated(ini%shiftSpace)) then
+          call error("Folded spectrum not implemented for this method")
+        end if
+      end if
+
       this%tinit = .true.
     else
       call error('Internal error: Illegal routine call to LinResp_init.')
     end if
 
     if (this%iLinRespSolver == linrespSolverTypes%Arpack .and. .not. withArpack) then
-      call error('This binary is buit without ARPACK support, but it is requested.')
+      call error('This binary is built without ARPACK support, but it is requested.')
     end if
+
+  #:if WITH_MPI
+    if (this%iLinRespSolver == linrespSolverTypes%Arpack) then
+      if (.not. ini%tCacheCharges) then
+        call error("Uncached charges currently not supported for MPI enabled builds")
+      end if
+    end if
+  #:endif
 
     this%nExc = ini%nExc
     this%tEnergyWindow = ini%tEnergyWindow
@@ -233,6 +265,7 @@ contains
     this%writeTransQ = ini%tTransQ .and. isIoProc
     this%writeSPTrans = ini%tSPTrans .and. isIoProc
     this%writeXplusY = ini%tXplusY .and. isIoProc
+    this%writeXplusYAscii = ini%tXplusYAscii .and. isIoProc
     this%writeTransDip = ini%tTradip .and. isIoProc
     this%writeNacv = this%tNaCoupling .and. isIoProc
 
@@ -261,7 +294,7 @@ contains
 
 
   !> Wrapper to call the actual linear response routine for excitation energies
-  subroutine linResp_calcExcitations(env, this, tSpin, denseDesc, eigVec, eigVal, SSqrReal,&
+  subroutine linResp_calcExcitations(env, this, denseDesc, eigVec, eigVal, SSqrReal,&
       & filling, coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb,&
       & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies)
 
@@ -270,9 +303,6 @@ contains
 
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
-
-    !> Is this a spin-polarized calculation
-    logical, intent(in) :: tSpin
 
     !> Indexing array for dense H and S
     type(TDenseDescr), intent(in) :: denseDesc
@@ -338,16 +368,13 @@ contains
 
 
   !> Wrapper to call linear response calculations of excitations and forces in excited states
-  subroutine LinResp_addGradients(env, tSpin, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
+  subroutine LinResp_addGradients(env, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
       & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies, excgradient, nacv, derivator,&
       & rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-
-    !> Is this a spin-polarized calculation
-    logical, intent(in) :: tSpin
 
     !> Data for the actual calculation
     type(TLinResp), intent(inout) :: this

@@ -73,7 +73,7 @@ module dftbp_dftb_shortgamma
     !> Cutoff for short range interaction. Shape [mHubbU, mHubbU, nSpecies, nSpecies]
     real(dp), allocatable :: shortCutoffs_(:,:,:,:)
 
-    !> Number of neighbours. Shape: [mHubbU, mHubbU, nSpecies, nAtom]
+    !> Number of short-range gamma neighbours. Shape: [mHubbU, mHubbU, nSpecies, nAtom]
     integer, allocatable :: nNeigh_(:,:,:,:)
 
     !> Net charges per shell
@@ -101,6 +101,7 @@ module dftbp_dftb_shortgamma
     procedure :: updateCharges
     procedure :: updateShifts
     procedure :: getShiftPerShell
+    procedure :: getShiftPerShellDerivative
     procedure :: addAtomicMatrix
     procedure :: addAtomicMatrixCustomU
     procedure :: addGradientsDc
@@ -366,8 +367,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
-    real(dp) :: rab, tmpGammaPrime, u1, u2
-    real(dp) :: tmpGamma
+    real(dp) :: rab, tmpGamma, tmpGammaPrime, u1, u2
 
     ! some additional symmetry not used
     do iAt1 = 1, this%nAtom_
@@ -627,6 +627,121 @@ contains
     end do
 
   end subroutine addDerivativeMatrix
+
+
+  !> Calculate the derivative of the potential from the short range part of Gamma with respect to
+  !! position of a specified central cell atom and direction
+  subroutine getShiftPerShellDerivative(this, env, iAt, iCart, orb, coord, species, iNeighbour,&
+      & img2CentCell, shiftShellPrime)
+
+    !> Instance
+    class(TShortGamma), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Differentiate with respect to position of this atom
+    integer, intent(in) :: iAt
+
+    !> Direction of derivative
+    integer, intent(in) :: iCart
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Species for each atom.
+    integer,  intent(in) :: species(:)
+
+    !> List of neighbours for each atom.
+    integer,  intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer,  intent(in) :: img2CentCell(:)
+
+    !> Potential to add the contribution to
+    real(dp), intent(inout) :: shiftShellPrime(:,:,:)
+
+    integer :: iAt1, iAt2, iAt2f, iIter, iNeigh, iSh1, iSh2, iSp1, iSp2, maxShell1, maxShell2, nAtom
+    integer :: iU1, iU2
+    integer, allocatable :: iterIndices(:), maxNeigh(:)
+    real(dp) :: r(3), rab, rHat(3), tmpGamma, tmpGammaPrime, U1, U2
+    logical :: skipLoop
+
+    nAtom = size(this%nNeigh_, dim=4)
+
+    allocate(maxNeigh(nAtom))
+    do iAt1 = 1, nAtom
+      maxNeigh(iAt1) = maxval(this%nNeigh_(:,:,:,iAt1))
+    end do
+
+    skipLoop = .false.
+  #:if WITH_SCALAPACK
+    if (env%blacs%atomGrid%iProc /= -1) then
+      call getIndicesWithWorkload(env%blacs%atomGrid%nproc, env%blacs%atomGrid%iproc,&
+          & 1, nAtom, maxNeigh, iterIndices)
+    else
+      ! Do not calculate anything if process is not part of the atomic grid
+      skipLoop = .true.
+    end if
+  #:else
+    allocate(iterIndices(nAtom))
+    iterIndices(:) = [(iIter, iIter = 1, nAtom)]
+  #:endif
+
+    shiftShellPrime(:,:,:) = 0.0_dp
+    if (.not. skipLoop) then
+      do iIter = 1, size(iterIndices)
+        iAt1 = iterIndices(iIter)
+        iSp1 = species(iAt1)
+        maxShell1 = orb%nShell(iSp1)
+        do iNeigh = 0, maxNeigh(iAt1)
+          iAt2 = iNeighbour(iNeigh, iAt1)
+          iAt2f = img2CentCell(iAt2)
+          if (iAt /= iAt2f .and. iAt /= iAt1) cycle
+          if (iAt1 == iAt2) cycle
+          iSp2 = species(iAt2f)
+          maxShell2 = orb%nShell(iSp2)
+          r(:) = coord(:,iAt1) - coord(:,iAt2)
+          rab = norm2(r)
+          rHat(:) = r / rab
+          do iSh1 = 1, maxShell1
+            iU1 = this%hubbU_%iHubbU(iSh1, iSp1)
+            U1 = this%hubbU_%uniqHubbU(iU1, iSp1)
+            do iSh2 = 1, maxShell2
+              iU2 = this%hubbU_%iHubbU(iSh2, iSp2)
+              U2 = this%hubbU_%uniqHubbU(iU2, iSp2)
+              if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
+                if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
+                  tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                else
+                  tmpGammaPrime = expGammaPrime(rab, u2, u1)
+                  if (allocated(this%h5Correction_)) then
+                    tmpGamma = expGamma(rab, u2, u1)
+                    call this%h5Correction_%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1,&
+                        & iSp2, rab)
+                  end if
+                end if
+                shiftShellPrime(iSh1,iAt1,1) = shiftShellPrime(iSh1,iAt1,1) &
+                    & + this%deltaQShell_(iSh2, iAt2f) * tmpGammaPrime * rHat(iCart)
+                shiftShellPrime(iSh2,iAt2f,1) = shiftShellPrime(iSh2,iAt2f,1) &
+                    & - this%deltaQShell_(iSh1, iAt1) * tmpGammaPrime * rHat(iCart)
+              end if
+            end do
+          end do
+        end do
+      end do
+    endif
+
+    shiftShellPrime(:,iAt,1) = -shiftShellPrime(:,iAt,1)
+
+  #:if WITH_SCALAPACK
+    call mpifx_allreduceip(env%mpi%groupComm, shiftShellPrime, MPI_SUM)
+  #:endif
+
+  end subroutine getShiftPerShellDerivative
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

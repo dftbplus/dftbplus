@@ -16,7 +16,7 @@ module dftbp_common_hamiltoniantypes
 
     ! Hamiltonian models
 
-    !> Dummy none
+    !> None chosen
     integer :: none = 0
 
     !> DFTB

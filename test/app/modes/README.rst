@@ -45,11 +45,6 @@ over-ridden). Please download the following SK-sets and extract them in the
 external/slakos/origin/ subdirectory:
 
   mio-1-1
-
-Note that if the `get_opt_externals` script has been run, it can find and
-download this to the correct location.
-
-
 Important note:
 ===============
 

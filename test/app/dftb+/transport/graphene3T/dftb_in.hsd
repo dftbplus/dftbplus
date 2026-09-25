@@ -246,10 +246,10 @@ Hamiltonian = DFTB {
     AtomDensityTolerance = 1e-005
     CutoffCheck = Yes
     Verbosity = 51
-    RecomputeAfterDensity = No
     MaxPoissonIterations = 60
     OverrideBulkBC = none {}
     Gate = none {}
+    RecomputeAfterDensity = No
   }
 
   ElectricField = {}

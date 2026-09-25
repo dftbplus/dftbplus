@@ -6,15 +6,18 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Functions and local variables for the SCC calculation.
 module dftbp_dftb_scc
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, minNeighDist
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
+  use dftbp_common_status, only : TStatus
+  use dftbp_geometry_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_chargepenalty, only : TChrgPenalty, TChrgPenalty_init
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coulomb, only : TCoulomb, TCoulomb_init, TCoulombInput
+  use dftbp_dftb_dipolecorr, only : TDipoleCorr, TDipoleCorr_init, TDipoleCorrInput
   use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_shortgamma, only : TShortGamma, TShortGamma_init, TShortGammaInput
@@ -60,6 +63,9 @@ module dftbp_dftb_scc
     !> Poisson solver for calculating electrostatics (instead of shortGamma + coulombCalc)
     type(TPoissonInput), allocatable :: poissonInput
 
+    !> Input for the slab dipole correction
+    type(TDipoleCorrInput), allocatable :: dipoleCorrInput
+
     !> Boundary condition of the system
     integer :: boundaryCond = boundaryCondsEnum%unknown
 
@@ -97,7 +103,7 @@ module dftbp_dftb_scc
     !> Cell volume
     real(dp) :: volume
 
-    !> Negative gross charge
+    !> Negative gross charges for atomic orbitals
     real(dp), allocatable :: deltaQ(:,:)
 
     !> Negative gross charge per shell
@@ -137,6 +143,9 @@ module dftbp_dftb_scc
     !> Which electrostatic solver should be used?
     integer :: elstatType
 
+    !> Dipole correction calculator
+    type(TDipoleCorr), allocatable :: dipoleCorr
+
   contains
 
     !> Returns a minimal cutoff for the neighbourlist
@@ -153,6 +162,9 @@ module dftbp_dftb_scc
 
     !> Set external charge field
     procedure :: setExternalCharges
+
+    !> Return information on external charges
+    procedure :: getExternalCharges
 
     !> Update potential shifts
     procedure :: updateShifts
@@ -188,6 +200,9 @@ module dftbp_dftb_scc
     !> Returns the shift per L contribution of the SCC.
     procedure :: getShiftPerL
 
+    !> Derivative of the shift potentials with respect an atom position
+    procedure :: addPotentialDeriv
+
     !> Calculate the "double counting" force term using linearized XLBOMD form
     procedure :: addForceDcXlbomd
 
@@ -202,6 +217,9 @@ module dftbp_dftb_scc
 
     !> Get Q * inverse R contribution for the point charges
     procedure :: getShiftOfPC
+
+    !> Calculate derivative of shift due to the extcharges, w.r.t. coords of an atom or an extcharge
+    procedure :: getExtShiftDerivative
 
     !> Triggers all instructions which must be done once the SCC-loop had been finished
     procedure :: finishSccLoop
@@ -290,20 +308,25 @@ contains
     allocate(this%deltaQShell(this%mShell, this%nAtom))
     allocate(this%deltaQAtom(this%nAtom))
 
+    if (allocated(input%dipoleCorrInput)) then
+      allocate(this%dipoleCorr)
+      call TDipoleCorr_init(this%dipoleCorr, input%dipoleCorrInput)
+    end if
+
     this%tInitialised = .true.
 
   end subroutine TScc_init
 
 
   !> Returns a minimal cutoff for the neighbourlist, which must be passed to various functions in
-  !> this module.
+  !! this module.
   function getCutOff(this) result(cutoff)
 
     !> Instance
     class(TScc), intent(in) :: this
 
-    !> The neighbourlists, passed to scc routines, should contain neighbour information at
-    !> least up to that cutoff.
+    !> The neighbourlists, passed to scc routines, should contain neighbour information at least up
+    !! to that cutoff.
     real(dp) :: cutoff
 
     @:ASSERT(this%tInitialised)
@@ -359,11 +382,15 @@ contains
       call this%extCharges%setCoordinates(env, coord(:, 1:this%nAtom), this%coulomb)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateCoords(coord0)
+    end if
+
   end subroutine updateCoords
 
 
   !> Updates the SCC module, if the lattice vectors had been changed
-  subroutine updateLatVecs(this, latVec, recVec, boundaryConds, vol)
+  subroutine updateLatVecs(this, latVec, recVec, boundaryConds, vol, errStatus)
 
     !> Instance
     class(TScc), intent(inout) :: this
@@ -380,6 +407,9 @@ contains
     !> New volume
     real(dp), intent(in) :: vol
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(this%tPeriodic)
 
@@ -387,6 +417,9 @@ contains
 
     select case (this%elstatType)
     case (elstatTypes%gammaFunc)
+      if (this%volume <= minNeighDist**3) then
+        @:RAISE_FORMATTED_ERROR(errStatus, -1, "('Unit cell volume too small:', E20.12)", vol)
+      end if
       call this%coulomb%updateLatVecs(latVec, recVec, vol)
     case (elstatTypes%poisson)
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
@@ -398,11 +431,16 @@ contains
       call this%extCharges%setLatticeVectors(latVec, boundaryConds)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateLatVecs(latVec, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
+
   end subroutine updateLatVecs
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, orb, species, q0)
+  subroutine updateCharges(this, env, qOrbital, orb, species, errStatus, q0)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
@@ -419,6 +457,9 @@ contains
     !> Species of the atoms (should not change during run). Shape: [nSpecies]
     integer, intent(in) :: species(:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     !> Reference charge distribution (neutral atoms). Shape: [mOrb, nAtom, nSpin]
     real(dp), intent(in), optional :: q0(:,:,:)
 
@@ -430,13 +471,17 @@ contains
     select case (this%elstatType)
     case (elstatTypes%gammaFunc)
       call this%shortGamma%updateCharges(orb, species, this%deltaQShell)
-      call this%coulomb%updateCharges(env, qOrbital, orb, species, this%deltaQ, this%deltaQAtom,&
-          & this%deltaQShell)
+      call this%coulomb%updateCharges(env, orb, species, this%deltaQAtom)
     case (elstatTypes%poisson)
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
         call this%poisson%updateCharges(env, qOrbital(:,:,1), q0)
       #:endblock
     end select
+
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateCharges(this%deltaQAtom, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
 
   end subroutine updateCharges
 
@@ -529,10 +574,39 @@ contains
   end subroutine setExternalCharges
 
 
+  !> Get external charge information
+  subroutine getExternalCharges(this, nCharge, chargeCoords, chargeQs, blurWidths)
+
+    !> Instance
+    class(TScc), intent(inout) :: this
+
+    !> Number of external charges
+    integer, intent(out) :: nCharge
+
+    !> Coordinates of external charges
+    real(dp), allocatable, intent(out) :: chargeCoords(:,:)
+
+    !> Magnitudes of external charges
+    real(dp), allocatable, intent(out) :: chargeQs(:)
+
+    !> Spatial extension of external charge distribution
+    real(dp), allocatable, intent(out), optional :: blurWidths(:)
+
+    if (.not. allocated(this%extCharges)) then
+      nCharge = 0
+      @:ASSERT(this%extCharges%getNumCharges() == 0)
+    else
+      nCharge = this%extCharges%getNumCharges()
+      call this%extCharges%getExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    end if
+
+  end subroutine getExternalCharges
+
+
   !> Routine for returning lower triangle of atomic resolved gamma as a matrix
-  !>
-  !> Works only, if SCC-instance uses Gamma-electrostatics.
-  !>
+  !!
+  !! Works only, if SCC-instance uses Gamma-electrostatics.
+  !!
   subroutine getAtomicGammaMatrix(this, gammamat, iNeighbour, img2CentCell)
 
     !> Instance
@@ -546,8 +620,6 @@ contains
 
     !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
-
-    integer :: iam, nprocs
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
@@ -583,7 +655,7 @@ contains
     !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
-    integer :: ii, jj, iLoc, jLoc, rSrc, cSrc
+    integer :: ii, jj, iLoc, jLoc
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
@@ -613,9 +685,9 @@ contains
 #:endif
   
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
-  !>
-  !> Works only, if SCC-instance uses Gamma-electrostatics.
-  !>
+  !!
+  !! Works only, if SCC-instance uses Gamma-electrostatics.
+  !!
   subroutine getAtomicGammaMatU(this, gammamat, hubbU, species, iNeighbour, img2CentCell)
 
     !> Instance
@@ -688,14 +760,18 @@ contains
       call this%thirdOrder%addEnergyPerAtom(eScc, this%deltaQAtom)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%addEnergyPerAtom(this%deltaQAtom, eScc)
+    end if
+
   end subroutine getEnergyPerAtom
 
 
   !> Calculates SCC energy contribution using the linearized XLBOMD form.
-  !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
-  !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
-  !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
-  !> therefore these are passed in as an extra variable.
+  !! Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
+  !! the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
+  !! build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
+  !! therefore these are passed in as an extra variable.
   subroutine getEnergyPerAtomXlbomd(this, species, orb, qOut, q0, eScc)
 
     !> Resulting module variables
@@ -753,7 +829,7 @@ contains
 
 
   !> Calculates the contribution of the charge consistent part to the forces for molecules/clusters,
-  !> which is not covered in the term with the shift vectors.
+  !! which is not covered in the term with the shift vectors.
   subroutine addForceDc(this, env, force, species, iNeighbour, img2CentCell, chrgForce)
 
     !> Resulting module variables
@@ -775,10 +851,12 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Force contribution due to the external charges, which is not contained in the term with the
-    !> shift vectors.
+    !! shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
 
+  #:if WITH_POISSON
     real(dp), allocatable :: tmpDerivs(:,:)
+  #:endif
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(force,dim=1) == 3)
@@ -802,11 +880,15 @@ contains
           & this%deltaQAtom, this%coulomb)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%addForceDc(force, this%deltaQAtom)
+    end if
+
   end subroutine addForceDc
 
 
   !> Calculates the contribution of the stress tensor which is not covered in the term with the
-  !> shift vectors.
+  !! shift vectors.
   subroutine addStressDc(this, st, env, species, iNeighbour, img2CentCell)
 
     !> Resulting module variables
@@ -848,7 +930,7 @@ contains
 
 
   !> Returns the shift per atom coming from the SCC part
-  subroutine getShiftPerAtom(this, shift)
+  subroutine getShiftPerAtom(this, shift, isOnlyInternalShifts)
 
     !> Instance
     class(TScc), intent(in) :: this
@@ -856,21 +938,39 @@ contains
     !> Contains the shift on exit.
     real(dp), intent(out) :: shift(:)
 
+    !> Should only internal coulombic shifts be included
+    logical, intent(in), optional :: isOnlyInternalShifts
+
+    logical :: isAll
+    real(dp), allocatable :: tmpShift(:)
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
+
+    isAll = .true.
+    if (present(isOnlyInternalShifts)) isAll = .not. isOnlyInternalShifts
 
     shift(:) = this%shiftPerAtom
     if (this%elstatType == elstatTypes%gammaFunc) then
       call this%coulomb%addShiftPerAtom(shift)
     end if
-    if (allocated(this%extCharges)) then
-      call this%extCharges%addShiftPerAtom(shift)
-    end if
-    if (this%tChrgPenalty) then
-      call this%chrgPenalties%addShiftPerAtom(shift)
-    end if
     if (this%tThirdOrder) then
       call this%thirdOrder%addShiftPerAtom(shift)
+    end if
+
+    if (isAll) then
+      if (allocated(this%extCharges)) then
+        call this%extCharges%addShiftPerAtom(shift)
+      end if
+      if (this%tChrgPenalty) then
+        call this%chrgPenalties%addShiftPerAtom(shift)
+      end if
+    end if
+
+    if (allocated(this%dipoleCorr)) then
+      allocate(tmpShift(size(shift)))
+      call this%dipoleCorr%getShiftPerAtom(tmpShift)
+      shift(:) = shift + tmpShift
     end if
 
   end subroutine getShiftPerAtom
@@ -898,11 +998,59 @@ contains
   end subroutine getShiftPerL
 
 
+  !> Derivative of the shift potentials with respect to atom positions
+  subroutine addPotentialDeriv(this, env, vAt, vShell, species, iNeighbour, img2CentCell, coord,&
+      & orb, iCart, iAt)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Atomic part of derivative
+    real(dp), intent(inout) :: vAt(:)
+
+    !> Shell part of derivative
+    real(dp), intent(inout) :: vShell(:,:,:)
+
+    !> Chemical species of atoms
+    integer,  intent(in) :: species(:)
+
+    !> List of neighbours for each atom.
+    integer,  intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer,  intent(in) :: img2CentCell(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Cartesian component of displacement
+    integer, intent(in) :: iCart
+
+    !> Atom displaced
+    integer, intent(in) :: iAt
+
+    ! Short-range part of gamma contribution
+    call this%shortGamma%getShiftPerShellDerivative(env, iAt, iCart, orb, this%coord, species,&
+        & iNeighbour, img2CentCell, vShell)
+
+    vAt(:) = 0.0_dp
+    ! 1/R contribution
+    call this%coulomb%invRPrime(iCart, iAt, vAt)
+
+  end subroutine addPotentialDeriv
+
+
   !> Calculate the "double counting" force term using linearized XLBOMD form.
-  !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
-  !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
-  !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
-  !> therefore these are passed in as an extra variable.
+  !! Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
+  !! the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
+  !! build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
+  !! therefore these are passed in as an extra variable.
   subroutine addForceDcXlbomd(this, env, species, orb, iNeighbour, img2CentCell, qOrbitalOut,&
       & q0, force)
 
@@ -960,7 +1108,7 @@ contains
 
 
   !> Returns potential from DFTB charges
-  subroutine getInternalElStatPotential(this, pot, env, locations, epsSoften)
+  subroutine getInternalElStatPotential(this, pot, env, locations, gradients, epsSoften)
 
     !> Instance of SCC calculation
     class(TScc), intent(in) :: this
@@ -974,11 +1122,21 @@ contains
     !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
+    !> Gradient of the potential at the the locations [3,size(pot)]
+    real(dp), intent(out), optional :: gradients(:,:)
+
     !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
+    real(dp), allocatable :: tmpPot(:)
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(locations) == [3,size(pot)]))
+    #:block DEBUG_CODE
+    if (present(gradients)) then
+      @:ASSERT(all(shape(locations) == shape(gradients)))
+    end if
+    #:endblock DEBUG_CODE
 
     if (this%elstatType /= elstatTypes%gammaFunc) then
       call error("getInternalElStatPotential only works with gamma-electrostatics")
@@ -987,6 +1145,17 @@ contains
     pot(:) = 0.0_dp
     call this%coulomb%getPotential(env, locations, this%coord, this%deltaQAtom, pot,&
         & epsSoften=epsSoften)
+    if (allocated(this%dipoleCorr)) then
+      allocate(tmpPot(size(pot)))
+      call this%dipoleCorr%getPotential(locations, tmpPot)
+      pot(:) = pot + tmpPot
+    end if
+
+    if (present(gradients)) then
+      gradients(:,:) = 0.0_dp
+      call this%coulomb%getPotentialGradient(env, locations, this%coord, this%deltaQAtom,&
+          & gradients) ! not implemented yet: , epsSoften=epsSoften)
+    end if
 
   end subroutine getInternalElStatPotential
 
@@ -1021,6 +1190,32 @@ contains
   end subroutine getExternalElStatPotential
 
 
+  !> Calculate the derivative of shift due to the external charges, with respect to coordinates
+  !! of an atom
+  subroutine getExtShiftDerivative(this, env, extShiftDerivative, iAtom, atomCoords)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Derivative (gradient) of shift of every atom w.r.t. coords of iAtom (3, nAtom, nAtom)
+    real(dp), intent(out) :: extShiftDerivative(:,:)
+
+    !> Differentiate with respect to coordinates of this atom
+    integer, intent(in) :: iAtom
+
+    !> Coordinates of the atoms.
+    real(dp), intent(in) :: atomCoords(:,:)
+
+    if (allocated(this%extCharges)) then
+      call this%extCharges%getExtShiftDerivative(env, extShiftDerivative, iAtom, atomCoords)
+    end if
+
+  end subroutine getExtShiftDerivative
+
+
   !> Calculate gamma integral derivatives in SCC part
   subroutine getGammaDeriv(this, env, species, iNeighbour, img2CentCell, gammaDeriv)
 
@@ -1039,8 +1234,7 @@ contains
     !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> Atom resolved scc gamma derivative, \gamma_{A,B}
-    !> gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
+    !> Atom resolved scc gamma derivative, \gamma_{A,B}: gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
     real(dp), intent(out) :: gammaDeriv(:,:,:)
 
     if (this%elstatType /= elstatTypes%gammaFunc) then

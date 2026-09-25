@@ -1,0 +1,28 @@
+Geometry = genFormat {
+    3  C
+    H C Fe
+    1  2    0.0000000000E+00    0.0000000000E+00    0.0000000000E+00
+    2  1    0.0000000000E+00    0.3667324303E+00   -0.9942501966E+00
+    3  3    0.0000000000E+00    0.3667324303E+00    0.9942501966E+00
+}
+
+Hamiltonian = xTB {
+    Method = "GFN1-xTB"
+    SCCTolerance = 1.0E-8
+    charge = 0
+    SpinPolarisation = Colinear {
+        UnpairedElectrons = 2
+    }
+    SpinConstants = {
+        ShellResolvedSpin = No # Test purposes only
+        FromParameters = Yes
+    }
+}
+
+Options { WriteAutotestTag = Yes }
+Analysis {
+    PrintForces = Yes
+    MullikenAnalysis = Yes
+}
+ParserOptions { ParserVersion = 15 }
+Parallel { UseOmpThreads = Yes }

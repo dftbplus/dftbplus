@@ -10,7 +10,7 @@
 
 !> A simple reimplementation of DFT-D3
 module dftbp_dftb_simpledftd3
-  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan, ieee_is_finite
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
@@ -404,7 +404,7 @@ contains
         expd = 2.0_dp * wf * (calc%referenceCN(iRef1, iSp1) - cn(iAt1)) * gw
 
         gwk = expw * norm
-        if (ieee_is_nan(gwk)) then
+        if (.not. ieee_is_finite(gwk)) then
           if (maxval(calc%referenceCN(:calc%numberOfReferences(iSp1), iSp1))&
               & == calc%referenceCN(iRef1, iSp1)) then
             gwk = 1.0_dp
@@ -415,7 +415,7 @@ contains
         gwVec(iRef1, iAt1) = gwk
 
         dgwk = expd * norm - expw * dnorm * norm**2
-        if (ieee_is_nan(dgwk)) then
+        if (.not. ieee_is_finite(dgwk)) then
           dgwk = 0.0_dp
         end if
         gwdcn(iRef1, iAt1) = dgwk

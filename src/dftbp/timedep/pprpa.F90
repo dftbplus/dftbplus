@@ -310,7 +310,8 @@ contains
     integer :: ab_r, cd_r, ij_r, kl_r
     integer :: at1, at2, natom
     real(dp):: factor1, factor2
-    logical :: updwn
+    ! Spin-up channel only for closed-shell systems
+    real(dp), parameter :: updwn = +1.0_dp
     real(dp):: q_1(size(gamma_eri, dim=1))
     real(dp):: q_2(size(gamma_eri, dim=1))
     real(dp):: q_3(size(gamma_eri, dim=1))
@@ -334,9 +335,6 @@ contains
     allocate(work(5*nRPA))
     allocate(wi(nRPA))
     allocate(PP(nRPA, nRPA))
-
-    ! Spin-up channel only for closed-shell systems
-    updwn = .true.
 
     if (sym == "S") then !------ singlets -------
 
@@ -363,10 +361,10 @@ contains
             factor2 = sqrtFact
           end if
 
-          q_1(:) = transq(a, c, env, denseDesc, updwn, stimc, cc)
-          q_2(:) = transq(b, d, env, denseDesc, updwn, stimc, cc)
-          q_3(:) = transq(a, d, env, denseDesc, updwn, stimc, cc)
-          q_4(:) = transq(b, c, env, denseDesc, updwn, stimc, cc)
+          q_1(:) = transq(a, c, denseDesc, updwn, stimc, cc)
+          q_2(:) = transq(b, d, denseDesc, updwn, stimc, cc)
+          q_3(:) = transq(a, d, denseDesc, updwn, stimc, cc)
+          q_4(:) = transq(b, c, denseDesc, updwn, stimc, cc)
 
 
           !A_s(ab,cd) = A_s(ab,cd) + factor1 * factor2 * (&
@@ -405,10 +403,10 @@ contains
               factor2 = sqrtFact
             end if
 
-            q_1(:) = transq(k, a, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(l, b, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(l, a, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(k, b, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(k, a, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(l, b, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(l, a, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(k, b, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -439,10 +437,10 @@ contains
               factor2 = sqrtFact
             end if
 
-            q_1(:) = transq(i, k, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(j, l, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(i, l, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(j, k, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(i, k, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(j, l, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(i, l, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(j, k, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -485,10 +483,10 @@ contains
           if (c == d) cycle
           cd_r = cd_r + 1
 
-          q_1(:) = transq(a, c, env, denseDesc, updwn, stimc, cc)
-          q_2(:) = transq(b, d, env, denseDesc, updwn, stimc, cc)
-          q_3(:) = transq(a, d, env, denseDesc, updwn, stimc, cc)
-          q_4(:) = transq(b, c, env, denseDesc, updwn, stimc, cc)
+          q_1(:) = transq(a, c, denseDesc, updwn, stimc, cc)
+          q_2(:) = transq(b, d, denseDesc, updwn, stimc, cc)
+          q_3(:) = transq(a, d, denseDesc, updwn, stimc, cc)
+          q_4(:) = transq(b, c, denseDesc, updwn, stimc, cc)
 
           do at1 = 1, natom
             do at2 = 1, natom
@@ -520,10 +518,10 @@ contains
             if (k == l) cycle
             kl_r = kl_r + 1
 
-            q_1(:) = transq(k, a, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(l, b, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(l, a, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(k, b, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(k, a, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(l, b, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(l, a, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(k, b, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -552,10 +550,10 @@ contains
             if (k == l) cycle
             kl_r = kl_r + 1
 
-            q_1(:) = transq(i, k, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(j, l, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(i, l, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(j, k, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(i, k, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(j, l, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(i, l, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(j, k, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom

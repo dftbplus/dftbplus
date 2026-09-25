@@ -11,8 +11,14 @@
 !> Routines for the restart of the time propagation of the density matrix/atoms
 module dftbp_timedep_dynamicsrestart
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr, TOpenOptions
   use dftbp_common_status, only : TStatus
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : linecomm, DLEN_, M_, N_, scalafx_getdescriptor
+  use dftbp_type_densedescr, only: TDenseDescr
+  use dftbp_type_commontypes, only : TParallelKS
+#:endif
   implicit none
 
   !> Version number for restart format, please increment if you change the file format (and consider
@@ -21,11 +27,14 @@ module dftbp_timedep_dynamicsrestart
 
   private
   public :: writeRestartFile, readRestartFile
-
+#:if WITH_SCALAPACK
+  public :: writeRestartFileBlacs, readRestartFileBlacs
+#:endif
+  
 contains
 
   !> Write to a restart file.
-  subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, errStatus)
+  subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, isAsciiFile, errStatus)
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -45,8 +54,8 @@ contains
     !> Time step being used (in atomic units)
     real(dp), intent(in) :: dt
 
-    !> Name of the dump file
-    character(len=*), intent(in) :: fileName
+    !> Name prefix of the dump file (extension appended within the routine automatically)
+    character(len=*), intent(in) :: fileNamePrefix
 
     !> Should restart data be written as ascii (cross platform, but potentially lower
     !! reproducibility) or binary files
@@ -60,19 +69,19 @@ contains
     character(len=120) :: error_string
 
     if (isAsciiFile) then
-      call openFile(fd, trim(fileName) // '.dat', mode="w", iostat=iErr)
+      call openFile(fd, trim(fileNamePrefix) // '.dat', mode="w", iostat=iErr)
     else
       ! Set to stream explicitely, as it was written as stream from the beginning
-      call openFile(fd, trim(fileName) // '.bin',&
+      call openFile(fd, trim(fileNamePrefix) // '.bin',&
           & options=TOpenOptions(form='unformatted', access='stream', action='write'), iostat=iErr)
     end if
 
     if (iErr /= 0) then
       if (isAsciiFile) then
-        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileName),&
+        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileNamePrefix),&
             & ".dat for writing"
       else
-        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileName),&
+        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileNamePrefix),&
             & ".bin for writing"
       end if
       @:RAISE_ERROR(errStatus, -1, error_string)
@@ -117,7 +126,7 @@ contains
 
 
   !> Read a restart file containing density matrix, overlap, coordinates and time step
-  subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, errStatus)
+  subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, isAsciiFile, errStatus)
 
     !> Density Matrix
     complex(dp), intent(out) :: rho(:,:,:)
@@ -134,8 +143,8 @@ contains
     !> Time step being currently used (in atomic units) for checking compatibility
     real(dp), intent(in) :: dt
 
-    !> Name of the file to open
-    character(*), intent(in) :: fileName
+    !> Name prefix of the dump file (extension appended within the routine automatically)
+    character(*), intent(in) :: fileNamePrefix
 
     !> Atomic velocities
     real(dp), intent(out) :: veloc(:,:)
@@ -154,33 +163,35 @@ contains
     character(len=120) :: error_string
 
     if (isAsciiFile) then
-      inquire(file=trim(fileName)//'.dat', exist=isExisting)
+      inquire(file=trim(fileNamePrefix)//'.dat', exist=isExisting)
       if (.not. isExisting) then
-        error_string = "TD restart file " // trim(fileName)//'.dat' // " is missing"
+        error_string = "TD restart file " // trim(fileNamePrefix)//'.dat' // " is missing"
         @:RAISE_ERROR(errStatus, -1, error_string)
       end if
     else
-      inquire(file=trim(fileName)//'.bin', exist=isExisting)
+      inquire(file=trim(fileNamePrefix)//'.bin', exist=isExisting)
       if (.not. isExisting) then
-        error_string = "TD restart file " // trim(fileName)//'.bin' // " is missing"
+        error_string = "TD restart file " // trim(fileNamePrefix)//'.bin' // " is missing"
         @:RAISE_ERROR(errStatus, -1, error_string)
       end if
     end if
 
     if (isAsciiFile) then
-      call openFile(fd, trim(fileName)//'.dat', mode="r", iostat=iErr)
+      call openFile(fd, trim(fileNamePrefix)//'.dat', mode="r", iostat=iErr)
     else
       ! Set to stream explicitely, as it was written as stream from the beginning
-      call openFile(fd, file=trim(fileName)//'.bin',&
+      call openFile(fd, file=trim(fileNamePrefix)//'.bin',&
           & options=TOpenOptions(form='unformatted', access='stream', action='read',&
           & position="rewind"), iostat=iErr)
     end if
 
     if (iErr /= 0) then
       if (isAsciiFile) then
-        write(error_string, "(A,A,A)") "Failure to open external tddump file",trim(fileName), ".dat"
+        write(error_string, "(A,A,A)") "Failure to open external tddump file",&
+            & trim(fileNamePrefix), ".dat"
       else
-        write(error_string, "(A,A,A)") "Failure to open external tddump file",trim(fileName), ".bin"
+        write(error_string, "(A,A,A)") "Failure to open external tddump file",&
+            & trim(fileNamePrefix), ".bin"
       end if
       @:RAISE_ERROR(errStatus, -1, error_string)
     end if
@@ -260,5 +271,181 @@ contains
     call closeFile(fd)
 
   end subroutine readRestartFile
+
+#:if WITH_SCALAPACK
+  !> Write to a restart file the DM in distributed format
+  subroutine writeRestartFileBlacs(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, env, &
+      & denseDesc, parallelKS, errStatus)
+
+    !> Density matrix
+    complex(dp), intent(in) :: rho(:,:,:)
+
+    !> Density matrix at previous time step
+    complex(dp), intent(in) :: rhoOld(:,:,:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Atomic velocities
+    real(dp), intent(in) :: veloc(:,:)
+
+    !> Simulation time (in atomic units)
+    real(dp), intent(in) :: time
+
+    !> Time step being used (in atomic units)
+    real(dp), intent(in) :: dt
+
+    !> Name prefix of the dump file (extension appended within the routine automatically)
+    character(len=*), intent(in) :: fileNamePrefix
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Container for parallel distribution pattern of k-points and spins
+    type(TParallelKS), allocatable :: parallelKS
+
+    !> Operation status
+    type(TStatus), intent(out) :: errStatus
+
+    type(TFileDescr) :: fd
+    integer :: iErr, nOrb, nSpin, icol, iKS, irow, icoll
+    type(linecomm) :: collector
+    complex(dp), allocatable :: localRhoCol(:)
+
+    @:ASSERT(env%mpi%nGroup == 1)
+    nOrb = denseDesc%fullSize
+    nSpin = parallelKS%nLocalKS
+    if (env%mpi%tGlobalLead) then
+      call openFile(fd, trim(fileNamePrefix) // '.bin',&
+          & options=TOpenOptions(form='unformatted', access='stream', action='write'))
+      write(fd%unit) iDumpFormat
+      write(fd%unit) nOrb, nSpin, size(coord, dim=2), time, dt
+      write(fd%unit) coord, veloc
+    end if
+
+    nOrb = denseDesc%fullSize
+    allocate(localRhoCol(nOrb))
+
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+    do iKS = 1, parallelKS%nLocalKS
+      do icol = 1, nOrb
+        if (env%mpi%tGlobalLead) then
+          call collector%getline_lead(env%blacs%orbitalGrid, icol, rho(:,:,iKS), localRhoCol)
+          write(fd%unit) localRhoCol
+        else
+          call collector%getline_follow(env%blacs%orbitalGrid, icol, rho(:,:,iKS))
+        end if
+      end do
+    end do
+
+    do iKS = 1, parallelKS%nLocalKS
+      do icol = 1, nOrb
+        if (env%mpi%tGlobalLead) then
+          call collector%getline_lead(env%blacs%orbitalGrid, icol, rhoOld(:,:,iKS), localRhoCol)
+          write(fd%unit) localRhoCol
+        else
+          call collector%getline_follow(env%blacs%orbitalGrid, icol, rhoOld(:,:,iKS))
+        end if
+      end do
+    end do
+
+    if (env%mpi%tGlobalLead) then
+      call closeFile(fd)
+    end if
+
+  end subroutine writeRestartFileBlacs
+
+
+  !> Read from a restart file the DM in Blacs format
+  subroutine readRestartFileBlacs(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, env, &
+      & denseDesc, parallelKS, errStatus)
+
+    !> Density Matrix
+    complex(dp), intent(out) :: rho(:,:,:)
+
+    !> Previous density Matrix
+    complex(dp), intent(out) :: rhoOld(:,:,:)
+
+    !> Atomic coordinates
+    real(dp), intent(out) :: coord(:,:)
+
+    !> Previous simulation elapsed time until restart file writing
+    real(dp), intent(out) :: time
+
+    !> Time step being currently used (in atomic units) for checking compatibility
+    real(dp), intent(in) :: dt
+
+    !> Name prefix of the dump file (extension appended within the routine automatically)
+    character(*), intent(in) :: fileNamePrefix
+
+    !> Atomic velocities
+    real(dp), intent(out) :: veloc(:,:)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Container for parallel distribution pattern of k-points and spins
+    type(TParallelKS), allocatable :: parallelKS
+
+    !> Operation status
+    type(TStatus), intent(out) :: errStatus
+
+    type(TFileDescr) :: fd
+    integer :: iErr, version, nOrb, nSpin, nAtom, icol, iKS, irow, icoll
+    character(len=120) :: error_string
+    real(dp) :: deltaT
+    type(linecomm) :: distributor
+    complex(dp), allocatable :: localRhoCol(:)
+
+    ! The following reading routine is very fragile and still missing checks
+    ! on nOrb, nSpin, nAtom and so on. This should be improved in the future.
+    if (env%mpi%tGlobalLead) then
+      call openFile(fd, file=trim(fileNamePrefix)//'.bin',&
+          & options=TOpenOptions(form='unformatted', access='stream', action='read',&
+          & position="rewind"))
+
+      read(fd%unit) version
+      read(fd%unit) nOrb, nSpin, nAtom, time, deltaT
+      read(fd%unit) coord, veloc
+    end if
+
+    nOrb = denseDesc%fullSize
+    allocate(localRhoCol(nOrb))
+
+    call distributor%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+    do iKS = 1, parallelKS%nLocalKS
+      do icol = 1, nOrb
+        if (env%mpi%tGlobalLead) then
+          read(fd%unit) localRhoCol
+          call distributor%setline_lead(env%blacs%orbitalGrid, icol, localRhoCol(:), rho(:,:,iKS))
+        else
+          call distributor%setline_follow(env%blacs%orbitalGrid, icol, rho(:,:,iKS))
+        end if
+      end do
+    end do
+
+    do iKS = 1, parallelKS%nLocalKS
+      do icol = 1, nOrb
+        if (env%mpi%tGlobalLead) then
+          read(fd%unit) localRhoCol
+          call distributor%setline_lead(env%blacs%orbitalGrid, icol, localRhoCol(:), rhoOld(:,:,iKS))
+        else
+          call distributor%setline_follow(env%blacs%orbitalGrid, icol, rhoOld(:,:,iKS))
+        end if
+      end do
+    end do
+
+    if (env%mpi%tGlobalLead) then
+      call closeFile(fd)
+    end if
+
+  end subroutine readRestartFileBlacs
+#:endif
 
 end module dftbp_timedep_dynamicsrestart

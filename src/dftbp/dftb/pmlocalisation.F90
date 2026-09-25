@@ -18,7 +18,8 @@ module dftbp_dftb_pmlocalisation
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error, warning
   use dftbp_math_blasroutines, only : hemm, hemv, symm
-  use dftbp_math_sorting, only : heap_sort, unique
+  use dftbp_math_counting, only : unique
+  use dftbp_math_sorting, only : heap_sort
   implicit none
 
   private

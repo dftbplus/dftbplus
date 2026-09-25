@@ -121,7 +121,7 @@ contains
   end function coherence${NAME}$${DIM}$
 
 #:else
-  !> Dummy serial comparison of data
+  !> Serial fallback for comparison of data
   pure function coherence${NAME}$${DIM}$(env, data) result(res)
 
     !> Computational environment settings
@@ -221,7 +221,7 @@ contains
   end function approxCoherence${NAME}$${DIM}$
 
 #:else
-  !> Dummy serial comparison of data
+  !> Serial fallback for approximate comparison of data
   pure function approxCoherence${NAME}$${DIM}$(env, data, tol) result(res)
 
     !> Computational environment settings
@@ -230,7 +230,7 @@ contains
     !> Data to check for coherence
     ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    !> Tolerance for comparison, if absent use eps
+    !> Tolerance for comparison, not referenced in serial
     real(dp), intent(in), optional :: tol
 
     !> Is the data the same?

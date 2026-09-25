@@ -25,6 +25,8 @@ The DFTB+ development is being lead and coordinated by:
 The following people (in alphabetic order by their family names) have
 contributed to DFTB+ :
 
+* Matías Berdakin (Universidad Nacional de Córdoba, Argentina)
+
 * Franco Bonafé (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
@@ -37,13 +39,17 @@ contributed to DFTB+ :
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
-* Roberto Andrés González-León (University of Costa Rica)
-
 * Sebastian Ehlert (University of Bonn, Germany)
+
+* Merlin Elvers (University of Bremen, Germany)
+
+* Roberto Andrés González-León (University of Costa Rica)
 
 * Tammo van der Heide (University of Bremen, Germany)
 
 * Jan Hermann (Free University of Berlin, Germany)
+
+* Yuze Hou (Peking University, China)
 
 * Jacek Jakowski (Oak Ridge National Laboratory, USA)
 
@@ -51,12 +57,18 @@ contributed to DFTB+ :
 
 * Tim Kowalczyk (Western Washington University)
 
+* Tomáš Kubař (Karlsruhe Institute of Technology, Germany)
+
 * In Seong Lee (Ulsan National Institute of Science and Technology, Republic of
   Korea)
+
+* Carlos R. Lien-Medrano (University of Bremen, Germany)
 
 * Reinhard Maurer (University of Warwick, UK)
 
 * Tobias Melson (Max Planck Computing and Data Facility, Germany)
+
+* Gonzalo Díaz Mirón (International Centre for Theoretical Physics, Italy)
 
 * Izaac Mitchell (University of Newcastle, Australia)
 
@@ -64,7 +76,7 @@ contributed to DFTB+ :
 
 * Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
 
-* Gabriele Penazzi (formerly University of Bremen Germany (till 2016), now
+* Gabriele Penazzi (formerly University of Bremen Germany until 2016, now
   QuantumWise A/S, Denmark)
 
 * Jan Řezáč (Institute of Organic Chemistry and Biochemistry AS CR, Czech

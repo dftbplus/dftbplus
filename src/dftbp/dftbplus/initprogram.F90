@@ -10,11 +10,12 @@
 
 !> Global variables and initialization for the main program.
 module dftbp_dftbplus_initprogram
-  use dftbp_common_accuracy, only : dp, elecTolMax, lc, mc, minTemp, sc, tolEfEquiv, tolSameDist
+  use dftbp_common_accuracy, only : dp, elecTolMax, lc, mc, minTemp, sc, tolEfEquiv, tolSameDist,&
+      & hugeIterations
   use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_constants, only : amu__au, au__ps, Bohr__AA, Bohr__nm, Boltzmann, Hartree__eV,&
-      & Hartree__kJ_mol, pi, shellNames
+      & Hartree__kJ_mol, pi, shellNames, symbolToNumber
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_file, only : clearFile, setDefaultBinaryAccess, TFileDescr
@@ -24,13 +25,14 @@ module dftbp_dftbplus_initprogram
   use dftbp_derivs_numderivs2, only : create, TNumDerivs
   use dftbp_derivs_perturb, only : responseSolverTypes, TResponse, TResponse_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
+  use dftbp_geometry_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
       & TBoundaryConds_init
   use dftbp_dftb_coulomb, only : TCoulombInput
   use dftbp_dftb_dense, only : buildSquaredAtomIndex
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
+  use dftbp_dftb_dipolecorr, only : ensureCorrRequirements, TDipoleCorrInput
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
   use dftbp_dftb_dispersions, only : DispSlaKirk_init, DispUff_init, init, TDispDftD4,&
       & TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3
@@ -46,7 +48,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_mdftb, only : TMdftb, TMdftbAtomicIntegrals, TMdftbInp, TMdftb_init
   use dftbp_dftb_nonscc, only : diffTypes, NonSccDiff_init, TNonSccDiff
   use dftbp_dftb_onsitecorrection, only : Ons_blockIndx, Ons_getOrbitalEquiv
- use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
   use dftbp_dftb_periodic, only : getCellTranslations, TNeighbourList, TNeighbourlist_init,&
       & TAuxNeighbourList, TAuxNeighbourList_init
   use dftbp_dftb_pmlocalisation, only : initialise, TPipekMezey
@@ -66,6 +68,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_spin, only : qm2ud, Spin_getOrbitalEquiv, ud2qm
   use dftbp_dftb_thirdorder, only : ThirdOrder_init, TThirdOrder, TThirdOrderInp
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
+  use dftbp_dftbplus_apicallback, only : TAPICallback
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData,&
       & TParallelOpts
@@ -73,15 +76,19 @@ module dftbp_dftbplus_initprogram
       & fStopDriver, fStopSCC, hessianOut, mdOut, resultsTag, userOut
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readContactShifts
+  use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver,&
       & TElectronicSolver_init
+  use dftbp_elecsolvers_elpa, only : TElpa_final, TElpa_init
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver_final, TElsiSolver_init
   use dftbp_extlibs_arpack, only : withArpack
+  use dftbp_extlibs_elpa, only : withElpa
   use dftbp_extlibs_elsiiface, only : withELSI
   use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_init, withPlumed
   use dftbp_extlibs_poisson, only : TPoissonInput
   use dftbp_extlibs_sdftd3, only : TSDFTD3, TSDFTD3_init, writeSDFTD3Info
   use dftbp_extlibs_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
+  use dftbp_geometry_control, only : TGeomChanges
   use dftbp_geoopt_conjgrad, only : TConjGrad
   use dftbp_geoopt_deprecated_steepdesc, only : TSteepDescDepr
   use dftbp_geoopt_filter, only : TFilter, TFilter_init
@@ -98,14 +105,11 @@ module dftbp_dftbplus_initprogram
   use dftbp_math_randomgenpool, only : init, TRandomGenPool
   use dftbp_math_ranlux, only : getRandom, TRanlux
   use dftbp_math_simplealgebra, only : determinant33, diagonal, invert33
-  use dftbp_md_andersentherm, only : init, TAndersenThermostat
-  use dftbp_md_berendsentherm, only : init, TBerendsenThermostat
-  use dftbp_md_dummytherm, only : init, TDummyThermostat
+  use dftbp_math_summation, only : kahanSum
+  use dftbp_md_thermostats, only : createThermostat, thermostatTypes, TThermostat
   use dftbp_md_mdcommon, only : init, TMDCommon, TMDOutput
   use dftbp_md_mdintegrator, only : init, TMDIntegrator
-  use dftbp_md_nhctherm, only : init, TNHCThermostat
   use dftbp_md_tempprofile, only : TempProfile_init, TTempProfile
-  use dftbp_md_thermostat, only : init, TThermostat
   use dftbp_md_velocityverlet, only : init, TVelocityVerlet
   use dftbp_md_xlbomd, only : TXLBOMD, Xlbomd_init
   use dftbp_mixer_factory, only : TMixerFactoryCmplx, TMixerFactoryReal
@@ -144,12 +148,13 @@ module dftbp_dftbplus_initprogram
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
   use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init, transportPeriodicSetup
-  use dftbp_transport_negfvars, only : TTransPar
 #:endif
+  use dftbp_transport_negfvars, only : TTransPar
+  use dftbp_xtb_xtbspinw, only : xtbw => wvalues, spindx
   implicit none
 
   private
-  public :: TDftbPlusMain, TNegfInt
+  public :: TDangerousChange, TDftbPlusMain, TNegfInt
   public :: initReferenceCharges, updateReferenceShellCharges, initElectronNumber
 #:if WITH_TRANSPORT
   public :: overrideContactCharges
@@ -161,11 +166,21 @@ module dftbp_dftbplus_initprogram
 
 #:if not WITH_TRANSPORT
 
-  !> Dummy type for negf interface
+  !> Placeholder type for negf interface
   type :: TNegfInt
   end type TNegfInt
 
 #:endif
+
+
+  !> Structure for calculations where changing the quantities are dangerous for calculation
+  !! reliability/correctness
+  type TDangerousChange
+    !> Hamiltonian matrix
+    logical :: hamiltonian = .false.
+    !> Overlap matrix
+    logical :: overlap = .false.
+  end type TDangerousChange
 
 
   type :: TDftbPlusMain
@@ -220,7 +235,7 @@ module dftbp_dftbplus_initprogram
     logical :: tShowFoldedCoord
 
     !> How to calculate forces
-    integer :: forceType
+    integer :: forceType = forceTypes%none
 
     !> Are atomic coordinates fractional?
     logical :: tFracCoord
@@ -341,9 +356,6 @@ module dftbp_dftbplus_initprogram
     !> External pressure if periodic
     real(dp) :: extPressure
 
-    !> Barostat used if MD and periodic
-    logical :: tBarostat
-
     !> Barostat coupling strength
     real(dp) :: BarostatStrength
 
@@ -377,14 +389,11 @@ module dftbp_dftbplus_initprogram
     !> Fermi energy for each spin
     real(dp), allocatable :: Ef(:)
 
-    !> Filling temp, as updated by MD.
+    !> Electronic filling temperature, as updated by molecular dynamics (MD)
     logical :: tSetFillingTemp
 
     !> Choice of electron distribution function, defaults to Fermi
     integer :: iDistribFn = fillingTypes%Fermi
-
-    !> Atomic kinetic temperature
-    real(dp) :: tempAtom
 
     !> MD stepsize
     real(dp) :: deltaT
@@ -425,32 +434,14 @@ module dftbp_dftbplus_initprogram
     !> Common Fermi level across spin channels
     logical :: tSpinSharedEf
 
-    !> Geometry optimisation needed?
-    logical :: isGeoOpt
+    !> Options for geometric change in the system
+    type(TGeomChanges) :: geometryChanges
 
-    !> Optimise coordinates inside unit cell (periodic)?
-    logical :: tCoordOpt
-
-    !> Optimise lattice constants?
-    logical :: tLatOpt
-
-    !> Fix angles between lattice vectors when optimising?
-    logical :: tLatOptFixAng
-
-    !> Fix length of specified lattice vectors when optimising?
-    logical :: tLatOptFixLen(3)
-
-    !> Optimise lattice isotropically
-    logical :: tLatOptIsotropic
-
-    !> Is this a MD calculation?
-    logical :: tMD
+    !> Should the lattice information be printed out when relevant?
+    logical :: isLatInfoPrinted = .false.
 
     !> Output options for molecular dynamics data
     type(TMDOutput), allocatable :: mdOutput
-
-    !> Is this a derivatives calc?
-    logical :: tDerivs
 
     !> Do we need Mulliken charges?
     logical :: tMulliken
@@ -463,6 +454,15 @@ module dftbp_dftbplus_initprogram
 
     !> Do we need to show Mulliken charges?
     logical :: tPrintMulliken
+
+    !> Write pairwise Mulliken bond populations to file?
+    logical :: writeBondPopul = .false.
+
+    !> Write pairwise non-SCC bond energies to file?
+    logical :: writeBondEnergy = .false.
+
+    !> Write pairwise Mayer bond orders to file?
+    logical :: writeBondOrder = .false.
 
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
     logical :: isQNetAllocated
@@ -502,6 +502,9 @@ module dftbp_dftbplus_initprogram
 
     !> Are forces being returned
     logical :: tPrintForces
+
+    !> Should per-atom forces be written into the MD trajectory file
+    logical :: writeTrajectoryForces
 
     !> Number of moved atoms
     integer :: nMovedAtom
@@ -546,20 +549,26 @@ module dftbp_dftbplus_initprogram
     !> Response property calculations
     type(TResponse), allocatable :: response
 
-    !> Static polarisability
+    !> Response wrt to external electric field
     logical :: isEResp = .false.
+
+    !> Derivatives with respect to atomic positions
+    logical :: isAtomCoordPerturb = .false.
 
     !> Dynamic polarisability at finite frequencies
     real(dp), allocatable :: dynRespEFreq(:)
 
     !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
-    logical :: isKernelResp
+    logical :: isKernelResp = .false.
 
     !> Should the response Kernel use RPA (non-SCC) or self-consistent
-    logical :: isRespKernelRPA
+    logical :: isRespKernelRPA = .false.
 
     !> Dynamic polarisability at finite frequencies
     real(dp), allocatable :: dynKernelFreq(:)
+
+    !> Derivatives with respect to positions of external charges
+    logical :: isExtChargeDeriv = .false.
 
     !> Electric static polarisability
     real(dp), allocatable :: polarisability(:,:,:)
@@ -575,6 +584,20 @@ module dftbp_dftbplus_initprogram
 
     !> Derivatives of Mulliken charges with respect to perturbation
     real(dp), allocatable :: dqOut(:,:,:,:)
+
+    !> Derivatives of atomic charges w.r.t. atom coordinates
+    real(dp), allocatable :: dqdx(:,:,:)
+
+    !> List of atoms for which derivatives of atomic charges w.r.t. their coordinates will be
+    !! calculated
+    integer, allocatable :: atomsPerturbWRT(:)
+
+    !> Derivatives of atomic charges w.r.t. coordinates of MM atoms
+    real(dp), allocatable :: dqdxExt(:,:,:)
+
+    !> List of MM atoms/external charges for which derivatives of DFTB atomic charges w.r.t. the
+    !! coordinates of those MM atoms will be calculated
+    integer, allocatable :: extChrgPerturbWRT(:)
 
     !> Use commands from socket communication to control the run
     logical :: tSocket
@@ -611,8 +634,17 @@ module dftbp_dftbplus_initprogram
     !> Convergence thresholds for geometry optimiser
     type(TOptTolerance) :: optTol
 
+    !> Previous geometry energy
     real(dp) :: elast
-    real(dp), allocatable :: gcurr(:), glast(:), displ(:)
+
+    !> Present energy gradient
+    real(dp), allocatable :: gcurr(:)
+
+    !> Previous energy gradient
+    real(dp), allocatable :: glast(:)
+
+    !> Displacement to geometry
+    real(dp), allocatable :: displ(:)
 
     !> Charge mixer for real matrices
     class(TMixerReal), allocatable :: chrgMixerReal
@@ -1059,11 +1091,11 @@ module dftbp_dftbplus_initprogram
 
   #:if WITH_TRANSPORT
     !> Transport variables
-    type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
   #:endif
+    type(TTransPar) :: transpar
 
-    !> Transport interface (may be dummy placeholder, if built without transport)
+    !> Transport interface (may be a placeholder, if built without transport)
     type(TNegfInt) :: negfInt
 
     !> Whether contact Hamiltonians are uploaded
@@ -1160,9 +1192,17 @@ module dftbp_dftbplus_initprogram
     type(TBoundaryConds) :: boundaryCond
 
     !> Whether the order of the atoms matter. Typically the case, when properties were specified
-    !> based on atom numbers (e.g. custom occupations). In that case setting a different order
-    !> of the atoms via the API is forbidden.
+    !! based on atom numbers (e.g. custom occupations). In that case setting a different order
+    !! of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
+
+    !> This object encapsulates subroutines and variables that are used for registering and
+    !! invocation of the density, overlap, and hamiltonian matrices exporting callbacks.
+    type(TAPICallback), allocatable :: apiCallBack
+
+    !> Lists changes that are dangerous for calculation reliability/correctness if these quantities
+    !! are changed
+    type(TDangerousChange) :: dangerousChanges
 
   #:if WITH_SCALAPACK
 
@@ -1241,11 +1281,7 @@ contains
     type(TFire), allocatable :: pFireLat
 
     ! MD related local variables
-    type(TThermostat), allocatable :: pThermostat
-    type(TDummyThermostat), allocatable :: pDummyTherm
-    type(TAndersenThermostat), allocatable :: pAndersenTherm
-    type(TBerendsenThermostat), allocatable :: pBerendsenTherm
-    type(TNHCThermostat), allocatable :: pNHCTherm
+    class(TThermostat), allocatable :: thermostat
 
     type(TVelocityVerlet), allocatable :: pVelocityVerlet
     type(TTempProfile), pointer :: pTempProfile
@@ -1255,7 +1291,7 @@ contains
     type(TRanlux), allocatable :: randomInit, randomThermostat
     integer :: iSeed
 
-    integer :: ind, ii, jj, kk, iAt, iSp, iSh, iOrb
+    integer :: ind, ii, jj, kk, iAt, iSp, iSh, iOrb, il, jl, jSh
 
     ! Dispersion
     type(TDispSlaKirk), allocatable :: slaKirk
@@ -1320,10 +1356,12 @@ contains
     type(TPoissonInput), allocatable :: poissonInput
 
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected, areNeighboursSymmetric
-    type(TStatus) :: errStatus
-    integer :: nLocalRows, nLocalCols
-
     logical :: isIoProc
+    type(TStatus) :: errStatus
+    integer :: iCount, iElem, nLocalRows, nLocalCols
+    integer, allocatable :: iAtTmp(:)
+    real(dp) :: tmpSpinW(6)
+    real(dp), allocatable :: eiTmp(:,:), VextTmp(:)
 
   #:if WITH_MPI
     !! Number of k'-points
@@ -1361,6 +1399,12 @@ contains
     end if
     this%nIndepSpin = this%nSpin
 
+  #:if WITH_API
+    if (input%ctrl%isASICallbackEnabled) then
+      allocate(this%apiCallBack)
+    end if
+  #:endif
+
     this%tSpinSharedEf = input%ctrl%tSpinSharedEf
     this%tSpinOrbit = input%ctrl%tSpinOrbit
     this%tDualSpinOrbit = input%ctrl%tDualSpinOrbit
@@ -1388,10 +1432,14 @@ contains
       call error("Colinear spin polarization required for shared Ef over spin channels")
     end if
 
-    call initGeometry_(input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
+  #:if WITH_MPI
+    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+  #:endif
+
+    call initGeometry_(env, input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
         & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
-        & errStatus)
+        & input%transpar, errStatus)
     if (errStatus%hasError()) call error(errStatus%message)
 
     ! Get species names and output file
@@ -1431,6 +1479,45 @@ contains
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
       this%orb = input%slako%orb
+
+      if (input%ctrl%isSpinWFromParameters) then
+        ! Only xTB at the moment
+        allocate(input%ctrl%spinW(this%orb%mShell, this%orb%mShell, this%nType), source=0.0_dp)
+        if (.not.input%ctrl%isSpinWShellResolved) then
+          allocate(eiTmp, mold=input%slako%skOcc)
+          eiTmp(:,:) = 0.0_dp
+          call this%tblite%getReferenceEi(this%species0, eiTmp)
+          write(stdOut, *) "Non-shell-resolved spin coupling constants from parameters for"
+        end if
+        do iSp = 1, this%nType
+          iElem = symbolToNumber(this%speciesName(iSp))
+          call xtbw(tmpSpinW, iElem, errStatus)
+          if (errStatus%hasError()) then
+            call error(errStatus%message)
+          end if
+          if (input%ctrl%isSpinWShellResolved) then
+            do iSh = 1, this%orb%nShell(iSp)
+              il = this%orb%angShell(iSh,iSp)
+              do jSh = iSh, this%orb%nShell(iSp)
+                jl = this%orb%angShell(jSh,iSp)
+                input%ctrl%spinW(jSh, iSh, iSp) = tmpSpinW(spindx(jl, il))
+                input%ctrl%spinW(iSh, jSh, iSp) = tmpSpinW(spindx(jl, il))
+              end do
+            end do
+          else
+            ! Use HOAO value
+            ish = maxloc(eiTmp(:,iSp), dim=1, mask=input%slako%skOcc(:,iSp) > 0.0_dp)
+            il = this%orb%angShell(iSh,iSp)
+            write(stdOut,"(1X,A,T6,A,A)")trim(this%speciesName(iSp)), ' : ', shellnames(il+1)
+            input%ctrl%spinW(:this%orb%nShell(iSp), :this%orb%nShell(iSp), iSp) =&
+                & tmpSpinW(spindx(il, il))
+          end if
+        end do
+        if (.not.input%ctrl%isSpinWShellResolved) then
+          deallocate(eiTmp)
+        end if
+      end if
+
     #:if WITH_TBLITE
       this%isHalogenEgyPrinted = allocated(this%tblite%calc%halogen)
     #:endif
@@ -1453,7 +1540,8 @@ contains
       if (sum(input%ctrl%kWeight) < epsilon(1.0_dp)) then
         call error("Sum of k-point weights should be greater than zero!")
       end if
-      this%kWeight(:) = input%ctrl%kWeight / sum(input%ctrl%kWeight)
+
+      this%kWeight(:) = input%ctrl%kWeight / kahanSum(input%ctrl%kWeight)
       if (this%tHelical) then
         if (any(abs(this%kPoint(2,:) * nint(this%latVec(3,1)) - nint(this%kPoint(2,:) *&
             & nint(this%latVec(3,1)))) > input%ctrl%helicalSymTol)) then
@@ -1490,8 +1578,6 @@ contains
     if (input%ctrl%parallelOpts%nGroup > 1 .and. this%isLinResp) then
       call error("Multiple MPI groups not available for excited state calculations")
     end if
-
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
 
     if (this%isHybridXc) then
       if ((.not. this%tRealHS)&
@@ -1677,9 +1763,9 @@ contains
         & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
 
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
-        & this%nIndepSpin, this%tempElec)
-    call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
-    call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
+        & this%nIndepSpin, this%tempElec, input%ctrl%isASICallbackEnabled)
+    nBufferedCholesky = countBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS)
+    call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver, nBufferedCholesky)
 
     if (input%ctrl%isNonAufbau) then
       ! for the moment, as this has not been derived
@@ -1735,8 +1821,13 @@ contains
         call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
             & this%boundaryCond%iBoundaryCondition, coulombInput)
       end if
+
+      if (allocated(input%ctrl%dipoleCorrInput)) then
+        call ensureCorrREquirements(input%ctrl%dipoleCorrInput, errStatus, this%latVec, this%nrChrg)
+        if (errStatus%hasError()) call error(errStatus%message)
+      end if
       call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
-          & coulombInput, shortGammaInput, poissonInput, this%scc)
+          & coulombInput, shortGammaInput, poissonInput, input%ctrl%dipoleCorrInput, this%scc)
 
       ! Stress calculation does not work if external charges are involved
       this%nExtChrg = input%ctrl%nExtChrg
@@ -1803,7 +1894,7 @@ contains
         call error("Halogen correction only fitted for 3rd order models")
       end if
       if (this%tPeriodic) then
-        call error("Halogen correction was not fitted in periodic systems in original paper")
+        call warning("Halogen correction was not fitted for periodic systems in original paper")
       end if
       allocate(this%halogenXCorrection)
       call THalogenX_init(this%halogenXCorrection, this%species0, this%speciesName)
@@ -1857,7 +1948,6 @@ contains
         & this%nDipole, this%nQuadrupole)
     allocate(this%iSparseStart(0, this%nAtom))
 
-    this%tempAtom = input%ctrl%tempAtom
     this%deltaT = input%ctrl%deltaT
 
     ! Orbital equivalency relations
@@ -1876,29 +1966,31 @@ contains
     end if
 
     ! initialise in cases where atoms move
-    this%isGeoOpt = input%ctrl%isGeoOpt
-    this%tCoordOpt = input%ctrl%tCoordOpt
-    this%tLatOpt = (input%ctrl%tLatOpt .and. this%tPeriodic)
-    if (this%tLatOpt) then
+    this%geometryChanges%isGeoOpt = input%ctrl%isGeoOpt
+    this%geometryChanges%tCoordOpt = input%ctrl%tCoordOpt
+    this%geometryChanges%tLatOpt = (input%ctrl%tLatOpt .and. this%tPeriodic)
+    if (this%geometryChanges%tLatOpt) then
       if (this%tExtChrg) then
         ! Stop as not sure, what to do with the coordinates of the
         ! external charges, when the lattice changes.
         call error("External charges and lattice optimisation can not be used together.")
       end if
     end if
-    if (this%tLatOpt) then
-      this%tLatOptFixAng = input%ctrl%tLatOptFixAng
-      this%tLatOptFixLen = input%ctrl%tLatOptFixLen
-      this%tLatOptIsotropic = input%ctrl%tLatOptIsotropic
-      if (this%tLatOptFixAng .or. any(this%tLatOptFixLen) .or. this%tLatOptIsotropic) then
+    if (this%geometryChanges%tLatOpt) then
+      this%geometryChanges%tLatOptFixAng = input%ctrl%tLatOptFixAng
+      this%geometryChanges%tLatOptFixLen = input%ctrl%tLatOptFixLen
+      this%geometryChanges%tLatOptIsotropic = input%ctrl%tLatOptIsotropic
+      if (this%geometryChanges%tLatOptFixAng .or. any(this%geometryChanges%tLatOptFixLen)&
+          & .or. this%geometryChanges%tLatOptIsotropic) then
         this%origLatVec(:,:) = this%latVec(:,:)
         do ii = 1, 3
            this%normOrigLatVec(:,ii) = this%origLatVec(:,ii) / sqrt(sum(this%origLatVec(:,ii)**2))
         end do
       end if
     end if
+    this%isLatInfoPrinted = input%ctrl%isLatInfoPrinted
     this%extPressure = input%ctrl%pressure
-    this%tBarostat = input%ctrl%tBarostat
+    this%geometryChanges%tBarostat = input%ctrl%tBarostat
     this%BarostatStrength = input%ctrl%BarostatStrength
 
   #:if WITH_SOCKETS
@@ -1907,8 +1999,8 @@ contains
       input%ctrl%socketInput%nAtom = this%nAtom
       call this%initSocket(env, input%ctrl%socketInput)
       this%tForces = .true.
-      this%isGeoOpt = .false.
-      this%tMD = .false.
+      this%geometryChanges%isGeoOpt = .false.
+      this%geometryChanges%tMd = .false.
     end if
   #:else
     this%tSocket = .false.
@@ -1916,9 +2008,10 @@ contains
 
     this%tAppendGeo = input%ctrl%tAppendGeo
     this%isSccConvRequired = input%ctrl%isSccConvRequired
-    this%tMD = input%ctrl%tMD
-    if (this%tMD) this%mdOutput = input%ctrl%mdOutput
-    this%tDerivs = input%ctrl%tDerivs
+    this%geometryChanges%tMd = input%ctrl%tMD
+    this%writeTrajectoryForces = input%ctrl%writeTrajectoryForces
+    if (this%geometryChanges%tMd) this%mdOutput = input%ctrl%mdOutput
+    this%geometryChanges%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
     this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile .and. isIoProc
 
@@ -1930,27 +2023,38 @@ contains
     if (allocated(input%ctrl%electricField)) then
       allocate(this%eField%EFieldStrength)
       this%eField%EFieldStrength = input%ctrl%electricField%EFieldStrength
-      this%eField%EfieldVector(:) = input%ctrl%electricField%EfieldVector(:)
+      this%eField%EfieldVector(:) = input%ctrl%electricField%EfieldVector
       this%eField%isTDEfield = input%ctrl%electricField%isTDEfield
       this%eField%EfieldOmega = input%ctrl%electricField%EfieldOmega
       this%eField%EfieldPhase = input%ctrl%electricField%EfieldPhase
-      if (this%eField%isTDEfield .and. .not. this%tMD) then
-        call error ("Time dependent electric fields only possible for MD!")
+      if (this%eField%isTDEfield .and. .not. this%geometryChanges%tMd) then
+        call error("Time dependent electric fields only possible for MD!")
       end if
       ! parser should catch all of these:
-      @:ASSERT(.not.this%eField%isTDEfield .or. this%tMD)
+      @:ASSERT(.not.this%eField%isTDEfield .or. this%geometryChanges%tMd)
     end if
 
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
         & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or. this%isMdftb .or.&
         & this%electronicSolver%iSolver == electronicSolverTypes%GF
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
+    this%writeBondPopul = input%ctrl%writeBondPopul
+    this%writeBondEnergy = input%ctrl%writeBondEnergy
+    this%writeBondOrder = input%ctrl%writeBondOrder
+    if (this%writeBondOrder) then
+      if (withMpi) call error("Bond order analysis does not yet work with MPI enabled DFTB+")
+      if (this%boundaryCond%iBoundaryCondition /= boundaryCondsEnum%cluster) then
+        call error("WriteBondOrder is currently only supported for non-periodic, cluster&
+            & geometries")
+      end if
+    end if
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
     this%tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
 
     this%tPrintForces = input%ctrl%tPrintForces
-    this%tForces = input%ctrl%tForces .or. this%tPrintForces
+    this%tForces = input%ctrl%tForces .or. this%tPrintForces 
     if (this%isLinResp) then
+      this%tForces = this%tForces .or. input%ctrl%lrespini%tNaCoupling
       allocate(this%linearResponse)
       allocate(this%dQAtomEx(this%nAtom))
       this%dQAtomEx(:) = 0.0_dp
@@ -1976,29 +2080,13 @@ contains
       call error("Invalid force evaluation method for non-SCC calculations.")
     end if
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
-       call error("This ForceEvaluation method requires the electron temperature to be zero")
-     end if
-     if (this%isLinResp) then
-       tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
-     else
-       tRequireDerivator = this%tForces
-     end if
-     if (.not. tRequireDerivator .and. this%isElecDyn) then
-       tRequireDerivator = input%ctrl%elecDynInp%tIons
-     end if
-     if (tRequireDerivator) then
-      select case(input%ctrl%iDerivMethod)
-      case (diffTypes%finiteDiff)
-        ! set step size from input
-        if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
-          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
-              & input%ctrl%deriv1stDelta
-          call error(tmpStr)
-        end if
-        call NonSccDiff_init(this%nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
-      case (diffTypes%richardson)
-        call NonSccDiff_init(this%nonSccDeriv, diffTypes%richardson)
-      end select
+      call error("This ForceEvaluation method requires the electron temperature to be zero")
+    end if
+
+    tRequireDerivator = this%tForces
+
+    if (.not. tRequireDerivator .and. this%isElecDyn) then
+      tRequireDerivator = input%ctrl%elecDynInp%tIons
     end if
 
     call this%getDenseDescCommon()
@@ -2022,12 +2110,17 @@ contains
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       this%tWriteHS = .false.
 
-      call TElsiSolver_init(this%electronicSolver%elsi, input%ctrl%solver%elsi, env,&
-          & this%denseDesc%fullSize, this%nEl, this%iDistribFn, this%nSpin,&
-          & this%parallelKS%localKS(2, 1), this%nKPoint, this%parallelKS%localKS(1, 1),&
+      call TElsiSolver_init(this%electronicSolver%elsi, input%ctrl%solver%elsi,&
+          & input%ctrl%solver%elpa, env, this%denseDesc%fullSize, this%nEl, this%iDistribFn,&
+          & this%nSpin, this%parallelKS%localKS(2, 1), this%nKPoint, this%parallelKS%localKS(1, 1),&
           & this%kWeight(this%parallelKS%localKS(1, 1)), input%ctrl%tWriteHS,&
           & this%electronicSolver%providesElectronEntropy)
 
+    end if
+
+    if (this%electronicSolver%isElpaStandalone) then
+      call TElpa_init(this%electronicSolver%elpa, env, input%ctrl%solver%elpa,&
+          & this%denseDesc%fullSize, input%ctrl%timingLevel)
     end if
 
     if (this%deltaDftb%isNonAufbau .and. .not.this%electronicSolver%providesEigenvals) then
@@ -2055,7 +2148,7 @@ contains
             & (electrostatic gates are available).")
       end if
       if (this%t3rdFull .or. this%t3rd) then
-        call error ("Third order DFTB is not currently available for transport calculations")
+        call error("Third order DFTB is not currently available for transport calculations")
       end if
       if (this%isHybridXc) then
         call error("Hybrid functional calculations do not yet work with transport calculations")
@@ -2072,7 +2165,7 @@ contains
     this%nMovedCoord = 3 * this%nMovedAtom
 
     if (input%ctrl%maxRun == -1) then
-      this%nGeoSteps = huge(1)
+      this%nGeoSteps = hugeIterations
     else
       this%nGeoSteps = input%ctrl%maxRun
     end if
@@ -2102,11 +2195,14 @@ contains
       this%displ(:) = 0.0_dp
       this%elast = 0.0_dp
       this%nGeoSteps = input%ctrl%geoOpt%nGeoSteps
+      if (this%nGeoSteps == -1) then
+        this%nGeoSteps = hugeIterations
+      end if
       this%geoOutFile = input%ctrl%geoOpt%outFile
     end if
 
     allocate(this%pGeoCoordOpt)
-    if (this%tCoordOpt) then
+    if (this%geometryChanges%tCoordOpt) then
       allocate(tmpCoords(this%nMovedCoord))
       tmpCoords(1:this%nMovedCoord) = reshape(this%coord0(:, this%indMovedAtom),&
           & (/ this%nMovedCoord /))
@@ -2144,7 +2240,7 @@ contains
     end if
 
     allocate(this%pGeoLatOpt)
-    if (this%tLatOpt) then
+    if (this%geometryChanges%tLatOpt) then
       select case (input%ctrl%iGeoOpt)
       case(geoOptTypes%steepestDesc)
         allocate(tmpWeight(9))
@@ -2168,11 +2264,11 @@ contains
         call TFire_init(pFireLat, 9, input%ctrl%maxForce, input%ctrl%deltaT)
         call init(this%pGeoLatOpt, pFireLat)
       end select
-      if (this%tLatOptIsotropic ) then
+      if (this%geometryChanges%tLatOptIsotropic ) then
         ! optimisation uses scaling factor of unit cell
         call reset(this%pGeoLatOpt,&
             & (/1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
-      else if (this%tLatOptFixAng) then
+      else if (this%geometryChanges%tLatOptFixAng) then
         ! optimisation uses scaling factor of lattice vectors
         call reset(this%pGeoLatOpt,&
             & (/1.0_dp,1.0_dp,1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
@@ -2181,7 +2277,8 @@ contains
       end if
     end if
 
-    if (.not.(this%isGeoOpt.or.this%tMD.or.this%tSocket.or.allocated(this%geoOpt))) then
+    if (.not.(this%geometryChanges%isGeoOpt .or. this%geometryChanges%tMd .or. this%tSocket .or.&
+        & allocated(this%geoOpt))) then
       this%nGeoSteps = 0
     end if
 
@@ -2209,10 +2306,10 @@ contains
 
       if (allocated(input%ctrl%dispInp%slakirk)) then
         allocate(slaKirk)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk, this%latVec)
         else if (this%tHelical) then
-          call error("Slater-Kirkwood incompatible with helical boundary conditions")
+          call error("Slater-Kirkwood currently incompatible with helical boundary conditions")
         else
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk)
         end if
@@ -2220,7 +2317,7 @@ contains
 
       elseif (allocated(input%ctrl%dispInp%uff)) then
         allocate(uff)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call DispUff_init(uff, input%ctrl%dispInp%uff, this%nAtom, this%species0, this%latVec)
         else
           call DispUff_init(uff, input%ctrl%dispInp%uff, this%nAtom)
@@ -2231,7 +2328,7 @@ contains
         block
           type(TSDFTD3), allocatable :: dftd3
           allocate(dftd3)
-          if (this%tPeriodic) then
+          if (this%tPeriodic .and. this%transpar%nCont == 0) then
             call TSDFTD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0, &
                 & this%speciesName, this%coord0, this%latVec)
           else
@@ -2243,13 +2340,14 @@ contains
 
       else if (allocated(input%ctrl%dispInp%sdftd3)) then
         allocate(sdftd3)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call init(sdftd3, input%ctrl%dispInp%sdftd3, this%nAtom, this%species0, this%speciesName,&
               & this%latVec)
         else
           call init(sdftd3, input%ctrl%dispInp%sdftd3, this%nAtom, this%species0, this%speciesName)
         end if
         call move_alloc(sdftd3, this%dispersion)
+
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
         if (allocated(this%reks)) then
@@ -2257,6 +2355,9 @@ contains
             call error("Calculation of self-consistent dftd4 is not currently compatible with&
                 & force calculation in REKS")
           end if
+        end if
+        if (this%transpar%nCont /= 0) then
+          call error("DFTD4 model not currently supported for transport calculations")
         end if
         if (this%tPeriodic) then
           call init(dftd4, input%ctrl%dispInp%dftd4, this%nAtom, this%speciesName, this%latVec)
@@ -2275,6 +2376,8 @@ contains
             call error("Calculation of self-consistent MBD/TS is not currently compatible with&
                 & force calculation in REKS")
           end if
+        else if (this%transpar%nCont /= 0) then
+          call error("MBD model not currently supported for transport calculations")
         end if
         allocate (mbd)
         associate (inp => input%ctrl%dispInp%mbd)
@@ -2293,17 +2396,20 @@ contains
               & which may result in long gradient calculation times for large systems")
         end if
     #:endif
+
       end if
 
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
+
     #:if WITH_TRANSPORT
       if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
         if (allocated(this%dispersion)) then
-          call error ("Dispersion interactions are not currently available for transport&
+          call error("Dispersion interactions are not currently available for transport&
               & calculations")
         end if
       end if
     #:endif
+
     end if
 
     this%areSolventNeighboursSym = .false.
@@ -2316,7 +2422,7 @@ contains
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
               & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
-        this%areSolventNeighboursSym = .false.
+        this%areSolventNeighboursSym = .true.
       else if (allocated(input%ctrl%solvInp%CosmoInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
@@ -2334,7 +2440,7 @@ contains
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
               & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
-        this%areSolventNeighboursSym = .false.
+        this%areSolventNeighboursSym = .true.
       end if
       if (errStatus%hasError()) then
         call error(errStatus%message)
@@ -2361,7 +2467,7 @@ contains
     end if
 
     if (allocated(input%ctrl%elecConstraintInp)) then
-      call this%ensureConstrainedDftbReqs(input%ctrl%elecConstraintInp)
+      call this%ensureConstrainedDftbReqs()
       allocate(this%elecConstraint)
       call TElecConstraint_init(this%elecConstraint, input%ctrl%elecConstraintInp, this%orb,&
           & this%q0)
@@ -2433,13 +2539,23 @@ contains
     end if
 
     this%doPerturbation = allocated(input%ctrl%perturbInp)
-    this%doPerturbEachGeom = this%tDerivs .and. this%doPerturbation ! needs work
+    this%doPerturbEachGeom = this%geometryChanges%tDerivs .and. this%doPerturbation ! needs work
 
     if (this%doPerturbation .or. this%doPerturbEachGeom) then
 
       this%perturbSccTol = input%ctrl%perturbInp%perturbSccTol
       this%maxPerturbIter = input%ctrl%perturbInp%maxPerturbIter
       this%isPerturbConvRequired = input%ctrl%perturbInp%isPerturbConvRequired
+
+      this%isAtomCoordPerturb = input%ctrl%perturbInp%isAtomCoordPerturb
+      if (this%isAtomCoordPerturb .and. allocated(input%ctrl%perturbInp%indWrtAtoms)) then
+        call move_alloc(input%ctrl%perturbInp%indWrtAtoms, this%atomsPerturbWRT)
+      end if
+
+      this%isExtChargeDeriv = input%ctrl%perturbInp%isExtChargeDeriv
+      if (this%isExtChargeDeriv .and. allocated(input%ctrl%perturbInp%indWrtCharges)) then
+        call move_alloc(input%ctrl%perturbInp%indWrtCharges, this%extChrgPerturbWRT)
+      end if
 
       allocate(this%response)
       call TResponse_init(this%response, responseSolverTypes%spectralSum, this%tFixEf,&
@@ -2464,6 +2580,44 @@ contains
           call error("RPA option only relevant for SCC calculations of response kernel")
         end if
       end if
+
+      if (this%isAtomCoordPerturb) then
+        if (withMpi) then
+          call error("Coordinate derivative perturbations do not yet work with MPI enabled DFTB+")
+        end if
+        if (this%isHybridXc) then
+          call error("Coordinate derivative perturbations do not yet work with hybrid functionals")
+        end if
+        if (this%tempElec > minTemp) then
+          call warning("Fractional occupation is not yet supported for coordinate derivative&
+              & perturbations, so may halt with finite temperatures")
+        end if
+        if (this%nSpin > 1) then
+          call error("Spin polarised calculations are not yet supported for coordinate derivative&
+              & perturbations")
+        end if
+        if (allocated(this%dftbU)) then
+          call error("DFTB+U calculations are not yet supported for coordinate derivative&
+              & perturbations")
+        end if
+        if (allocated(this%onSiteElements)) then
+          call error("Onsite corrected calculations are not yet supported for coordinate&
+              & derivative perturbations")
+        end if
+        if (this%isMdftb) then
+          call error("Multipolar DFTB models are not yet supported for coordinate derivative&
+              & perturbations")
+        end if
+        if (this%tSpinOrbit) then
+          call error("Spin-orbit coupling is not yet supported for coordinate derivative&
+              & perturbations")
+        end if
+        if (this%boundaryCond%iBoundaryCondition /= boundaryCondsEnum%cluster) then
+          call error("Coordinate derivative perturbations not currently available for these&
+              & boundary conditions")
+        end if
+      end if
+      tRequireDerivator = tRequireDerivator .or. this%isAtomCoordPerturb
 
       if (this%iDistribFn /= fillingTypes%Fermi) then
         call error("Choice of filling function currently incompatible with perturbation&
@@ -2498,8 +2652,12 @@ contains
       end if
 
       if (this%isEResp) then
-        allocate(this%polarisability(3, 3, size(this%dynRespEFreq)))
-        this%polarisability(:,:,:) = 0.0_dp
+        if (this%boundaryCond%iBoundaryCondition == boundaryCondsEnum%cluster) then
+          allocate(this%polarisability(3, 3, size(this%dynRespEFreq)), source=0.0_dp)
+        else
+          call warning("Electric field polarisability not currently available for this boundary&
+              & condition")
+        end if
         if (input%ctrl%tWriteBandDat) then
           ! only one frequency at the moment if dynamic!
           allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, this%nIndepSpin, 3))
@@ -2511,8 +2669,10 @@ contains
       end if
 
     else
+
       this%isEResp = .false.
       this%isKernelResp = .false.
+
     end if
 
     ! turn on if LinResp and RangSep turned on, no extra input required for now
@@ -2565,7 +2725,7 @@ contains
       this%tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       this%tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. this%tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. this%tPrintExcitedEigVecs .or.&
-          & input%ctrl%lrespini%tWriteDensityMatrix .or. input%ctrl%lrespini%tNaCoupling)
+          & input%ctrl%lrespini%tWriteDensityMatrix)
 
       if (allocated(this%onSiteElements) .and. this%tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&
@@ -2613,7 +2773,7 @@ contains
       end if
     #:endif
 
-      if (this%isGeoOpt .or. this%tMD .or. this%tSocket) then
+      if (this%geometryChanges%isGeoOpt .or. this%geometryChanges%tMd .or. this%tSocket) then
         call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
             & the (N-2) electron ground state system do not match the targeted system for the&
             & excited states")
@@ -2634,71 +2794,36 @@ contains
 
 
     ! MD stuff
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       ! Create MD framework.
       allocate(this%pMDFrame)
       call init(this%pMDFrame, this%nMovedAtom, this%nAtom, input%ctrl%tMDstill)
 
-      ! Create temperature profile, if thermostat is not the dummy one
-      if (input%ctrl%iThermostat /= 0) then
-        allocate(this%temperatureProfile)
-        call TempProfile_init(this%temperatureProfile, input%ctrl%tempMethods,&
-            & input%ctrl%tempSteps, input%ctrl%tempValues)
-        pTempProfile => this%temperatureProfile
-      else
-        nullify(pTempProfile)
-      end if
+      allocate(this%temperatureProfile)
+      call TempProfile_init(this%temperatureProfile, input%ctrl%tempProfileInp)
+      pTempProfile => this%temperatureProfile
 
       ! Create thermostat
-      allocate(pThermostat)
-      select case (input%ctrl%iThermostat)
-      case (0) ! No thermostat
-        allocate(pDummyTherm)
-        call init(pDummyTherm, this%tempAtom, this%mass(this%indMovedAtom), randomThermostat,&
-            & this%pMDFrame)
-        call init(pThermostat, pDummyTherm)
-      case (1) ! Andersen thermostat
-        allocate(pAndersenTherm)
-        call init(pAndersenTherm, randomThermostat, this%mass(this%indMovedAtom), pTempProfile,&
-            & input%ctrl%tRescale, input%ctrl%wvScale, this%pMDFrame)
-        call init(pThermostat, pAndersenTherm)
-      case (2) ! Berendsen thermostat
-        allocate(pBerendsenTherm)
-        call init(pBerendsenTherm, randomThermostat, this%mass(this%indMovedAtom), pTempProfile,&
-            & input%ctrl%wvScale, this%pMDFrame)
-        call init(pThermostat, pBerendsenTherm)
-      case (3) ! Nose-Hoover-Chain thermostat
-        allocate(pNHCTherm)
-        if (input%ctrl%tInitNHC) then
-          call init(pNHCTherm, randomThermostat, this%mass(this%indMovedAtom), pTempProfile,&
-              & input%ctrl%wvScale, this%pMDFrame, input%ctrl%deltaT, input%ctrl%nh_npart,&
-              & input%ctrl%nh_nys, input%ctrl%nh_nc, input%ctrl%xnose, input%ctrl%vnose,&
-              & input%ctrl%gnose)
-        else
-          call init(pNHCTherm, randomThermostat, this%mass(this%indMovedAtom), pTempProfile,&
-              & input%ctrl%wvScale, this%pMDFrame, input%ctrl%deltaT, input%ctrl%nh_npart,&
-              & input%ctrl%nh_nys, input%ctrl%nh_nc)
-        end if
-        call init(pThermostat, pNHCTherm)
-      end select
+      call createThermostat(thermostat, input%ctrl%thermostatInp, this%mass(this%indMovedAtom),&
+          & randomThermostat, this%pMDFrame, pTempProfile, this%deltaT)
 
       ! Create MD integrator
       allocate(pVelocityVerlet)
       if (input%ctrl%tReadMDVelocities) then
-        if (this%tBarostat) then
-          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
+        if (this%geometryChanges%tBarostat) then
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & input%ctrl%initialVelocities, this%BarostatStrength, this%extPressure,&
               & input%ctrl%tIsotropic)
         else
-          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & input%ctrl%initialVelocities, .true., .false.)
         end if
       else
-        if (this%tBarostat) then
-          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
+        if (this%geometryChanges%tBarostat) then
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & this%BarostatStrength, this%extPressure, input%ctrl%tIsotropic)
         else
-          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & input%ctrl%initialVelocities, .false., .false.)
         end if
       end if
@@ -2706,13 +2831,13 @@ contains
       call init(this%pMDIntegrator, pVelocityVerlet)
     end if
 
-    call this%initPlumed(env, input%ctrl%tPlumed, this%tMD, this%plumedCalc)
+    call this%initPlumed(env, input%ctrl%tPlumed, this%geometryChanges%tMd, this%plumedCalc)
 
     ! Check for extended Born-Oppenheimer MD
     if (this%isXlbomd) then
-      if (input%ctrl%iThermostat /= 0) then
+      if (input%ctrl%thermostatInp%thermostatType /= thermostatTypes%none) then
         call error("XLBOMD does not work with thermostats yet")
-      elseif (this%tBarostat) then
+      elseif (this%geometryChanges%tBarostat) then
         call error("XLBOMD does not work with barostats yet")
       elseif (this%nSpin /= 1 .or. allocated(this%dftbU) .or. allocated(this%onSiteElements)) then
         call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
@@ -2742,7 +2867,7 @@ contains
           & this%sccTol)
     end if
 
-    if (this%tDerivs) then
+    if (this%geometryChanges%tDerivs) then
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
       call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta,&
@@ -2975,7 +3100,7 @@ contains
     this%restartFreq = input%ctrl%restartFreq
 
   #:if WITH_TRANSPORT
-    if (this%tLatOpt .and. this%tNegf) then
+    if (this%geometryChanges%tLatOpt .and. this%tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
   #:endif
@@ -3002,8 +3127,8 @@ contains
     if (allocated(this%reks)) then
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
-          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
-          & this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
+          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic,&
+          & this%geometryChanges%tLatOpt, this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
@@ -3029,6 +3154,62 @@ contains
       this%potential%coulombShell(:,:,:) = 0.0_dp
     else
       allocate(this%iAtInCentralRegion(this%transpar%idxdevice(2)))
+
+      if (allocated(input%ctrl%atomicExtPotential)) then
+        if (allocated(input%ctrl%atomicExtPotential%iAtOnSite)) then
+          if (any(input%ctrl%atomicExtPotential%iAtOnSite > size(this%iAtInCentralRegion))) then
+            call warning("Some net potential atoms outside the range of atoms in device region.")
+            call warning("Chopping net potential atoms to fit within the range of atoms in central&
+                & region.")
+
+            allocate(iAtTmp(size(this%iAtInCentralRegion)))
+            allocate(VextTmp(size(this%iAtInCentralRegion)))
+            iCount = 0
+            do iAt = 1, size(input%ctrl%atomicExtPotential%iAtOnSite)
+              if (input%ctrl%atomicExtPotential%iAtOnSite(iAt) <= size(this%iAtInCentralRegion))&
+                  & then
+                iCount = iCount + 1
+                iAtTmp(iCount) = input%ctrl%atomicExtPotential%iAtOnSite(iAt)
+                VextTmp(iCount) = input%ctrl%atomicExtPotential%VextOnSite(iAt)
+              end if
+            end do
+            deallocate(input%ctrl%atomicExtPotential%iAtOnSite)
+            deallocate(input%ctrl%atomicExtPotential%VextOnSite)
+            allocate(input%ctrl%atomicExtPotential%iAtOnSite(iCount))
+            allocate(input%ctrl%atomicExtPotential%VextOnSite(iCount))
+            input%ctrl%atomicExtPotential%iAtOnSite(:) = iAtTmp(1:iCount)
+            input%ctrl%atomicExtPotential%VextOnSite(:) = VextTmp(1:iCount)
+            deallocate(iAtTmp)
+            deallocate(VextTmp)
+          end if
+        end if
+        if (allocated(input%ctrl%atomicExtPotential%iAt)) then
+          if (any(input%ctrl%atomicExtPotential%iAt > size(this%iAtInCentralRegion))) then
+            call warning("Some gross potential atoms outside the range of atoms in device regoin.")
+            call warning("Chopping gross potential atoms to fit within the range of atoms in&
+                & central region.")
+            allocate(iAtTmp(size(this%iAtInCentralRegion)))
+            allocate(VextTmp(size(this%iAtInCentralRegion)))
+            iCount = 0
+            do iAt = 1, size(input%ctrl%atomicExtPotential%iAt)
+              if (input%ctrl%atomicExtPotential%iAt(iAt) <= size(this%iAtInCentralRegion)) then
+                iCount = iCount + 1
+                iAtTmp(iCount) = input%ctrl%atomicExtPotential%iAt(iAt)
+                VextTmp(iCount) = input%ctrl%atomicExtPotential%Vext(iAt)
+              end if
+            end do
+            deallocate(input%ctrl%atomicExtPotential%iAt)
+            deallocate(input%ctrl%atomicExtPotential%Vext)
+            allocate(input%ctrl%atomicExtPotential%iAt(iCount))
+            allocate(input%ctrl%atomicExtPotential%Vext(iCount))
+            input%ctrl%atomicExtPotential%iAt = iAtTmp(1:iCount)
+            input%ctrl%atomicExtPotential%Vext = VextTmp(1:iCount)
+            deallocate(iAtTmp)
+            deallocate(VextTmp)
+
+          end if
+        end if
+      end if
     end if
 
     if (this%transpar%tPeriodic1D) then
@@ -3235,18 +3416,18 @@ contains
 
     call checkStackSize(env)
 
-    if (input%ctrl%tMD) then
-      select case(input%ctrl%iThermostat)
-      case (0)
-        if (this%tBarostat) then
+    if (input%ctrl%tMd) then
+      select case(input%ctrl%thermostatInp%thermostatType)
+      case (thermostatTypes%none)
+        if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of velocities',&
               & '(a.k.a. "NPE" ensemble)'
         else
           write(stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of velocities',&
               & '(a.k.a. NVE ensemble)'
         end if
-      case (1)
-        if (this%tBarostat) then
+      case (thermostatTypes%andersen)
+        if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with re-selection of velocities according to temperature",&
               & "(a.k.a. NPT ensemble using Andersen thermostating + Berensen barostat)"
@@ -3255,8 +3436,8 @@ contains
               & "MD with re-selection of velocities according to temperature",&
               & "(a.k.a. NVT ensemble using Andersen thermostating)"
         end if
-      case(2)
-        if (this%tBarostat) then
+      case(thermostatTypes%berendsen)
+        if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with scaling of velocities according to temperature",&
               & "(a.k.a. 'not' NVP ensemble using Berendsen thermostating and barostat)"
@@ -3265,8 +3446,16 @@ contains
               & "MD with scaling of velocities according to temperature",&
               & "(a.k.a. 'not' NVT ensemble using Berendsen thermostating)"
         end if
-      case(3)
-        if (this%tBarostat) then
+      case(thermostatTypes%langevin)
+        if (this%geometryChanges%tBarostat) then
+          write(stdOut, "('Mode:',T30,A)")&
+              & "MD with NVP ensemble using Langevin thermostating and barostat"
+        else
+          write(stdOut, "('Mode:',T30,A)")&
+              & "MD with NVT Langevin thermostating"
+        end if
+      case(thermostatTypes%nhc)
+        if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)")"MD with scaling of velocities according to",&
               & "Nose-Hoover-Chain thermostat + Berensen barostat"
         else
@@ -3277,7 +3466,9 @@ contains
       case default
         call error("Unknown thermostat mode")
       end select
-    elseif (this%isGeoOpt) then
+
+    elseif (this%geometryChanges%isGeoOpt .or. allocated(this%geoOpt)) then
+
       if (allocated(this%conAtom)) then
         strTmp = "with constraints"
       else
@@ -3297,6 +3488,8 @@ contains
       case (geoOptTypes%fire)
         write(stdout, "('Mode:',T30,A)") 'FIRE relaxation' // trim(strTmp)
         tGeoOptRequiresEgy = .false.
+      case (geoOptTypes%geometryoptimisation)
+        write(stdout, "('Mode:',T30,A)") 'Geometry optimisation relaxation'
       case default
         call error("Unknown optimisation mode")
       end select
@@ -3304,7 +3497,7 @@ contains
         call warning("This geometry optimisation method requires force related energies for&
             & accurate minimisation.")
       end if
-    elseif (this%tDerivs) then
+    elseif (this%geometryChanges%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
       write(stdOut, *) this%indDerivAtom
@@ -3383,13 +3576,13 @@ contains
 
     if (this%tPeriodic) then
       write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "Yes"
-      if (this%tLatOpt) then
+      if (this%geometryChanges%tLatOpt) then
         write(stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
         write(stdOut, "(A,':',T30,f12.6)") "Pressure", this%extPressure
       end if
     else if (this%tHelical) then
       write (stdOut, "(A,':',T30,A)") "Helical boundaries", "Yes"
-      if (this%tLatOpt) then
+      if (this%geometryChanges%tLatOpt) then
         write (stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
       end if
     else
@@ -3448,11 +3641,17 @@ contains
       write(stdOut, "(A,':',T30,I14)") "Max. SCC-cycles", this%maxSccIter
     end if
 
-    if (this%tCoordOpt) then
+    if (this%geometryChanges%tCoordOpt) then
       write(stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", this%nMovedAtom
     end if
-    if (this%isGeoOpt) then
-      write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps
+    if (this%geometryChanges%isGeoOpt .or. allocated(this%geoOpt)) then
+      if (this%nGeoSteps == hugeIterations) then
+        write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", -1
+      else
+        write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps
+      end if
+    end if
+    if (this%geometryChanges%isGeoOpt) then
       write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
       if (input%ctrl%iGeoOpt == geoOptTypes%steepestDesc) then
         write(stdOut, "(A,':',T30,E14.6)") "Step size", this%deltaT
@@ -3487,13 +3686,15 @@ contains
             & Hartree__eV * this%tempElec, 'eV'
       end if
     end if
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       write(stdOut, "(A,':',T30,E14.6)") "Time step", this%deltaT
-      if (input%ctrl%iThermostat == 0 .and. .not.input%ctrl%tReadMDVelocities) then
-        write(stdOut, "(A,':',T30,E14.6)") "Temperature", this%tempAtom
+      if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%none&
+          & .and. .not.input%ctrl%tReadMDVelocities) then
+        write(stdOut, "(A,':',T30,E14.6)") "Temperature", input%ctrl%tempProfileInp%tempValues(1)
       end if
-      if (input%ctrl%tRescale) then
-        write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability", input%ctrl%wvScale
+      if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%andersen) then
+        write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability",&
+            & input%ctrl%thermostatInp%andersen%rescaleProb
       end if
     end if
 
@@ -3762,7 +3963,8 @@ contains
     if (this%tPrintMulliken) then
       write(stdOut, "(T30,A)") "Mulliken analysis"
     end if
-    if (this%tPrintForces .and. .not. (this%tMD .or. this%isGeoOpt .or. this%tDerivs)) then
+    if (this%tPrintForces .and. .not. (this%geometryChanges%tMd .or. this%geometryChanges%isGeoOpt&
+        & .or. this%geometryChanges%tDerivs)) then
       write(stdOut, "(T30,A)") "Force calculation"
     end if
     if (this%tForces) then
@@ -3861,6 +4063,63 @@ contains
       end do
     end if
 
+    if (allocated(this%apiCallBack)) then
+      if (this%apiCallBack%canAsiChangeTheModel()) then
+        if (allocated(this%scc)) then
+          ! As this needs assurances that the DM is actually being read by the external code,
+          ! leading to the external code making changes in the hamiltonian, otherwise SCC never
+          ! converges.
+          call warning("ASI callback with model modification enabled does not support&
+              & self-consistent calculations at present")
+          this%dangerousChanges%hamiltonian = .true.
+        end if
+        if (this%tForces) then
+          ! Since if H and/or S is modified, the derivatives are not available via ASI at the
+          ! moment.
+          call warning("ASI callback with model modification enabled does not support forces at&
+              & present")
+          this%dangerousChanges%hamiltonian = .true.
+          this%dangerousChanges%overlap = .true.
+        end if
+        if (this%tMulliken) then
+          call warning("ASI callback with model modification enabled does not support Mulliken&
+              & population analysis at present")
+          this%dangerousChanges%overlap = .true.
+        end if
+      end if
+      if (all(this%densityMatrix%iDensityMatrixAlgorithm /= [densityMatrixTypes%fromEigenVecs,&
+          & densityMatrixTypes%magma_fromEigenVecs])) then
+        call error("ASI callback currently requires eigenvector enabled solution in DFTB+")
+      end if
+      if (allocated(this%reks)) then
+        call error("ASI callback does not support REKS")
+      end if
+      if (allocated(this%dftbU))  then
+        call error("ASI callback does not support +U at present")
+      end if
+      if (allocated(this%onSiteElements)) then
+        call error("ASI callback does currently support onsite corrections")
+      end if
+      if (this%isHybridXc) then
+        call error("ASI callback does currently support hybrid functionals")
+      end if
+      if (this%isElecDyn) then
+        call error("ASI callback does not currently support electron dynamics")
+      end if
+      if (this%tNegf) then
+        call error("ASI callback does not support transport")
+      end if
+      if (this%isLinResp) then
+        call error("ASI callback does not support linear response")
+      end if
+      if (allocated(this%ppRPA)) then
+        call error("ASI callback does not support ppRPA")
+      end if
+      if (this%doPerturbation) then
+        call error("ASI callback does not support perturbation calculations at present")
+      end if
+    end if
+
     if (this%deltaDftb%isNonAufbau) then
       if (this%nSpin /= 2) then
         call error("Internal error, Delta DFTB requires two spin channels")
@@ -3922,10 +4181,10 @@ contains
     end if
 
     if (.not.this%tStress) then
-      if (this%tBarostat) then
+      if (this%geometryChanges%tBarostat) then
         call error("Sorry, MD with a barostat requires stress evaluation")
       end if
-      if (this%tLatOpt) then
+      if (this%geometryChanges%tLatOpt) then
         call error("Sorry, lattice optimisation requires stress tensor evaluation")
       end if
     end if
@@ -3953,9 +4212,25 @@ contains
       end if
 
       if (this%t3rd .or. this%t3rdFull) then
-        call error ("Third order DFTB is not currently compatible with linear response excitations")
+        call error("Third order DFTB is not currently compatible with linear response excitations")
       end if
 
+    end if
+
+
+    if (tRequireDerivator) then
+      select case(input%ctrl%iDerivMethod)
+      case (diffTypes%finiteDiff)
+        ! set step size from input
+        if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
+          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
+              & input%ctrl%deriv1stDelta
+          call error(tmpStr)
+        end if
+        call NonSccDiff_init(this%nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
+      case (diffTypes%richardson)
+        call NonSccDiff_init(this%nonSccDeriv, diffTypes%richardson)
+      end select
     end if
 
     ! Electron dynamics stuff
@@ -3965,19 +4240,27 @@ contains
         call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
       end if
 
-      if (withMpi) then
-        call error("Electron dynamics does not work with MPI yet")
+      if (input%ctrl%elecDynInp%tIons .and. withMPI) then
+        call error("Ion dynamics time propagation does not work with MPI yet")
       end if
 
-      if (this%tFixEf) then
-        call error("Electron dynamics does not work with fixed Fermi levels yet")
+      if (.not. this%tRealHS .and. withMpi) then
+        call error("Electron dynamics of periodic systems does not work with MPI yet")
+      end if
+
+      if (.not. this%tRealHS .and. withMpi) then
+        call error("Electron dynamics of periodic systems does not work with MPI yet")
+      end if
+
+      if ((allocated(this%dftbU) .or. allocated(this%onSiteElements)) .and. withMpi) then
+        call error("Electron dynamics with DFTB+U or onsite corrections not implemented with MPI yet")
       end if
 
       if (this%tSpinSharedEf) then
         call error("Electron dynamics does not work with spin shared Fermi levels yet")
       end if
 
-      if (this%tMD) then
+      if (this%geometryChanges%tMd) then
         call error("Electron dynamics does not work with MD")
       end if
 
@@ -4009,7 +4292,7 @@ contains
           & this%mass, this%nAtom, this%atomEigVal, this%dispersion, this%nonSccDeriv,&
           & this%tPeriodic, this%parallelKS, this%tRealHS, this%kPoint, this%kWeight,&
           & this%isHybridXc, this%scc, this%tblite, this%eFieldScaling, this%hamiltonianType,&
-          & errStatus)
+          & this%denseDesc, input%ctrl%tSCC, errStatus)
       if (errStatus%hasError()) call error(errStatus%message)
 
     end if
@@ -4852,6 +5135,10 @@ contains
       call TElsiSolver_final(this%electronicSolver%elsi)
     end if
 
+    if (this%electronicSolver%isElpaStandalone) then
+      call TElpa_final(this%electronicSolver%elpa)
+    end if
+
     if (this%tProjEigenvecs) then
       call destruct(this%iOrbRegion)
       call destruct(this%regionLabels)
@@ -4902,8 +5189,7 @@ contains
     !> Input data for the socket.
     type(ipiSocketCommInp), intent(inout) :: socketInput
 
-
-    logical :: tDummy
+    logical :: isStopRequested
 
     if (env%tGlobalLead) then
       write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
@@ -4911,7 +5197,7 @@ contains
       this%socket = IpiSocketComm(socketInput)
     end if
     call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec,&
-        & this%tCoordsChanged, this%tLatticeChanged, tDummy)
+        & this%tCoordsChanged, this%tLatticeChanged, isStopRequested)
 
   end subroutine initSocket
 #:endif
@@ -5135,16 +5421,16 @@ contains
       end if
     end if
 
-    if (this%tDerivs) then
+    if (this%geometryChanges%tDerivs) then
       call clearFile(hessianOut)
     end if
     if (this%tWriteDetailedOut) then
       call clearFile(userOut)
     end if
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       call clearFile(mdOut)
     end if
-    if (this%isGeoOpt .or. this%tMD) then
+    if (this%geometryChanges%isGeoOpt .or. this%geometryChanges%tMd) then
       call clearFile(trim(this%geoOutFile) // ".gen")
       call clearFile(trim(this%geoOutFile) // ".xyz")
     end if
@@ -5205,29 +5491,32 @@ contains
       end if
 
       if (this%isLinResp) then
-        ! For CI optimization store gradient for several states,
-        ! otherwise store excited state gradient for state of interest only
-        if(this%linearResponse%isCIopt) then
-          if (.not. this%linearResponse%tNaCoupling) then
-            call error("Optimization of CI requires StateCouplings keyword.")
-          end if
+        ! For NA coupling store gradient for several states,
+        ! otherwise store excited state gradient for state of interest only     
+        if (this%linearResponse%tNaCoupling) then
+        
           dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+          allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
           if (this%linearResponse%indNACouplings(1) == 0) then
             allocate(this%excitedDerivs(3, this%nAtom, dLev-1))
           else
             allocate(this%excitedDerivs(3, this%nAtom, dLev))
           end if
-          else  if (this%tLinRespZVect .and. this%tCasidaForces) then
-            allocate(this%excitedDerivs(3, this%nAtom, 1))
+        
+        else if (this%tLinRespZVect .and. this%tCasidaForces) then
+          allocate(this%excitedDerivs(3, this%nAtom, 1))
         end if
-        this%isCIopt = this%linearResponse%isCIopt
-      end if
-    end if
-
-    if (this%isLinResp) then
-      if(this%linearResponse%tNaCoupling) then
-        dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
-        allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
+        
+        if(this%linearResponse%isCIopt) then
+          if (.not. this%linearResponse%tNaCoupling) then
+            call error("Optimization of CI requires StateCouplings keyword.")
+          end if
+          this%isCIopt = this%linearResponse%isCIopt
+          ! Currently always using Bearpark algorithm:
+          write(stdOut, "('Conical Intersection finder:',T30,A)") 'Bearpark'
+          write(stdOut, format2Ue) "CI finder level shift", this%linearResponse%energyShiftCI, 'H',&
+              & Hartree__eV * this%linearResponse%energyShiftCI, 'eV'
+        end if
       end if
     end if
 
@@ -5266,7 +5555,7 @@ contains
 
     allocate(this%coord0Fold(3, this%nAtom))
 
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       allocate(this%newCoords(3, this%nAtom))
     end if
 
@@ -5308,11 +5597,6 @@ contains
     end if
 
     if (this%isLinResp) then
-      if (withMpi) then
-        if (this%tLinRespZVect) then
-          call error("Excited state gradients do not work with MPI yet")
-        end if
-      end if
       if (this%tLinRespZVect) then
         allocate(this%rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
       end if
@@ -5322,7 +5606,7 @@ contains
       allocate(this%occNatural(this%orb%nOrb))
     end if
 
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       allocate(this%velocities(3, this%nAtom))
       allocate(this%movedVelo(3, this%nMovedAtom))
       allocate(this%movedAccel(3, this%nMovedAtom))
@@ -5419,11 +5703,13 @@ contains
     !> Computing environment
     type(TEnvironment), intent(in) :: env
 
+    integer :: nLocalCols, nLocalRows, nLocalKS
+
+  #:if WITH_SCALAPACK
+
     !! True, if hybrid xc-functional calculation requested and MPI-ready algorithm
     !! has been selected
     logical :: hybridXcAlgoNonDistributed
-
-    integer :: nLocalCols, nLocalRows, nLocalKS
 
     if (this%isHybridXc) then
       hybridXcAlgoNonDistributed = .not. (this%tRealHS&
@@ -5432,9 +5718,6 @@ contains
       hybridXcAlgoNonDistributed = .false.
     end if
 
-    nLocalKS = size(this%parallelKS%localKS, dim=2)
-
-  #:if WITH_SCALAPACK
     if (hybridXcAlgoNonDistributed) then
       nLocalRows = this%denseDesc%fullSize
       nLocalCols = this%denseDesc%fullSize
@@ -5442,12 +5725,15 @@ contains
       call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
           & nLocalCols)
     end if
+
   #:else
 
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
 
   #:endif
+
+    nLocalKS = size(this%parallelKS%localKS, dim=2)
 
     if (this%t2Component .or. .not. this%tRealHS) then
       allocate(this%HSqrCplx(nLocalRows, nLocalCols))
@@ -5618,7 +5904,8 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepSpin, tempElec)
+  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepSpin, tempElec,&
+      & isCallBackApiEnabled)
 
     !> Solver number (see dftbp_elecsolvers_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -5635,6 +5922,9 @@ contains
     !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
 
+    !> Is the API callback for H/S/density matrix enabled?
+    logical, intent(in) :: isCallBackApiEnabled
+
     logical :: tElsiSolver
     integer :: nKPoint
 
@@ -5644,11 +5934,17 @@ contains
           & This should be fixed soon.")
     end if
 
+    if (iSolver == electronicSolverTypes%elpa .and. .not. withElpa .and. .not. withELSI) then
+      call error("This binary was not compiled with ELSI or ELPA support enabled")
+    end if
+
     tElsiSolver = any(iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
     if (.not. withELSI .and. tElsiSolver) then
-      call error("This binary was not compiled with ELSI support enabled")
+      if (iSolver /= electronicSolverTypes%elpa .or. .not. withElpa) then
+        call error("This binary was not compiled with ELSI support enabled")
+      end if
     end if
 
     nKPoint = size(kPoints, dim=2)
@@ -5661,6 +5957,13 @@ contains
 
     if (iSolver == electronicSolverTypes%pexsi .and. tempElec < epsilon(0.0)) then
       call error("This solver requires a finite electron broadening")
+    end if
+
+    if (isCallBackApiEnabled .and. .not. any(iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa, electronicSolverTypes%magmaGvd])) then
+      ! there are not dense matrices for ASI to work with
+      call error("ASI interface incompatible with the current choice of electronic solver")
     end if
 
   end subroutine ensureSolverCompatibility
@@ -5731,7 +6034,7 @@ contains
 
     character(lc) :: formstr, outStr
     integer :: nCustomBlock, iCustomBlock, iSp, nShell, nAtom, iSh
-    character(sc), allocatable :: shellnames(:)
+    character(sc), allocatable :: shellNamesTmp(:)
 
     nCustomBlock = size(customOccFillings)
     if (nCustomBlock == 0) then
@@ -5749,17 +6052,17 @@ contains
       write(stdout, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
       iSp = species(customOccAtoms(iCustomBlock)%data(1))
       nShell = orb%nShell(iSp)
-      call getShellNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellNamesTmp)
       outStr = ""
       do iSh = 1, nShell
         if (iSh > 1) then
           write(outStr,"(A,',')")trim(outStr)
         end if
-        write(outStr,"(A,1X,A,F8.4)")trim(outStr), trim(shellnames(iSh)),&
+        write(outStr,"(A,1X,A,F8.4)")trim(outStr), trim(shellNamesTmp(iSh)),&
             & customOccFillings(iSh, iCustomBlock)
       end do
       write(stdout,"(A,T29,A)")"Fillings:",trim(outStr)
-      deallocate(shellnames)
+      deallocate(shellNamesTmp)
     end do
   end subroutine printCustomReferenceOccupations
 
@@ -5797,13 +6100,10 @@ contains
 
 
   !> Stop if any setting incompatible with the constrained DFTB formalism is found.
-  subroutine ensureConstrainedDftbReqs(this, elecConstraintInp)
+  subroutine ensureConstrainedDftbReqs(this)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
-
-    !> Input parameters for electronic constraints
-    type(TElecConstraintInp), intent(in) :: elecConstraintInp
 
     if (.not. this%tSccCalc) then
       call error("Electronically constrained calculations do not yet support non-SCC calculations.")
@@ -5928,14 +6228,6 @@ contains
       call error("Non-collinear spin only available for hybrids with molecular systems at present.")
     end if
 
-    if (this%isHybLinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%cam) then
-      call error("General CAM functionals not currently implemented for linear response.")
-    end if
-
-    if (this%isHybLinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%hyb) then
-      call error("Global hybrid functionals not currently implemented for linear response.")
-    end if
-
   end subroutine ensureHybridXcReqs
 
 
@@ -5990,12 +6282,6 @@ contains
 
     @:ASSERT(allocated(input%ctrl%lrespini))
 
-    if (withMpi) then
-      if (.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
-        call error("Non-adiabatic coupling vectors not available under MPI")
-      end if
-    end if
-
     if (.not. tSccCalc) then
       call error("Linear response excitation requires SCC=Yes")
     end if
@@ -6037,13 +6323,17 @@ contains
       call warning(tmpStr)
     end if
 
-    if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%isCIopt)) then
+    if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%tNaCoupling)) then
       if (tCasidaForces) then
         call error("Excited forces only available for StateOfInterest non zero.")
       end if
       if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then
         call error("Excited eigenvectors only available for StateOfInterest non zero.")
       end if
+    end if
+
+    if (input%ctrl%lrespini%tNaCoupling .and. (.not. tCasidaForces)) then
+      call error("Excited state forces required for non-adiabatic couplings")
     end if
 
     if (isOnsiteCorrected .and. input%ctrl%lrespini%iLinRespSolver == linRespSolverTypes%Stratmann)&
@@ -6190,7 +6480,7 @@ contains
     !> Cutoff for real-space g-summation
     real(dp), intent(in), optional :: gSummationCutoff
 
-    !> Number of unit cells along each supercell folding direction to substract from MIC
+    !> Number of unit cells along each supercell folding direction to subtract from MIC
     !! Wigner-Seitz cell construction
     integer, intent(in), optional :: wignerSeitzReduction
 
@@ -6506,7 +6796,6 @@ contains
   !> Sets up how the density matrix is obtained
   subroutine densityMatrixSource(densityMatrix, electronicSolver, isGpuUsed)
     use dftbp_dftb_densitymatrix, only : TDensityMatrix_init
-    use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
 
     !> Holds real and complex delta density matrices and pointers
     type(TDensityMatrix), intent(out) :: densityMatrix
@@ -6758,9 +7047,12 @@ contains
 
 
   !> Initializes the variables directly related to the user specified geometry.
-  subroutine initGeometry_(input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
+  subroutine initGeometry_(env, input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
-      & recCellVol, errStatus)
+      & recCellVol, transpar, errStatus)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Input variables to use for setput
     type(TInputData), intent(in) :: input
@@ -6810,8 +7102,16 @@ contains
     !> Volume of the reciprocal space unit cell
     real(dp), intent(out) :: recCellVol
 
+    !> Transport calculation parameters
+    type(TTransPar), intent(in) :: transpar
+
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
+
+    real(dp), allocatable :: tmpCoords0(:,:)
+    integer, allocatable :: tmpSpecies0(:), nExtraContAtoms(:)
+    integer :: iCont, nContAts, iStart, iEnd, iStart2, iStructOffSet, iAt
+    real(dp) :: contactVector(3)
 
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
@@ -6836,6 +7136,45 @@ contains
 
     coord0 = input%geom%coords
     species0 = input%geom%species
+
+    if (transpar%ncont > 0) then
+      ! Extend contact regions for dispersion interaction distance, note that this introduces a
+      ! truncation error, so should not be currently used
+      allocate(nExtraContAtoms(transpar%ncont), source=0)
+      do iCont = 1, transpar%ncont
+        nExtraContAtoms(iCont) = transpar%contacts(iCont)%idxrange(2) + 1&
+            & - transpar%contacts(iCont)%idxrange(1)
+      end do
+      allocate(tmpCoords0(3, nAtom + sum(nExtraContAtoms)))
+      allocate(tmpSpecies0(nAtom + sum(nExtraContAtoms)))
+      tmpCoords0(:, :nAtom) = coord0
+      tmpSpecies0(:nAtom) = species0
+      iStructOffSet = nAtom
+      do iCont = 1, transpar%ncont
+        iStart = transpar%contacts(iCont)%idxrange(1)
+        iEnd = transpar%contacts(iCont)%idxrange(2)
+        iStart2 = iStart + (iEnd - iStart + 1) / 2
+        ! Vector pointing into contact, away from device:
+        contactVector(:) = 2.0_dp * (coord0(:,iStart2) - coord0(:,iStart))
+        tmpSpecies0(iStructOffSet+1:iStructOffSet+nExtraContAtoms(iCont)) =&
+            & species0(transpar%contacts(iCont)%idxrange(1) : transpar%contacts(iCont)%idxrange(2))
+        tmpCoords0(:, iStructOffSet+1:iStructOffSet+nExtraContAtoms(iCont)) =&
+            & coord0(:,transpar%contacts(iCont)%idxrange(1):transpar%contacts(iCont)%idxrange(2))
+        do iAt = iStructOffSet+1, iStructOffSet+nExtraContAtoms(iCont)
+          tmpCoords0(:, iAt) = tmpCoords0(:, iAt) + contactVector
+        end do
+        iStructOffSet = iStructOffSet + nExtraContAtoms(iCont)
+      end do
+      block
+        use dftbp_io_formatout, only : writeXYZFormat
+        if (env%tGlobalLead) then
+          call writeXYZFormat("contactedTmp.xyz", tmpCoords0, tmpSpecies0, input%geom%speciesNames)
+        end if
+      end block
+      deallocate(tmpCoords0)
+      deallocate(tmpSpecies0)
+    end if
+
     tCoordsChanged = .true.
 
     tLatticeChanged = .false.
@@ -7078,7 +7417,7 @@ contains
 
   !> Initializes the scc calculator
   subroutine initSccCalculator_(env, orb, ctrl, boundaryCond, coulombInput, shortGammaInput,&
-      & poissonInput, sccCalc)
+      & poissonInput, dipoleCorrInput, sccCalc)
 
     !> Computational environment
     type(TEnvironment), intent(inout) :: env
@@ -7098,8 +7437,11 @@ contains
     !> Short-range gamma input
     type(TShortGammaInput), allocatable, intent(inout) :: shortGammaInput
 
-    !> Poisson solver inout
+    !> Poisson solver input
     type(TPoissonInput), allocatable, intent(inout) :: poissonInput
+
+    !> Dipole correction input
+    type(TDipoleCorrInput), allocatable, intent(inout) :: dipoleCorrInput
 
     !> Self-consistent calculator object
     type(TScc), allocatable, intent(out) :: sccCalc
@@ -7109,6 +7451,7 @@ contains
     call move_alloc(coulombInput, sccInput%coulombInput)
     call move_alloc(shortGammaInput, sccInput%shortGammaInput)
     call move_alloc(poissonInput, sccInput%poissonInput)
+    call move_alloc(dipoleCorrInput, sccInput%dipoleCorrInput)
 
     sccInput%boundaryCond = boundaryCond
     if (boundaryCond == boundaryCondsEnum%helical) then
@@ -7204,7 +7547,7 @@ contains
 
 
   !> Decides how many Cholesky-decompositions should be buffered
-  subroutine getBufferedCholesky_(tRealHS, nLocalKS, nBufferedCholesky)
+  pure function countBufferedCholesky_(tRealHS, nLocalKS) result(nBufferedCholesky)
 
     !> Is this a real valued (in real space) calculation
     logical, intent(in) :: tRealHS
@@ -7213,7 +7556,7 @@ contains
     integer, intent(in) :: nLocalKS
 
     !> Resulting number of Cholesky-factored overlap matrices to be stored
-    integer, intent(out) :: nBufferedCholesky
+    integer :: nBufferedCholesky
 
     if (tRealHS) then
       nBufferedCholesky = 1
@@ -7221,7 +7564,7 @@ contains
       nBufferedCholesky = nLocalKS
     end if
 
-  end subroutine getBufferedCholesky_
+  end function countBufferedCholesky_
 
 
   #:if WITH_TRANSPORT

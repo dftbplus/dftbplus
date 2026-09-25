@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
 #  Copyright (C) 2006 - 2025  DFTB+ developers group                           #

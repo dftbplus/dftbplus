@@ -39,7 +39,7 @@ module test_common_file
 
   type :: TFileDescrFx
     integer :: lineLength = 10
-    character(10) :: dummyContent(2) = [character(10) :: "1st line", "2nd line"]
+    character(10) :: placeholderContent(2) = [character(10) :: "1st line", "2nd line"]
     type(TFileDescr) :: fd
     integer :: ioStat
   end type TFileDescrFx
@@ -369,7 +369,7 @@ contains
     character(*), parameter :: fname = "file_open_r.tmp"
     type(TFileDescrFx) :: fx
 
-    call createTextFile_(fname, fx%dummyContent)
+    call createTextFile_(fname, fx%placeholderContent)
     @:ASSERT(fileExists(fname))
     call openFile(fx%fd, fname, mode="r", ioStat=fx%ioStat)
     @:ASSERT(fx%ioStat == 0 .and. connected_(fname))
@@ -381,7 +381,7 @@ contains
     character(*), parameter :: fname = "file_open_rb.tmp"
     type(TFileDescrFx) :: fx
 
-    call createTextFile_(fname, fx%dummyContent)
+    call createTextFile_(fname, fx%placeholderContent)
     @:ASSERT(fileExists(fname))
     call openFile(fx%fd, fname, mode="rb", ioStat=fx%ioStat)
     @:ASSERT(fx%ioStat == 0 .and. connected_(fname))
@@ -393,7 +393,7 @@ contains
     character(*), parameter :: fname = "file_open_rp.tmp"
     type(TFileDescrFx) :: fx
 
-    call createTextFile_(fname, fx%dummyContent)
+    call createTextFile_(fname, fx%placeholderContent)
     @:ASSERT(fileExists(fname))
     call openFile(fx%fd, fname, mode="r+")
     @:ASSERT(connected_(fname))
@@ -502,9 +502,9 @@ contains
 
   $:TEST("existing", label="clearFile")
     character(*), parameter :: fname = "file_existing.tmp"
-    character(1), parameter :: dummyContent(*) = ["a", "b"]
+    character(1), parameter :: placeholderContent(*) = ["a", "b"]
 
-    call createTextFile_(fname, dummyContent)
+    call createTextFile_(fname, placeholderContent)
     @:ASSERT(fileExists(fname) .and. fileSize_(fname) > 0)
     call clearFile(fname)
     @:ASSERT(fileExists(fname) .and. fileSize_(fname) == 0)

@@ -18,10 +18,10 @@ class Geometry:
     """Atomic geometry representation.
 
     Attributes:
-        specienames: Name of atomtypes which can be found in the geometry.
-        nspecie: Number of species.
-        indexes: For each atom the index of the corresponding specie
-            in specienames.
+        speciesnames: Name of atomtypes which can be found in the geometry.
+        nspecies: Number of species.
+        indexes: For each atom the index of the corresponding species
+            in speciesnames.
         natom: Number of atoms.
         coords: xyz coordinates of the atoms.
         origin: Origin.
@@ -30,12 +30,12 @@ class Geometry:
         relcoords: Relative lattice coordinates (None if non-periodic).
     """
 
-    def __init__(self, specienames, indexes, coords, latvecs=None, origin=None,
+    def __init__(self, speciesnames, indexes, coords, latvecs=None, origin=None,
                  relcoords=False):
         """Initializes a geometry object.
 
         Args:
-            specienames: Names of the species occurring in the geometry.
+            speciesnames: Names of the species occurring in the geometry.
             indexes: Species index for every atom. Shape (natom,)
             coords: Coordinates of the atoms.
             latvecs: Lattice vectors (default: None, non-periodic modell).
@@ -43,8 +43,8 @@ class Geometry:
             relcoords: If set to yes, coordinates are assumed to be relative
                 coordinates specified as multiples of the lattice vectors.
         """
-        self.specienames = list(specienames)
-        self.nspecie = len(self.specienames)
+        self.speciesnames = list(speciesnames)
+        self.nspecies = len(self.speciesnames)
         self.indexes = np.array(indexes)
         self.natom = len(self.indexes)
         self.coords = np.array(coords)
@@ -94,7 +94,7 @@ class Geometry:
             tolerance (float): Maximal allowed deviation in floating point
                 numbers (e.g. coordinates).
         '''
-        if self.specienames != other.specienames:
+        if self.speciesnames != other.speciesnames:
             return False
         if np.any(self.indexes != other.indexes):
             return False

@@ -9,14 +9,14 @@
 
 !> Module to impose constraints on the electronic ground state.
 module dftbp_dftb_elecconstraints
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, hugeIterations
   use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
   use dftbp_extlibs_xmlf90, only : char, destroyNodeList, fnode, fnodeList, getItem1, getLength,&
       & string
   use dftbp_geoopt_package, only : createOptimizer, TOptimizer, TOptimizerInput
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&
       & getSelectedAtomIndices
-  use dftbp_io_hsdutils2, only : renameChildren
+  use dftbp_io_hsdutils2, only : localiseName
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_typegeometry, only : TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal2
@@ -177,9 +177,9 @@ contains
     !> Is this a calculation with Pauli wavefunctions
     logical, intent(in) :: is2Component
 
-    type(fnode), pointer :: constrContainer, dummyNode, child1
+    type(fnode), pointer :: constrContainer, placeholderNode, child1
 
-    call renameChildren(node, "Optimizer", "Optimiser")
+    call localiseName(node, "Optimizer", "Optimiser")
     call getChildValue(node, "Optimiser", child1, "FIRE")
     call readOptimizerInput(child1, input%optimiser)
 
@@ -187,8 +187,8 @@ contains
     call getChildValue(node, "MaxConstrIterations", input%nConstrIter, 100)
     call getChildValue(node, "ConvergentConstrOnly", input%isConvRequired, .true.)
 
-    call getChildValue(node, "Constraints", dummyNode, "", child=constrContainer,&
-        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    call getChildValue(node, "Constraints", placeholderNode, "", child=constrContainer,&
+        & allowEmptyValue=.true., dontMarkProcessed=.true., list=.true.)
     call readMullikenConstraintInputs(constrContainer, geo, isSpinPol, is2Component,&
         & input%mullikenConstrs)
 
@@ -307,7 +307,7 @@ contains
     call createOptimizer(input%optimiser, this%nConstr, this%optimizer)
 
     if (input%nConstrIter == -1) then
-      this%nConstrIter = huge(1)
+      this%nConstrIter = hugeIterations
     else
       this%nConstrIter = input%nConstrIter
     end if

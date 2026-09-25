@@ -16,6 +16,7 @@ module dftbp_dftb_populations
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only : unpackHS
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
@@ -23,7 +24,7 @@ module dftbp_dftb_populations
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, NB_, scalafx_addg2l, scalafx_addl2g,&
       & scalafx_getdescriptor, scalafx_indxl2g
-  use dftbp_math_bisect, only : bisection
+  use dftbp_math_binarysearch, only : search_int
 #:endif
   implicit none
 
@@ -39,7 +40,8 @@ module dftbp_dftb_populations
 #:if WITH_SCALAPACK
   public :: denseMullikenRealBlacs
   public :: denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
-      & denseSubtractDensityOfAtomsRealPeriodicBlacs
+      & denseSubtractDensityOfAtomsRealPeriodicBlacs,&
+      & denseSubtractDensityOfAtomsCmplxNonperiodicBlacs
 #:endif
 
 
@@ -493,7 +495,7 @@ contains
         iGlob = scalafx_indxl2g(iLocCol, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
             & env%blacs%orbitalGrid%ncol)
         ! search atom index that corresponds to the global matrix index
-        call bisection(iAt, denseDesc%iAtomStart, iGlob)
+        call search_int(iAt, denseDesc%iAtomStart, iGlob)
         qq(iGlob - denseDesc%iAtomStart(iAt) + 1, iAt, iS)&
             & = sum(overSqr(:, iLocCol) * rhoSqr(:, iLocCol, iKS))
       end do
@@ -750,7 +752,7 @@ contains
     !> Atom positions in the row/column of square matrices
     integer, intent(in) :: iSquare(:)
 
-    !> Spin polarized density matrix to substract q0 from
+    !> Spin polarized density matrix to subtract q0 from
     complex(dp), intent(inout) :: rho(:,:,:)
 
     integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
@@ -833,7 +835,7 @@ contains
 
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
-      ! Get full complex, square, k-space overlap and store for later q0 substraction
+      ! Get full complex, square, k-space overlap and store for later q0 subtraction
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(SSqrCplx, ints%overlap, kPoint(:, iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -913,7 +915,7 @@ contains
     scale = populationScalingFactor(nSpin)
 
     do iK = 1, size(kPoint, dim=2)
-      ! Get full complex, square, k-space overlap and store for later q0 substraction
+      ! Get full complex, square, k-space overlap and store for later q0 subtraction
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(SSqrCplx, ints%overlap, kPoint(:, iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -1043,6 +1045,48 @@ contains
     end do
 
   end subroutine denseSubtractDensityOfAtomsRealNonperiodicBlacs
+
+
+  !> Subtracts superposition of atomic densities from distributed, dense, square, complex-valued
+  !! density matrix.
+  !!
+  !! For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  subroutine denseSubtractDensityOfAtomsCmplxNonperiodicBlacs(env, parallelKS, q0, denseDesc, rho)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> The k-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Spin polarized (lower triangular) matrix
+    complex(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iKS, iAt, iOrbStart, nOrb, iOrb
+    complex(dp) :: tmp(size(q0, dim=1), size(q0, dim=1))
+
+    nAtom = size(q0, dim=2)
+
+    do iKS = 1, parallelKS%nLocalKS
+      do iAt = 1, nAtom
+        iOrbStart = denseDesc%iAtomStart(iAt)
+        nOrb = denseDesc%iAtomStart(iAt + 1) - iOrbStart
+        tmp(:,:) = (0.0_dp, 0.0_dp)
+        do iOrb = 1, nOrb
+          tmp(iOrb, iOrb) = -q0(iOrb, iAt, 1)
+        end do
+        call scalafx_addl2g(env%blacs%orbitalGrid, tmp(1:nOrb, 1:nOrb), denseDesc%blacsOrbSqr,&
+            & iOrbStart, iOrbStart, rho(:,:,iKS))
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtomsCmplxNonperiodicBlacs
 
 
   !> Subtracts superposition of atomic densities from distributed, dense, square, real-valued
@@ -1206,19 +1250,15 @@ contains
     allocate(tmpD(nAOs,nAOs))
 
     ! Symmetrize overlap
-    tmpS(:,:) = overSqr + transpose(overSqr)
-    do ii = 1, nAOs
-      tmpS(ii,ii) = overSqr(ii,ii)
-    end do
+    tmpS(:,:) = overSqr
+    call adjointLowerTriangle(tmpS)
 
     qq(:,:,:,:) = 0.0_dp
     do iSpin = 1, nSpin
 
       ! Symmetrize density matrix for spin channel
-      tmpD(:,:) = rhoSqr(:,:,iSpin) + transpose(rhoSqr(:,:,iSpin))
-      do ii = 1, nAOs
-        tmpD(ii,ii) = rhoSqr(ii,ii,iSpin)
-      end do
+      tmpD(:,:) = rhoSqr(:,:,iSpin)
+      call adjointLowerTriangle(tmpD)
 
       do iAt = 1, nAtom
         ii = iSquare(iAt)

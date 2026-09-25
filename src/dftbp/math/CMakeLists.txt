@@ -2,9 +2,10 @@ set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
   ${curdir}/angmomentum.F90
-  ${curdir}/bisect.F90
+  ${curdir}/binarysearch.F90
   ${curdir}/blasroutines.F90
   ${curdir}/contactsymm.F90
+  ${curdir}/counting.F90
   ${curdir}/degeneracy.F90
   ${curdir}/duplicate.F90
   ${curdir}/eigensolver.F90
@@ -22,6 +23,7 @@ set(sources-fpp
   ${curdir}/simplealgebra.F90
   ${curdir}/sorting.F90
   ${curdir}/sparseblas.F90
+  ${curdir}/summation.F90
   ${curdir}/wignerseitz.F90)
 
 

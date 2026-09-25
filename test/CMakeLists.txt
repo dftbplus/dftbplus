@@ -1,3 +1,6 @@
+if (TEST_DOWNLOAD_DATA)
+  dftbp_download_test_data()
+endif ()
 add_subdirectory(src/dftbp)
 add_subdirectory(app)
 add_subdirectory(tools/dptools)

@@ -53,6 +53,8 @@ module dftbp_dftb_thirdorder
     real(dp), allocatable :: UU(:,:)
     real(dp), allocatable :: dUdQ(:,:)
     real(dp), allocatable :: shift1(:,:), shift2(:,:), shift3(:)
+    real(dp), allocatable :: gamma3abDeriv(:,:,:,:), gamma3baDeriv(:,:,:,:)
+    real(dp), allocatable :: shift1Deriv(:,:), shift2Deriv(:,:), shift3Deriv(:)
     real(dp), allocatable :: chargesPerAtom(:)
     real(dp), allocatable :: chargesPerShell(:,:)
     real(dp), allocatable :: cutoffs(:,:)
@@ -64,12 +66,17 @@ module dftbp_dftb_thirdorder
   contains
     procedure :: getCutoff
     procedure :: updateCoords
+    procedure :: updateCoordsCP
     procedure :: updateCharges
+    procedure :: updateChargesCP
     procedure :: getShifts
     procedure :: getdShiftdQ
+    procedure :: getShiftNonvariationalDeriv
     procedure :: getEnergyPerAtom
     procedure :: getEnergyPerAtomXlbomd
     procedure :: addGradientDc
+    procedure :: getGamma3
+    procedure :: getGamma3Deriv
     procedure :: addGradientDcXlbomd
     procedure :: addStressDc
   end type TThirdOrder
@@ -193,6 +200,69 @@ contains
   end subroutine updateCoords
 
 
+  !> Updates derivatives of gamma3 w.r.t atom coordinates
+  subroutine updateCoordsCP(this, species, coords, iAt, iCart)
+
+    !> Instance.
+    class(TThirdOrder), intent(inout) :: this
+
+    !> Species for all atoms, shape: [nAllAtom].
+    integer, intent(in) :: species(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Atom to differentiate with respect to
+    integer, intent(in) :: iAt
+
+    !> Cartesian component to differentiate to (1==x, 2==y, 3==z)
+    integer, intent(in) :: iCart
+
+    integer :: iAt1, iAt2, iSp1, iSp2, iSh1, iSh2
+    logical :: lDamping
+    real(dp) :: dist, rab(3)
+
+    if (.not. allocated(this%gamma3abDeriv)) then
+      allocate(this%gamma3abDeriv(this%mShells, this%mShells, this%nAtoms, this%nAtoms))
+      allocate(this%gamma3baDeriv(this%mShells, this%mShells, this%nAtoms, this%nAtoms))
+    end if
+    this%gamma3abDeriv(:,:,:,:) = 0.0_dp
+    this%gamma3baDeriv(:,:,:,:) = 0.0_dp
+
+    do iAt1 = 1, this%nAtoms
+      iSp1 = species(iAt1)
+      do iAt2 = 1, this%nAtoms
+        iSp2 = species(iAt2)
+
+        ! derivative vanishes if neither iAt1 nor iAt2 is iAt
+        if (iAt1 /= iAt .and. iAt2 /= iAt) then
+          cycle
+        end if
+
+        ! diagonal elements vanish
+        if (iAt1 == iAt2) then
+          cycle
+        end if
+
+        rab = coords(:, iAt1) - coords(:, iAt2)
+        dist = sqrt(sum(rab(:)**2))
+        rab(:) = rab / dist
+        lDamping = this%damped(iSp1) .or. this%damped(iSp2)
+        do iSh1 = 1, this%nShells(iSp1)
+          do iSh2 = 1, this%nShells(iSp2)
+            this%gamma3abDeriv(iSh2, iSh1, iAt2, iAt1) = rab(iCart) * gamma3pR(this%UU(iSh1, iSp1),&
+                & this%UU(iSh2, iSp2), this%dUdQ(iSh1, iSp1), dist, lDamping, this%dampExp)
+            this%gamma3baDeriv(iSh2, iSh1, iAt2, iAt1) = rab(iCart) * gamma3pR(this%UU(iSh2, iSp2),&
+                & this%UU(iSh1, iSp1), this%dUdQ(iSh2, iSp2), dist, lDamping, this%dampExp)
+          end do
+        end do
+
+      end do
+    end do
+
+  end subroutine updateCoordsCP
+
+
   !> Updates with changed charges for the instance.
   subroutine updateCharges(this, species, neighList, qq, q0, img2CentCell, orb)
 
@@ -277,6 +347,67 @@ contains
   end subroutine updateCharges
 
 
+  !> Updates non-variational contributions to the derivative of shift w.r.t. atom cordinate
+  subroutine updateChargesCP(this, species)
+
+    !> Instance
+    class(TThirdOrder), intent(inout) :: this
+
+    !> Species, shape: [nAtom]
+    integer, intent(in) :: species(:)
+
+    integer :: iAt1, iAt2, iSp1, iSp2, iSh1, iSh2
+
+    @:ASSERT(size(species) == this%nAtoms)
+
+    if (.not. allocated(this%shift1Deriv)) then
+      allocate(this%shift1Deriv(this%mShells, this%nAtoms))
+      allocate(this%shift2Deriv(this%mShells, this%nAtoms))
+      allocate(this%shift3Deriv(this%nAtoms))
+    end if
+    this%shift1Deriv(:,:) = 0.0_dp
+    this%shift2Deriv(:,:) = 0.0_dp
+    this%shift3Deriv(:) = 0.0_dp
+
+    do iAt1 = 1, this%nAtoms
+      iSp1 = species(iAt1)
+      do iAt2 = 1, this%nAtoms
+        iSp2 = species(iAt2)
+        ! diagonal elements of gamma3 derivatives vanish
+        if (iAt2 == iAt1) then
+          cycle
+        end if
+        do iSh1 = 1, this%nShells(iSp1)
+          do iSh2 = 1, this%nShells(iSp2)
+            this%shift1Deriv(iSh1, iAt1) = this%shift1Deriv(iSh1, iAt1)&
+                & + this%gamma3abDeriv(iSh2, iSh1, iAt2, iAt1) * this%chargesPerShell(iSh2, iAt2)&
+                & * this%chargesPerAtom(iAt1)
+            this%shift2Deriv(iSh1, iAt1) = this%shift2Deriv(iSh1, iAt1)&
+                & + this%gamma3baDeriv(iSh2, iSh1, iAt2, iAt1) * this%chargesPerShell(iSh2, iAt2)&
+                & * this%chargesPerAtom(iAt2)
+            this%shift3Deriv(iAt1) = this%shift3Deriv(iAt1)&
+                & + this%gamma3abDeriv(iSh2, iSh1, iAt2, iAt1) * this%chargesPerShell(iSh2, iAt2)&
+                & * this%chargesPerShell(iSh1, iAt1)
+            this%shift1Deriv(iSh2, iAt2) = this%shift1Deriv(iSh2, iAt2)&
+                & - this%gamma3baDeriv(iSh2, iSh1, iAt2, iAt1) * this%chargesPerShell(iSh1, iAt1)&
+                & * this%chargesPerAtom(iAt2)
+            this%shift2Deriv(iSh2, iAt2) = this%shift2Deriv(iSh2, iAt2)&
+                & - this%gamma3abDeriv(iSh2, iSh1, iAt2, iAt1) * this%chargesPerShell(iSh1, iAt1)&
+                & * this%chargesPerAtom(iAt1)
+            this%shift3Deriv(iAt2) = this%shift3Deriv(iAt2)&
+                & - this%gamma3baDeriv(iSh2, iSh1, iAt2, iAt1) * this%chargesPerShell(iSh1, iAt1)&
+                & * this%chargesPerShell(iSh2, iAt2)
+          end do
+        end do
+      end do
+    end do
+    this%shift1Deriv(:,:) = 1.0_dp / 3.0_dp * this%shift1Deriv
+    this%shift2Deriv(:,:) = 1.0_dp / 3.0_dp * this%shift2Deriv
+    this%shift3Deriv(:) = 1.0_dp / 3.0_dp * this%shift3Deriv
+
+  end subroutine updateChargesCP
+
+
   !> Returns shifts per atom.
   subroutine getShifts(this, shiftPerAtom, shiftPerShell)
 
@@ -335,20 +466,23 @@ contains
     real(dp) :: dShift1(this%mShells, this%nAtoms), dShift2(this%mShells, this%nAtoms)
     real(dp) :: dShift3(this%nAtoms)
     real(dp) :: dChargesPerShell(this%mShells, this%nAtoms), dChargesPerAtom(this%nAtoms)
-    real(dp) :: tmp(orb%mShell, this%nAtoms)
+    real(dp), allocatable :: tmp(:,:)
+
+    real(dp), parameter :: onethird = 1.0_dp / 3.0_dp
 
     ! assume that the summed charges for the system are correct, i.e. this%chargesPerShell has been
     ! updated before this routine is called
 
     dChargesPerAtom(:) = 0.0_dp
     dChargesPerShell(:,:) = 0.0_dp
-    tmp(:,:) = 0.0_dp
     if (this%shellResolved) then
       call getSummedCharges(species, orb, dqq, dQAtom=dChargesPerAtom, dQShell=dChargesPerShell)
     else
       ! First (only) component of chargesPerShell contains atomic charge
+      allocate(tmp(orb%mShell, this%nAtoms), source=0.0_dp)
       call getSummedCharges(species, orb, dqq, dQAtom=dChargesPerAtom, dQShell=tmp)
       dChargesPerShell(1,:) = sum(tmp, dim=1)
+      deallocate(tmp)
     end if
 
     dShift1(:,:) = 0.0_dp
@@ -391,9 +525,9 @@ contains
       end do
     end do
 
-    dShift1(:,:) = 1.0_dp / 3.0_dp * dShift1
-    dShift2(:,:) = 1.0_dp / 3.0_dp * dShift2
-    dShift3(:) = 1.0_dp / 3.0_dp * dShift3
+    dShift1(:,:) = onethird * dShift1
+    dShift2(:,:) = onethird * dShift2
+    dShift3(:) = onethird * dShift3
 
     if (this%shellResolved) then
       dShiftPerAtom(:) = dShift3
@@ -404,6 +538,32 @@ contains
     end if
 
   end subroutine getdShiftdQ
+
+
+  !> Returns shifts per atom.
+  subroutine getShiftNonvariationalDeriv(this, shiftDerivPerAtom, shiftDerivPerShell)
+
+    !> Instance.
+    class(TThirdOrder), intent(inout) :: this
+
+    !> Shift derivative per atom.
+    real(dp), intent(out) :: shiftDerivPerAtom(:)
+
+    !> Shift derivative per shell.
+    real(dp), intent(out) :: shiftDerivPerShell(:,:)
+
+    @:ASSERT(size(shiftDerivPerAtom) == this%nAtoms)
+    @:ASSERT(size(shiftDerivPerShell, dim=1) == this%mShellsReal)
+
+    if (this%shellResolved) then
+      shiftDerivPerAtom(:) = this%shift3Deriv
+      shiftDerivPerShell(:,:) = this%shift1Deriv + this%shift2Deriv
+    else
+      shiftDerivPerAtom(:) = this%shift1Deriv(1,:) + this%shift2Deriv(1,:) + this%shift3Deriv
+      shiftDerivPerShell(:,:) = 0.0_dp
+    end if
+
+  end subroutine getShiftNonvariationalDeriv
 
 
   !> Returns energy per atom.
@@ -519,6 +679,116 @@ contains
     end do
 
   end subroutine addGradientDc
+
+
+  !> For CP-DFTB: obtain the Gamma matrix.
+  !! The asymmetric matrix will be output as two separate symmetric matrices
+  subroutine getGamma3(this, species, coords, gamma3ab, gamma3ba)
+
+    !> Instance.
+    class(TThirdOrder), intent(inout) :: this
+
+    !> Species for all atoms, shape: [nAllAtom].
+    integer, intent(in) :: species(:)
+
+    !> Coordinate of each atom, shape: [3, nAllAtom]
+    real(dp), intent(in) :: coords(:,:)
+
+    !> d gamma_AB / d Q_A, shape: [nAllAtom, nAllAtom]
+    real(dp), intent(out) :: gamma3ab(:,:)
+
+    !> d gamma_AB / d Q_B, shape: [nAllAtom, nAllAtom]
+    real(dp), intent(out) :: gamma3ba(:,:)
+
+    integer :: iAt1, iAt2, iSp1, iSp2
+    logical :: damping
+    real(dp) :: rab(3), dist
+
+    @:ASSERT(size(coords, dim=1) == 3)
+    @:ASSERT(size(coords, dim=2) == this%nAtoms)
+    @:ASSERT(size(gamma3ab, dim=2) == this%nAtoms)
+    @:ASSERT(size(gamma3ab, dim=2) == this%nAtoms)
+    @:ASSERT(size(gamma3ba, dim=1) == this%nAtoms)
+    @:ASSERT(size(gamma3ba, dim=2) == this%nAtoms)
+
+    gamma3ab(:,:) = 0.0_dp
+    gamma3ba(:,:) = 0.0_dp
+
+    do iAt1 = 1, this%nAtoms
+      iSp1 = species(iAt1)
+      do iAt2 = 1, this%nAtoms
+        iSp2 = species(iAt2)
+        rab = coords(:, iAt1) - coords(:, iAt2)
+        dist = sqrt(sum(rab(:)**2))
+        damping = this%damped(iSp1) .or. this%damped(iSp2)
+        gamma3ab(iAt1, iAt2) = gamma3(this%UU(1, iSp1), this%UU(1, iSp2), this%dUdQ(1, iSp1),&
+            & dist, damping, this%dampExp)
+        gamma3ba(iAt1, iAt2) = gamma3(this%UU(1, iSp2), this%UU(1, iSp1), this%dUdQ(1, iSp2),&
+            & dist, damping, this%dampExp)
+      end do
+    end do
+
+  end subroutine getGamma3
+
+
+  !> Return the derivatives of matrices Gamma3ab and Gamma3ba
+  subroutine getGamma3Deriv(this, species, coords, iAt1, iCart, deriv)
+
+    !> Instance.
+    class(TThirdOrder), intent(inout) :: this
+
+    !> Specie for each atom.
+    integer, intent(in) :: species(:)
+
+    !> Coordinate of each atom.
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Derivative w.r.t. coordinate of this atom
+    integer, intent(in) :: iAt1
+
+    !> Derivative w.r.t. this cartesian coordinate (1==x, 2==y, 3==z)
+    integer, intent(in) :: iCart
+
+    !> Derivative of Gamma_AB on exit
+    real(dp), intent(out) :: deriv(:,:)
+
+    integer :: iAt2, iSp1, iSp2, iSh1, iSh2
+    real(dp) :: rab(3), tmpAB, tmpBA, dist
+    logical :: lDamping
+
+    deriv(:,:) = 0.0_dp
+
+    ! element is only non-zero if differentiating w.r.t. iAt1 or iAt2
+    iSp1 = species(iAt1)
+    do iAt2 = 1, this%nAtoms
+      iSp2 = species(iAt2)
+
+      ! diagonal elements vanish
+      if (iAt1 == iAt2) then
+        cycle
+      end if
+
+      rab(:) = coords(:, iAt1) - coords(:, iAt2)
+      dist = sqrt(sum(rab(:)**2))
+      lDamping = this%damped(iSp1) .or. this%damped(iSp2)
+
+      tmpAB = 0.0_dp
+      tmpBA = 0.0_dp
+      do iSh1 = 1, this%nShells(iSp1)
+        do iSh2 = 1, this%nShells(iSp2)
+          tmpAB = tmpAB + gamma3pR(this%UU(iSh1, iSp1), this%UU(iSh2, iSp2),&
+              & this%dUdQ(iSh1, iSp1), dist, lDamping, this%dampExp)
+          tmpBA = tmpBA + gamma3pR(this%UU(iSh2, iSp2), this%UU(iSh1, iSp1),&
+              & this%dUdQ(iSh2, iSp2), dist, lDamping, this%dampExp)
+        end do
+      end do
+
+      deriv(iAt1, iAt2) = tmpAB / (3.0_dp * dist) * rab(iCart)
+      deriv(iAt2, iAt1) = tmpBA / (3.0_dp * dist) * rab(iCart)
+
+    end do
+
+  end subroutine getGamma3Deriv
 
 
   !> Add gradient component resulting from the derivative of the potential for the linearized

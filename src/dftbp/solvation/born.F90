@@ -399,8 +399,8 @@ contains
         & neighList%neighDist2, species0, coords, this%param%vdwRad, &
         & this%rho, this%param%bornOffset, this%param%bornScale, this%param%obc, &
         & this%bornRad, this%dbrdr)
-    call getBornMatrixCluster(env, this%nAtom, coords, this%param%kernel, &
-        & this%param%keps, this%bornRad, this%bornMat)
+    call getBornMatrixCluster(env, this%nAtom, coords, this%param%kernel, this%param%keps,&
+        & this%bornRad, this%bornMat)
 
     ! Analytical linearized Poisson-Boltzmann contribution for charged systems
     if (this%param%alpbet > 0.0_dp) then
@@ -847,6 +847,7 @@ contains
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
+        if (iAt2f > iAt1) cycle
         iSp2 = species(iAt2f)
         vec(:) = coords(:, iAt1) - coords(:, iAt2)
         dist = sqrt(neighDist2(iNeigh, iAt1))
@@ -1071,8 +1072,7 @@ contains
 
 
   !> compute Born matrix
-  subroutine getBornMatrixCluster(env, nAtom, coords0, kernel, keps, bornRad, &
-      & bornMat)
+  subroutine getBornMatrixCluster(env, nAtom, coords0, kernel, keps, bornRad, bornMat)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1120,9 +1120,8 @@ contains
   end subroutine getBornMatrixCluster
 
 
-  !> compute Born matrix using Still interaction kernel
-  subroutine getBornMatrixStillCluster(iAtFirst, iAtLast, bornRad, coords0, keps, &
-      & bornMat)
+  !> Compute Born matrix using Still interaction kernel
+  subroutine getBornMatrixStillCluster(iAtFirst, iAtLast, bornRad, coords0, keps, bornMat)
 
     !> Number of atoms
     integer, intent(in) :: iAtFirst
@@ -1151,7 +1150,6 @@ contains
     do iAt1 = iAtFirst, iAtLast
       do iAt2 = 1, iAt1-1
         dist2 = sum((coords0(:, iAt1) - coords0(:, iAt2))**2)
-
         aa = bornRad(iAt1)*bornRad(iAt2)
         dd = 0.25_dp*dist2/aa
         expd = exp(-dd)
