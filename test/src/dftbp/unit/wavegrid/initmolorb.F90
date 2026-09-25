@@ -12,7 +12,7 @@ module test_wavegrid_initmolorb
     & TSlaterOrbital_init, TRadialTableOrbital_initFromOrbital
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds, TBoundaryConds_init
+  use dftbp_geometry_boundarycond, only : boundaryCondsEnum, TBoundaryConds, TBoundaryConds_init
   use dftbp_type_typegeometry, only : TGeometry
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none

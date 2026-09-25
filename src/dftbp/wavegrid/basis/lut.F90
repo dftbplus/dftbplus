@@ -1,4 +1,4 @@
-
+!--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
 !  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
@@ -77,7 +77,7 @@ contains
     real(dp), intent(in), optional :: newCutoff
 
     integer :: iGrid
-    real(dp) :: r, cutoff, norm
+    real(dp) :: r, cutoff
 
     @:ASSERT(resolution > 0.0_dp)
 
@@ -90,7 +90,7 @@ contains
 
     ! Set parameters
     this%angMom = source%angMom
-    this%cutoffSq = source%cutoffSq
+    this%cutoffSq = cutoff**2
     this%gridDist = resolution
     this%invLutStep = 1.0_dp / resolution
     

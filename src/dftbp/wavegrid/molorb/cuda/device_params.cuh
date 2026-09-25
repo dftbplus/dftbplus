@@ -111,6 +111,7 @@ class DeviceBuffer {
  * The radial Functions are stored row-wise.
  * We assume identical radial grids for all Orbitals.
  * GPUs have dedicated hardware for texture access & interpolation.
+ * Radial evaluation uses single-precision texture values and interpolation.
  */
 class GpuLutTexture {
    public:
@@ -344,4 +345,3 @@ struct DeviceKernelParams {
             }
     }
 };
-

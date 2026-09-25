@@ -9,7 +9,7 @@
 
 !> Contains <evaluateCuda>, an Interface to call the C bound Cuda implementation.
 module dftbp_wavegrid_molorb_offloaded
-  use, intrinsic :: iso_c_binding, only : c_bool, c_double, c_int, c_loc, c_ptr
+  use, intrinsic :: iso_c_binding, only : c_bool, c_double, c_int, c_loc, c_null_ptr, c_ptr
   use dftbp_wavegrid_molorb_types, only : TCalculationContext, TPeriodicParams, TSystemParams
   use dftbp_wavegrid_basis, only : TOrbitalWrapper, TRadialTableOrbital, TRadialTableOrbital_initFromOrbital, &
     & TOrbitalWrapper_getMaxCutoff
@@ -120,6 +120,7 @@ contains
     type(TPeriodicParamsC) :: periodic_p
     type(TOrbitalC) :: basis_p
     type(TCalculationParamsC) :: calc_p
+    complex(dp), allocatable, target :: phasesByState(:,:)
 
     call prepareBasisSet(basis, orbitals)
 
@@ -150,7 +151,12 @@ contains
     periodic_p%latVecs = c_loc(periodic%latVecs)
     periodic_p%recVecs2pi = c_loc(periodic%recVecs2pi)
     periodic_p%kIndexes = c_loc(kIndexes)
-    periodic_p%phases = c_loc(phases)
+    periodic_p%phases = c_null_ptr
+    if (.not. ctx%isRealInput) then
+      ! CUDA indexes phases by eigenstate, rather than by k-point.
+      phasesByState = phases(:, kIndexes)
+      periodic_p%phases = c_loc(phasesByState)
+    end if
     
     ! Basis set
     basis_p%nOrbitals = basis%nOrbitals

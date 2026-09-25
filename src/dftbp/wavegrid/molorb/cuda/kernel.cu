@@ -5,7 +5,9 @@
  *  See the LICENSE file for terms of usage and distribution.                                      *
  *-------------------------------------------------------------------------------------------------*/
 #include <cuda_runtime.h>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 #include <thrust/complex.h>
 
 #include <cstdio>
@@ -238,12 +240,19 @@ extern "C" void evaluate_on_device_c(const GridParams* grid, const SystemParams*
             printf("Running on GPU 0 only.\n");
         }
 #endif
+        // Do not assign GPUs empty Z-slice ranges.
+        numGpus = std::min(numGpus, grid->nPointsZ);
         elapsedTime_ms timings, threadTimings;
         // Use OMP to split across available GPUs
         // This works irrespective of the number of threads set in OMP_NUM_THREADS.
         #pragma omp parallel num_threads(numGpus)
         {
+#ifdef _OPENMP
             int deviceId = omp_get_thread_num();
+#else
+            int deviceId = 0;
+#endif
+            CHECK_CUDA(cudaSetDevice(deviceId));
             GpuLaunchConfig config(deviceId, numGpus, grid, calc);
 
             if(DEBUG) {
@@ -270,6 +279,5 @@ extern "C" void evaluate_on_device_c(const GridParams* grid, const SystemParams*
         exit(EXIT_FAILURE);
     }
 }
-
 
 

@@ -50,7 +50,7 @@ program waveplot
 
   !> Auxiliary variables
   integer :: i1, ioStat, nEig, iEig, iLevel, iKPoint, iSpin
-  logical :: isFinished, doPlotLevel, hasIoError, doRequireIndividual, doRepeatBox, doNeedCharge
+  logical :: isFinished, doPlotLevel, hasIoError, doRepeatBox, doNeedCharge
 
   call initGlobalEnv()
   call TEnvironment_init(env)
@@ -105,19 +105,14 @@ program waveplot
     call fillPlottedRegion(wp)
   end if
  
-  doRequireIndividual = wp%opt%doPlotChrgDiff &
-                   .or. wp%opt%doPlotReal &
-                   .or. wp%opt%doPlotImag &
-                   .or. wp%opt%doPlotTotSpin
-
   ! Wavegrid supports fast inplace accumulation for total charge.
   ! This avoids having to store all states in memory and can offer a
   ! significant speedup for large systems.
-  if (wp%opt%doCalcTotChrg .and. .not. doRequireIndividual) then
+  if (wp%opt%doCalcTotChrg .and. .not. wp%opt%doRequireIndividual) then
       call calcTotChrgInplace(wp, totChrg)
   end if
 
-  if (doRequireIndividual) then
+  if (wp%opt%doRequireIndividual) then
     ! Calculate the molecular orbitals and write them to the disk
     isFinished = .false.
     lpStates: do while (.not. isFinished)
@@ -293,7 +288,7 @@ contains
 
     allocate(totChrg4d(wp%opt%nPoints(1), wp%opt%nPoints(2), wp%opt%nPoints(3), 1), source=0.0_dp)
     ! Get occupation by state
-    nEig = wp%loc%grid%nCached
+    nEig = wp%loc%grid%nGrid
     call wp%loc%grid%loadEigenvecs(nEig)
     allocate(eigCoeffs(nEig))
 

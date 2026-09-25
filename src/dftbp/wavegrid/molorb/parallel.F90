@@ -11,6 +11,7 @@ module dftbp_wavegrid_molorb_parallel
   use dftbp_wavegrid_molorb_types, only : TCalculationContext, TPeriodicParams, TSystemParams
   use dftbp_wavegrid_basis, only: TOrbitalWrapper, realTessY
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
 #:if WITH_CUDA
   use dftbp_wavegrid_molorb_offloaded, only : evaluateCuda
@@ -74,7 +75,7 @@ contains
     ! Dispatch to CPU / GPU implementation
     if (ctx%runOnGPU) then
       #:if WITH_CUDA
-        print *, "Wavegrid: running on GPU using CUDA"
+        if (ctx%beVerbose) write(stdOut, "(A)") "Wavegrid: running on GPU using CUDA"
         call evaluateCuda(system, orbitals, periodic, kIndexes, phases, ctx, &
             & coeffVecsReal, coeffVecsCmpl, valueReal, valueCmpl)
       #:else
@@ -82,9 +83,9 @@ contains
       #:endif
     else ! CPU implementation
       #:if WITH_OMP
-        print *, "Wavegrid: running OMP parallel on CPU"
+        if (ctx%beVerbose) write(stdOut, "(A)") "Wavegrid: running OMP parallel on CPU"
       #:else
-        print *, "Wavegrid: missing OMP, running serially on CPU"
+        if (ctx%beVerbose) write(stdOut, "(A)") "Wavegrid: missing OMP, running serially on CPU"
       #:endif
       call evaluateOmp(system, orbitals, periodic, kIndexes, phases, ctx, &
             & coeffVecsReal, coeffVecsCmpl, valueReal, valueCmpl)

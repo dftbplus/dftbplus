@@ -86,6 +86,7 @@ The following properties can be specified:
   \kw{FoldAtomsToUnitCell} & l & \textrm{periodic system} & No & \\
   \kw{FillBoxWithAtoms} & l & & No & \\
   \kw{NrOfCachedGrids} & i & & -1 &  \\
+  \kw{UseGpu} & l & & No & \\
   \kw{Verbose} & l & & No &  \\
   \kw{RepeatBox} & 3i & & \{1 1 1\} & \\
   \kw{ShiftGrid} & l & & Yes & \\
@@ -211,6 +212,11 @@ Example:
 
 \item[\is{Verbose}] If true, some extra messages are printed out
   during the calculation.
+
+\item[\is{UseGpu}] If true, use CUDA GPU parallelisation.
+  The calculation uses single-precision texture interpolation.
+  Requires a compatible GPU and a \verb|WITH_CUDA=TRUE| build.
+  This options is requires the usage of at most one MPI process.
 
 \item[\is{BinaryAccessTypes}] Sets the file access type for binary I/O. See the
   keyword description in Sec.~\ref{sec:dftbp.Options.BinaryAccessTypes} on page
@@ -403,6 +409,7 @@ the name of that type:
 For every orbital there is an orbital block which specifies the radial
 wavefunction. Thereby the following properties must be used:
 \begin{ptable}
+  \kw{Type} & s & & "TSlaterOrbital" & \\
   \kw{AngularMomentum} & i & & - & \\
   \kw{Occupation} & r & & - &  \\
   \kw{Cutoff} & r& & - & \\
@@ -411,6 +418,9 @@ wavefunction. Thereby the following properties must be used:
 \end{ptable}
 
 \begin{description}
+\item[\is{Type}] Radial orbital type. Currently only \is{TSlaterOrbital} is
+  supported.
+
 \item[\is{AngularMomentum}] Angular momentum of the current orbital. ($s$ -- 0,
   $p$ -- 1, $d$ -- 2, $f$ -- 3)
 

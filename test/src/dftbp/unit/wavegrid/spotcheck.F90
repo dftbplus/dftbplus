@@ -291,14 +291,14 @@ contains
     ! 2 randomly chosen points per state.
     ! [random.randrange(1,101) for _ in "123"] 
     type(TSpotCheckComplex) :: spotChecks(8) = [ &
-        TSpotCheckComplex([31, 82, 52, 1], (0.4618562431412820E-02_dp, 0.5805855442516971E-04_dp)), &
-        TSpotCheckComplex([93, 19, 63, 1], (0.8330079947653005E-04_dp, 0.8753533677015034E-05_dp)), &
-        TSpotCheckComplex([80, 82, 83, 2], (0.1222651639518469E-02_dp, 0.8048672887188940E-04_dp)), &
-        TSpotCheckComplex([32, 28, 73, 2], (0.1690763857502260E-01_dp, 0.4646391064170055E-02_dp)), &
-        TSpotCheckComplex([68, 17, 95, 3], (0.2091620118572572E-02_dp, 0.2596145058129883E-02_dp)), &
-        TSpotCheckComplex([39, 88, 09, 3], (0.2671119431633243E-02_dp, 0.5944536018057613E-03_dp)), &
-        TSpotCheckComplex([09, 78, 23, 4], (0.8227151295698438E-04_dp, 0.1991128564447004E-04_dp)), &
-        TSpotCheckComplex([47, 59, 06, 4], (0.2967129806717818_dp,     0.8175874030009455E-02_dp))  &
+        TSpotCheckComplex([31, 82, 52, 1], (0.4618562431412820E-02_dp, -0.5805855442516971E-04_dp)), &
+        TSpotCheckComplex([93, 19, 63, 1], (0.8330079947653005E-04_dp, -0.8753533677015034E-05_dp)), &
+        TSpotCheckComplex([80, 82, 83, 2], (0.1222651639518469E-02_dp, -0.8048672887188940E-04_dp)), &
+        TSpotCheckComplex([32, 28, 73, 2], (0.1690763857502260E-01_dp, -0.4646391064170055E-02_dp)), &
+        TSpotCheckComplex([68, 17, 95, 3], (0.2091620118572572E-02_dp, -0.2596145058129883E-02_dp)), &
+        TSpotCheckComplex([39, 88, 09, 3], (0.2671119431633243E-02_dp, -0.5944536018057613E-03_dp)), &
+        TSpotCheckComplex([09, 78, 23, 4], (0.8227151295698438E-04_dp, -0.1991128564447004E-04_dp)), &
+        TSpotCheckComplex([47, 59, 06, 4], (0.2967129806717818_dp,     -0.8175874030009455E-02_dp))  &
     ]
 
     call initMolorbHchain(molorb, this%config%useRadialLut)
@@ -309,7 +309,7 @@ contains
     call getValue(molorb, eigVecsComplex, kPointsHchain, kIndexesHchain, valueOnGrid, this%config%useGpu)
 
     ! CheckReal sum over grid
-    expected = (113.9831688331955_dp, 45.30115350686194_dp)
+    expected = (113.9831688331955_dp, -45.30115350686194_dp)
     actual = sum(valueOnGrid) * gridVol
     @:CHECK(is_close(real(actual), real(expected), rtol=rtol))
     @:CHECK(is_close(aimag(actual), aimag(expected), rtol=rtol))

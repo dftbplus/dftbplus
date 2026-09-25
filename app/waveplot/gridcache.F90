@@ -117,7 +117,7 @@ contains
   !> Initialises a GridCache instance.
   !! Caveat: Level index is not allowed to contain duplicate entries!
   subroutine TGridCache_init(this, env, levelIndexAll, nOrb, nAllLevel, nAllKPoint, nAllSpin, nCached,&
-      & nPoints, beVerbose, eigvecBin, gridVec, origin, kPointCoords, isReal, molorb, useGpu)
+      & nPoints, beVerbose, eigvecBin, gridVec, origin, kPointCoords, isReal, molorb, useGpu, loadAllEigenvecs)
 
     !> Structure to initialise
     class(TGridCache), intent(out) :: this
@@ -170,6 +170,9 @@ contains
     !> Whether to enable GPU offloading
     logical, intent(in) :: useGpu
 
+    !> Whether to allocate space for all local eigenvectors
+    logical, intent(in) :: loadAllEigenvecs
+
     !! Contains indexes (spin, kpoint, state) to be calculated by the current MPI process
     integer, allocatable :: levelIndex(:,:)
 
@@ -178,6 +181,7 @@ contains
 
     !! Auxiliary variables
     integer ::nAll
+    integer :: nEigenvecs
     integer :: iSpin, iKPoint, iLevel, ind, ii, iostat
     integer :: curVec(3)
     logical :: wasFound
@@ -220,10 +224,11 @@ contains
     this%useGpu = useGpu
     this%nPoints = nPoints
 
+    nEigenvecs = merge(size(levelIndex, dim=2), this%nCached, loadAllEigenvecs)
     if (this%isReal) then
-      allocate(this%eigenvecReal(this%nOrb, this%nCached))
+      allocate(this%eigenvecReal(this%nOrb, nEigenvecs))
     else
-      allocate(this%eigenvecCmpl(this%nOrb, this%nCached))
+      allocate(this%eigenvecCmpl(this%nOrb, nEigenvecs))
     end if
 
     nAll = size(levelIndex, dim=2)
@@ -317,7 +322,6 @@ contains
     integer :: ind, tmp
     iStartAbs = this%iGrid ! (1)
     ind = 1
-    !print *, "Loading EV for index range", iStartAbs, "to", iStartAbs + iEnd - 1
 
     do while (ind <= iEnd)
       if (this%isReal) then
@@ -386,9 +390,7 @@ contains
       iEnd = min(this%nGrid, this%iGrid + this%nCached - 1) - this%iGrid + 1
       iEndAbs = this%iGrid + iEnd - 1
 
-      if (this%nReadEigVec < iEndAbs) then
-        call this%loadEigenvecs(iEnd)
-      end if
+      call this%loadEigenvecs(iEnd)
 
       ! Get molecular orbital for that eigenvector
       if (this%beVerbose) then

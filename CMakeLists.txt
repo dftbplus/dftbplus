@@ -46,6 +46,9 @@ endif()
 
 # Wavegrid GPU acceleration
 if(WITH_CUDA)
+    if(CMAKE_VERSION VERSION_LESS 3.24)
+        message(FATAL_ERROR "CUDA support requires CMake 3.24 or newer.")
+    endif()
     # Require CMAKE_CUDA_ARCHITECTURES to be set
     cmake_policy(SET CMP0104 NEW)
     enable_language(CXX)

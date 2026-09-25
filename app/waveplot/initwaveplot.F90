@@ -97,6 +97,9 @@ module waveplot_initwaveplot
     !> If total charge should be calculated
     logical :: doCalcTotChrg
 
+    !> Whether individual orbital grids are required
+    logical :: doRequireIndividual
+
     !> If total spin pol. to be plotted
     logical :: doPlotTotSpin
 
@@ -386,7 +389,7 @@ contains
     allocate(this%loc%molOrb)
     this%loc%pMolOrb => this%loc%molOrb
     call TMolecularOrbital_init(this%loc%molOrb, this%input%geo, this%boundaryCond,&
-        & this%basis%basis, this%opt%origin, this%loc%gridVec)
+        & this%basis%basis, this%opt%gridOrigin, this%loc%gridVec, this%opt%beVerbose)
     
     ! Dont run multiple MPI processes on the same GPU.
     ! This avoids cuda memory allocation race conditions in dftbp_wavegrid.
@@ -401,7 +404,8 @@ contains
     call TGridCache_init(this%loc%grid, env, this%loc%levelIndex, this%input%nOrb, this%eig%nState,&
         & nKPoint, nSpin, nCached, this%opt%nPoints, this%opt%beVerbose, eigVecBin,&
         & this%loc%gridVec, this%opt%gridOrigin, kPointsWeights(1:3, :), this%input%isRealHam,&
-        & this%loc%pMolOrb, this%opt%useGpu)
+        & this%loc%pMolOrb, this%opt%useGpu, &
+        & this%opt%doCalcTotChrg .and. .not. this%opt%doRequireIndividual)
 
   end subroutine TProgramVariables_init
 
@@ -602,6 +606,9 @@ contains
       this%opt%doPlotImag = .false.
     end if
 
+    this%opt%doRequireIndividual = this%opt%doPlotChrg .or. this%opt%doPlotChrgDiff &
+        & .or. this%opt%doPlotReal .or. this%opt%doPlotImag .or. this%opt%doPlotTotSpin
+
     call getChildValue(node, "PlottedLevels", buffer, child=field, multiple=.true.)
     call getSelectedIndices(node, char(buffer), [1, nLevel], this%opt%plottedLevels)
 
@@ -643,7 +650,7 @@ contains
     call destruct(indexBuffer)
 
     call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
-    call getChildValue(node, "useGpu", this%opt%useGpu, .false., child=field)
+    call getChildValue(node, "UseGpu", this%opt%useGpu, .false., child=field)
 
     if (nCached < 1 .and. nCached /= -1) then
       call detailedError(field, "Value must be -1 or greater than zero.")
@@ -827,7 +834,7 @@ contains
     integer, intent(out) :: atomicNumber
 
     !! Input node instances, containing the information
-    type(fnode), pointer :: tmpNode, child
+    type(fnode), pointer :: tmpNode, child, typeNode
 
     !! Node list instance
     type(fnodeList), pointer :: children
@@ -857,11 +864,12 @@ contains
       call detailedError(node, "Missing orbital definitions")
     end if
 
+    @:ASSERT(size(atomicOcc) >= nOrbitals)
     allocate(spBasis%orbitals(nOrbitals))
 
     do ii = 1, nOrbitals
       call getItem1(children, ii, tmpNode)
-      call getChildValue(tmpNode, "Type", orbitalType, "TSlaterOrbital")
+      call getChildValue(tmpNode, "Type", orbitalType, "TSlaterOrbital", child=typeNode)
       call getChildValue(tmpNode, "AngularMomentum", angMom)
       call getChildValue(tmpNode, "Cutoff", cutoff)
       call getChildValue(tmpNode, "Occupation", atomicOcc(ii), child=child)
@@ -902,6 +910,9 @@ contains
         else
           spBasis%orbitals(ii)%o = sto
         end if
+      case default
+        call detailedError(typeNode, "Unknown orbital Type '" // unquote(char(orbitalType)) &
+            & // "'. Supported: TSlaterOrbital.")
       end select
 
       deallocate(exps, coeffs)

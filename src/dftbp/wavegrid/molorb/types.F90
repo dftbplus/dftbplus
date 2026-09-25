@@ -50,6 +50,7 @@ module dftbp_wavegrid_molorb_types
     logical :: calcAtomicDensity
     logical :: calcTotalChrg
     logical :: runOnGPU
+    logical :: beVerbose = .false.
     logical :: isInitialized = .false.
   end type
 

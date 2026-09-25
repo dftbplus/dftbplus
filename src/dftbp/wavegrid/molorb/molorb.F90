@@ -16,7 +16,7 @@ module dftbp_wavegrid_molorb
   use dftbp_wavegrid_basis, only : TOrbital, TOrbitalWrapper, TOrbitalWrapper_getMaxCutoff
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag
-  use dftbp_dftb_boundarycond, only : TBoundaryConds
+  use dftbp_geometry_boundarycond, only : TBoundaryConds
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_message, only : error
   use dftbp_math_simplealgebra, only : invert33
@@ -40,6 +40,7 @@ module dftbp_wavegrid_molorb
     type(TBoundaryConds) :: boundaryCond
 
     logical :: isInitialised = .false.
+    logical :: beVerbose = .false.
   contains
     private
     procedure, public :: updateCoords => TMolecularOrbital_updateCoords
@@ -80,7 +81,7 @@ contains
   !> Initialises MolecularOrbital instance.
   !> This prepares data structures for the molorb calculation.
   !> The coordinates may be updated later by calling updateCoords on the molorb data object.
-  subroutine TMolecularOrbital_init(this, geometry, boundaryCond, basisInput, origin, gridVecs)
+  subroutine TMolecularOrbital_init(this, geometry, boundaryCond, basisInput, origin, gridVecs, beVerbose)
     !> TMolecularOrbital data object to initialise
     class(TMolecularOrbital), intent(out) :: this
 
@@ -99,10 +100,14 @@ contains
     !> Output grid vectors
     real(dp), intent(in) :: gridVecs(3,3)
 
+    !> Print calculation status messages
+    logical, intent(in), optional :: beVerbose
+
     @:ASSERT(.not. this%isInitialised)
     @:ASSERT(size(origin) == 3)
     @:ASSERT(all(shape(gridVecs) == [3, 3]))
     this%boundaryCond = boundaryCond
+    if (present(beVerbose)) this%beVerbose = beVerbose
     this%system%origin = origin
     this%system%gridVecs = gridVecs
     
@@ -240,7 +245,9 @@ contains
 
     @:ASSERT(this%system%speciesInitialised)
     @:ASSERT(this%periodic%isInitialized)
-    allocate(this%system%coords(3, this%system%nAtom, this%periodic%nCell))
+    if (.not. allocated(this%system%coords)) then
+      allocate(this%system%coords(3, this%system%nAtom, this%periodic%nCell))
+    end if
     this%system%coords(:,:,1) = geometry%coords
 
     if (this%periodic%isPeriodic) then
@@ -450,10 +457,10 @@ contains
     type(TCalculationContext) :: ctx
 
     ctx = bundleFlags(isRealInput, addAtomicDensities, useGpu, occupationVec)
+    ctx%beVerbose = this%beVerbose
 
     @:ASSERT(this%isInitialised)
     @:ASSERT(all(shape(valueOnGrid) > [0, 0, 0, 0]))
-    print *, this%system%nOrb, "orbitals,", size(eigVecsReal, dim=1), "states"
     @:ASSERT(size(eigVecsReal, dim=1) == this%system%nOrb)
     @:ASSERT(.not. (ctx%calcAtomicDensity .and. ctx%calcTotalChrg))
 
@@ -507,6 +514,7 @@ contains
     type(TCalculationContext) :: ctx
 
     ctx = bundleFlags(isRealInput, addAtomicDensities, useGpu, occupationVec)
+    ctx%beVerbose = this%beVerbose
 
     @:ASSERT(this%isInitialised)
     @:ASSERT(.not. (ctx%calcAtomicDensity .and. ctx%calcTotalChrg))
@@ -527,7 +535,7 @@ contains
 
     allocate(phases(this%periodic%nCell, size(kPoints, dim =2)))
     if (this%periodic%isPeriodic) then
-      phases(:,:) = exp(imag * matmul(transpose(this%periodic%fCellVec), kPoints))
+      phases(:,:) = exp(-imag * matmul(transpose(this%periodic%fCellVec), kPoints))
     else
       phases(1,:) = (1.0_dp, 0.0_dp)
     end if
