@@ -1082,7 +1082,7 @@ contains
             vM(myia,jbs) = vM(myia,jbs) - rTmp
 
             ibs = rpa%iaTrans(ii, bb, ss)
-            qTr(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
+            qTr(:) = transChrg%qTransIA(ibs, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
             oTmp(:) = 0.0_dp
             call hemv(oTmp, lrGamma, qTr)
 
