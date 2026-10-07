@@ -332,7 +332,10 @@ contains
 
 
   !> Calculates dispersion energy for current geometry.
-  subroutine calcDispersionEnergy(dispersion, Eatom, Etotal, iAtInCentralRegion)
+  subroutine calcDispersionEnergy(env, dispersion, Eatom, Etotal, iAtInCentralRegion)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Dispersion interactions
     class(TDispersionIface), intent(inout) :: dispersion
@@ -350,7 +353,7 @@ contains
   #:if WITH_MBD
     select type (dispersion)
     type is (TDispMbd)
-      call dispersion%checkError()
+      call dispersion%checkError(env)
     end select
   #:endif
     Etotal = sum(Eatom(iAtInCentralRegion))

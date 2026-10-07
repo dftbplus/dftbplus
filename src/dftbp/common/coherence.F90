@@ -163,7 +163,7 @@ contains
 
     if (env%tAPICalculation) then
        if (.not. coherence${NAME}$${DIM}$(env, data)) then
-         @:ERROR_HANDLING(err, -1, "Coherence failure in " //trim(adjustl(message))//&
+         @:ERROR_HANDLING(env%stdOut, err, -1, "Coherence failure in " //trim(adjustl(message))//&
              & " across nodes")
        end if
     end if
@@ -272,7 +272,7 @@ contains
     if (env%tAPICalculation) then
       if (.not. approxCoherence${NAME}$${DIM}$(env, data, tol_)) then
         Write(tol_str, '(E12.5)') tol_
-        @:ERROR_HANDLING(err, -1, "Coherence failure in "//trim(adjustl(message))//" across nodes&
+        @:ERROR_HANDLING(env%stdOut, err, -1, "Coherence failure in "//trim(adjustl(message))//" across nodes&
             & for a tolerance of: "//trim(adjustl(tol_str)))
       end if
     end if

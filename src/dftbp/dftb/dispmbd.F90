@@ -10,10 +10,11 @@
 
 !> MBD/TS dispersion model.
 module dftbp_dftb_dispmbd
+  ! TODO: Customizable output for mbdPrinter
   use dftbp_common_accuracy, only : dp, lc, mc
   use dftbp_common_constants, only : symbolToNumber
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_globalenv, only : stdOut0
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only : TNeighbourList
@@ -389,16 +390,19 @@ contains
 
 
   !> Raises error if it was previously caught
-  subroutine checkError(this, err)
+  subroutine checkError(this, env, err)
 
     !> Data structure
     class(TDispMbd), intent(in) :: this
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Error code return, 0 if no problems
     integer, intent(out), optional :: err
 
     if (this%errCode /= 0) then
-      @:ERROR_HANDLING(err, this%errCode, this%errMessage)
+      @:ERROR_HANDLING(env%stdOut, err, this%errCode, this%errMessage)
     end if
   end subroutine checkError
 
@@ -409,7 +413,7 @@ contains
     !> Message
     character(len=*), intent(in) :: str
 
-    write(stdOut, "(A,A)") '* Libmbd: ', str
+    write(stdOut0, "(A,A)") '* Libmbd: ', str
 
   end subroutine mbdPrinter
 

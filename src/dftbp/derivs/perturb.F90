@@ -15,7 +15,6 @@ module dftbp_derivs_perturb
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, Hartree__eV, quaternionName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : deltamn
   use dftbp_derivs_linearresponse, only : dRhoCmplx, dRhoFermiChangeCmplx, dRhoFermiChangePauli,&
@@ -386,11 +385,11 @@ contains
 
     beta = 1.0_dp / tempElec
 
-    write(stdOut,*)
-    write(stdOut,*)'Perturbation calculation with respect to applied electric field'
-    write(stdOut,*)
+    write(env%stdOut,*)
+    write(env%stdOut,*)'Perturbation calculation with respect to applied electric field'
+    write(env%stdOut,*)
 
-    call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+    call init_perturbation(env, parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
         & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
         & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
@@ -431,7 +430,7 @@ contains
     lpCart: do iCart = 1, 3
 
       if (boundaryCond%iBoundaryCondition == boundaryCondsEnum%cluster) then
-        write(stdOut,*)"Polarisabilty for field along ", trim(quaternionName(iCart+1))
+        write(env%stdOut,*)"Polarisabilty for field along ", trim(quaternionName(iCart+1))
       end if
 
       ! set outside loop: in the time dependent case, if adjacent frequencies are similar, this
@@ -493,10 +492,10 @@ contains
         end if
 
         if (any(tMetallic)) then
-          write(stdOut,*)
-          write(stdOut,"(A,2E20.12)")'d E_f / d E_'//trim(quaternionName(iCart+1))//':',&
+          write(env%stdOut,*)
+          write(env%stdOut,"(A,2E20.12)")'d E_f / d E_'//trim(quaternionName(iCart+1))//':',&
               & dEfdE(:,iCart)
-          write(stdOut,*)
+          write(env%stdOut,*)
         end if
 
       end do
@@ -510,7 +509,7 @@ contains
   #:endif
 
     if (boundaryCond%iBoundaryCondition == boundaryCondsEnum%cluster) then
-      call permitivityPrint(stdOut, polarisability, omega)
+      call permitivityPrint(env%stdOut, polarisability, omega)
     end if
 
   end subroutine wrtEField
@@ -740,15 +739,15 @@ contains
       isSccRequired = isSccConvRequired
     end if
 
-    call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+    call init_perturbation(env, parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
         & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
         & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
         & eigvals, beta, Ef, kWeight)
 
-    write(stdOut,*)
-    write(stdOut,*)'Perturbation calculation of atomic polarisability kernel'
-    write(stdOut,*)
+    write(env%stdOut,*)
+    write(env%stdOut,*)'Perturbation calculation of atomic polarisability kernel'
+    write(env%stdOut,*)
 
     allocate(dqOut(orb%mOrb, nAtom, nSpin))
     allocate(dqNetAtom(nAtom))
@@ -788,7 +787,7 @@ contains
 
     lpAtom: do iAt = 1, nAtom
 
-      write(stdOut,*)'Derivative with respect to potential at atom ', iAt
+      write(env%stdOut,*)'Derivative with respect to potential at atom ', iAt
 
       dqOut(:,:,:) = 0.0_dp
       dqIn(:,:,:) = 0.0_dp
@@ -827,17 +826,17 @@ contains
           dEiTmp(:,:,:,iAt,iOmega) = dEi
         end if
 
-        write(stdOut,*)'Frontier orbital derivatives'
+        write(env%stdOut,*)'Frontier orbital derivatives'
         do iS = 1, nIndepHam
           do iK = 1, nKpts
-            write(stdOut,*)dEi(nFilled(iS, iK), iK, iS), dEi(nEmpty(iS, iK), iK, iS)
+            write(env%stdOut,*)dEi(nFilled(iS, iK), iK, iS), dEi(nEmpty(iS, iK), iK, iS)
           end do
         end do
 
         call getOnsitePopulation(dRho(:,1), orb, iSparseStart, dqNetAtom)
-        write(stdOut,*)'Derivatives of Mulliken and on-site (net) populations'
+        write(env%stdOut,*)'Derivatives of Mulliken and on-site (net) populations'
         do jAt = 1, nAtom
-          write(stdOut,*)jAt, sum(dqOut(:,jAt,1)), dqNetAtom(jAt)
+          write(env%stdOut,*)jAt, sum(dqOut(:,jAt,1)), dqNetAtom(jAt)
         end do
 
         if (isAutotestWritten.or.isTagResultsWritten) then
@@ -1145,14 +1144,14 @@ contains
     ! obtain the external charge coordinates and their values
     call sccCalc%getExternalCharges(nExtCharge, extCoord, extCharge, blurWidths=blurWidths)
     if (nExtCharge < 1) then
-      write (stdOut,*) "No external charges, nothing to do in dxExtCharges."
+      write(env%stdOut,*) "No external charges, nothing to do in dxExtCharges."
       return
     end if
 
     nDerivs = countDerivs(wrtWhichCharges, nCombinedCharges, wrtCombinedCharges, nExtCharge)
 
     if (nDerivs < 1) then
-      write (stdOut,*) "No requested derivatives wrt to external charges, nothing to do in&
+      write(env%stdOut,*) "No requested derivatives wrt to external charges, nothing to do in&
           & dxExtCharges."
       return
     end if
@@ -1176,14 +1175,14 @@ contains
       @:RAISE_ERROR(errStatus, -1, "SCC currently required for external charge derivatives")
     end if
 
-    write(stdOut,*)
-    write(stdOut,*)'Perturbation calculation of derivative with respect to external charges'
-    write(stdOut,*)
+    write(env%stdOut,*)
+    write(env%stdOut,*)'Perturbation calculation of derivative with respect to external charges'
+    write(env%stdOut,*)
 
     nIter = maxSccIter
     isSccRequired = .true.
 
-    call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+    call init_perturbation(env, parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
         & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
         & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
@@ -1212,13 +1211,13 @@ contains
 
       if (allocated(wrtWhichCharges)) then
         iExtChrgWrt = wrtWhichCharges(iDeriv)
-        write(stdOut,"(A,I0)")'Derivative with respect to external charge ', iExtChrgWrt
+        write(env%stdOut,"(A,I0)")'Derivative with respect to external charge ', iExtChrgWrt
       else if (allocated(wrtCombinedCharges)) then
-        write(stdOut,"(A,I0,A)")'Derivative with respect to external charge group ',iDeriv, ':'
-        write(stdOut,*)wrtCombinedCharges(:nCombinedCharges(iDeriv), iDeriv)
+        write(env%stdOut,"(A,I0,A)")'Derivative with respect to external charge group ',iDeriv, ':'
+        write(env%stdOut,*)wrtCombinedCharges(:nCombinedCharges(iDeriv), iDeriv)
       else
         iExtChrgWRT = iDeriv
-        write(stdOut,"(A,I0)")'Derivative with respect to external charge ', iExtChrgWRT
+        write(env%stdOut,"(A,I0)")'Derivative with respect to external charge ', iExtChrgWRT
       end if
 
       if (allocated(wrtCombinedCharges)) then
@@ -1261,7 +1260,7 @@ contains
       ! perturbation direction
       lpCart: do iCart = 1, 3
 
-        write(stdOut,"(A,A,A,I0)")'Calculating derivative for displacement along ', &
+        write(env%stdOut,"(A,A,A,I0)")'Calculating derivative for displacement along ', &
             & trim(direction(iCart)),' for charge ', iExtChrgWRT
 
         dPotential%extAtom(:,:) = 0.0_dp
@@ -1291,9 +1290,9 @@ contains
       #:endif
 
           call getOnsitePopulation(dRho(:,1), orb, iSparseStart, dqNetAtom)
-          write(stdOut,*)'Derivatives of Mulliken and on-site (net) populations'
+          write(env%stdOut,*)'Derivatives of Mulliken and on-site (net) populations'
           do jAt = 1, nAtom
-            write(stdOut,*)jAt, -sum(dqOut(:,jAt,1)), -dqNetAtom(jAt)
+            write(env%stdOut,*)jAt, -sum(dqOut(:,jAt,1)), -dqNetAtom(jAt)
           end do
 
           if (associated(pdqdxExt)) then
@@ -1654,7 +1653,7 @@ contains
     nDerivs =  countDerivs(wrtWhichCharges, nCombinedCharges, wrtCombinedCharges, nAtom)
 
     if (nDerivs < 1) then
-      write (stdOut,*) "No requested derivatives wrt to external charges, nothing to do in&
+      write(env%stdOut,*) "No requested derivatives wrt to external charges, nothing to do in&
           & dxAtom."
       return
     end if
@@ -1664,7 +1663,7 @@ contains
       @:ASSERT(all(shape(dqdx) >= [nAtom, 3, nDerivs]))
     end if
 
-    call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+    call init_perturbation(env, parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
         & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
         & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
@@ -1812,13 +1811,13 @@ contains
 
       if (allocated(wrtWhichCharges)) then
         iAt = wrtWhichCharges(iDeriv)
-        write(stdOut,"(A,I0)")'Derivative with respect to atom ', iAt
+        write(env%stdOut,"(A,I0)")'Derivative with respect to atom ', iAt
       else if (allocated(wrtCombinedCharges)) then
-        write(stdOut,"(A,I0,A)")'Derivative with respect to atom group ',iDeriv, ':'
-        write(stdOut,*)wrtCombinedCharges(:nCombinedCharges(iDeriv), iDeriv)
+        write(env%stdOut,"(A,I0,A)")'Derivative with respect to atom group ',iDeriv, ':'
+        write(env%stdOut,*)wrtCombinedCharges(:nCombinedCharges(iDeriv), iDeriv)
       else
         iAt = iDeriv
-        write(stdOut,"(A,I0)")'Derivative with respect to atom ', iAt
+        write(env%stdOut,"(A,I0)")'Derivative with respect to atom ', iAt
       end if
 
       if (allocated(wrtCombinedCharges)) then
@@ -1851,7 +1850,7 @@ contains
       ! perturbation direction
       lpCart: do iCart = 1, 3
 
-        write(stdOut,"(A,A,A,I0)")'Calculating derivative for displacement along ', &
+        write(env%stdOut,"(A,A,A,I0)")'Calculating derivative for displacement along ', &
             & trim(direction(iCart)),' for atom ', iAt
 
         if (tSccCalc) then
@@ -1921,7 +1920,7 @@ contains
             dRhoOut(:) = 0.0_dp
           end if
 
-          write(stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
+          write(env%stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
         end if
 
         iSccIter = 1
@@ -2111,7 +2110,7 @@ contains
             sccErrorQ = maxval(abs(dqDiffRed))
 
             if (maxSccIter > 1) then
-              write(stdOut,"(1X,I0,T10,E20.12)")iSccIter, sccErrorQ
+              write(env%stdOut,"(1X,I0,T10,E20.12)")iSccIter, sccErrorQ
             end if
             tConverged = (sccErrorQ < sccTol)
 
@@ -2203,22 +2202,22 @@ contains
     call mpifx_allreduceip(env%mpi%globalComm, dEi, MPI_SUM)
   #:endif
 
-!    write(stdOut, "(A)")'dEi/d (eV / AA)'
-!    write(stdOut,"(T16,A,T32,A,T48,A)")direction
+!    write(env%stdOut, "(A)")'dEi/d (eV / AA)'
+!    write(env%stdOut,"(T16,A,T32,A,T48,A)")direction
 !    do iS = 1, nSpin
 !      if (allocated(wrtWhichCharges)) then
 !        do iDeriv = 1, size(wrtWhichCharges)
 !          iAt = wrtWhichCharges(iDeriv)
-!          write(stdOut, "(1X,A,I0)")'dEi/d At.', iAt
+!          write(env%stdOut, "(1X,A,I0)")'dEi/d At.', iAt
 !          do iOrb = 1, size(dEi,dim=1)
-!            write(stdOut, "(3F16.8)") dEi(iOrb, 1, iS, :, iDeriv) * AA__Bohr
+!            write(env%stdOut, "(3F16.8)") dEi(iOrb, 1, iS, :, iDeriv) * AA__Bohr
 !          end do
 !        end do
 !      else
 !        do iAt = 1, nAtom
-!          write(stdOut, "(1X,A,I0)")'dEi/d At.', iAt
+!          write(env%stdOut, "(1X,A,I0)")'dEi/d At.', iAt
 !          do iOrb = 1, size(dEi,dim=1)
-!            write(stdOut, "(3F16.8)") dEi(iOrb, 1, iS, :, iAt) * AA__Bohr
+!            write(env%stdOut, "(3F16.8)") dEi(iOrb, 1, iS, :, iAt) * AA__Bohr
 !          end do
 !        end do
 !      end if
@@ -2258,29 +2257,29 @@ contains
 
     if (tPrintMulliken) then
 
-      write(stdOut, *)
-      write(stdOut, "(A)")'Derivatives of atomic Mulliken charges with atom positions'
+      write(env%stdOut, *)
+      write(env%stdOut, "(A)")'Derivatives of atomic Mulliken charges with atom positions'
       if (allocated(wrtWhichCharges)) then
         do iDeriv = 1, size(wrtWhichCharges)
           iAt = wrtWhichCharges(iDeriv)
-          write(stdOut,"(1X,A,I0,T10,A,T26,A,T42,A)")"At",iAt,"x","y","z"
+          write(env%stdOut,"(1X,A,I0,T10,A,T26,A,T42,A)")"At",iAt,"x","y","z"
           do iS = 1, nSpin
             do jAt = 1, nAtom
-              write(stdOut, "(1X,I0,T4,3F16.8)")jAt, -sum(dqOut(:,jAt,iS,:,iDeriv),dim=1)&
+              write(env%stdOut, "(1X,I0,T4,3F16.8)")jAt, -sum(dqOut(:,jAt,iS,:,iDeriv),dim=1)&
                   & * AA__Bohr
             end do
-            write(stdOut, *)
+            write(env%stdOut, *)
           end do
         end do
       else
         do iAt = 1, nAtom
-          write(stdOut,"(A,I0,T10,A,T26,A,T42,A)")"At",iAt,"x","y","z"
+          write(env%stdOut,"(A,I0,T10,A,T26,A,T42,A)")"At",iAt,"x","y","z"
           do iS = 1, nSpin
             do jAt = 1, nAtom
-              write(stdOut, "(1X,I0,T4,3F16.8)")jAt, -sum(dqOut(:,jAt,iS,:,iAt),dim=1)&
+              write(env%stdOut, "(1X,I0,T4,3F16.8)")jAt, -sum(dqOut(:,jAt,iS,:,iAt),dim=1)&
                   & * AA__Bohr
             end do
-            write(stdOut, *)
+            write(env%stdOut, *)
           end do
         end do
       end if
@@ -2369,7 +2368,7 @@ contains
       end if
 
       if (tWriteDetailedOut) call writeBorn(fdDetailedOut, bornCharges, wrtWhichCharges)
-      call writeBorn(stdOut, bornCharges, wrtWhichCharges)
+      call writeBorn(env%stdOut, bornCharges, wrtWhichCharges)
 
       if (isAutotestWritten) then
         open(newunit=fdResults, file=autoTestTagFile, position="append")
@@ -2673,15 +2672,15 @@ contains
     end if
 
     if (abs(omega) > epsilon(0.0_dp)) then
-      write(stdOut, "(1X,A)")"Frequency dependant response calculation"
-      write(stdOut, format2U)"  omega driving frequency", omega, ' H ', omega * Hartree__eV, ' eV'
+      write(env%stdOut, "(1X,A)")"Frequency dependant response calculation"
+      write(env%stdOut, format2U)"  omega driving frequency", omega, ' H ', omega * Hartree__eV, ' eV'
     else
-      write(stdOut, "(1X,A)")"Static response calculation"
+      write(env%stdOut, "(1X,A)")"Static response calculation"
     end if
 
 
     if (tSccCalc .and. maxSccIter > 1) then
-      write(stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
+      write(env%stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
     end if
 
     lpSCC: do iSccIter = 1, maxSccIter
@@ -2942,7 +2941,7 @@ contains
         sccErrorQ = maxval(abs(dqDiffRed))
 
         if (maxSccIter > 1) then
-          write(stdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
+          write(env%stdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
         end if
         tConverged = (sccErrorQ < sccTol)
 
@@ -3044,7 +3043,7 @@ contains
         if (allocated(dRhoIn)) then
           dRhoInBackup(:) = dRhoIn
         end if
-        call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
+        call warning(env%stdOut, "SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
       end if
     end if
 
@@ -3057,11 +3056,14 @@ contains
 
 
   !> Initialise variables for perturbation
-  subroutine init_perturbation(parallelKS, tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+  subroutine init_perturbation(env, parallelKS, tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
       & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, degenTransform, hybridXc,&
       & sSqrReal, over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
       & dRhoOut, dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi,&
       & eigvals, beta, Ef, kWeight)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -3230,7 +3232,7 @@ contains
     allocate(tMetallic(nIndepHam, nKpts))
     tMetallic(:,:) = .not.(nFilled == nEmpty -1)
     if (any(tMetallic)) then
-      write(stdOut,*)'Metallic system'
+      write(env%stdOut,*)'Metallic system'
       ! Density of electrons at the Fermi energy, required to correct later for shift in Fermi level
       ! at q=0 in metals
       if (allocated(neFermi)) then
@@ -3246,9 +3248,9 @@ contains
         end do
       end do
       neFermi(:) = maxFill * neFermi
-      write(stdOut,*)'Density of states at the Fermi energy Nf (a.u.):', neFermi
+      write(env%stdOut,*)'Density of states at the Fermi energy Nf (a.u.):', neFermi
     else
-      write(stdOut,*)'Non-metallic system'
+      write(env%stdOut,*)'Non-metallic system'
     end if
 
   end subroutine init_perturbation
