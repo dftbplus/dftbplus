@@ -25,7 +25,7 @@ In order to compile DFTB+, you need the following software components:
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
-* Python (version >= 3.7) for the source preprocessor
+* Python (version >= 3.10) for the source preprocessor
 
 
 Fortran compiler
@@ -112,7 +112,7 @@ Requirements for testing DFTB+
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
 
-* Python (version >= 3.7) with NumPy
+* Python (version >= 3.10) with NumPy
 
 * The Slater-Koster data used in the tests (see below)
 
