@@ -78,6 +78,9 @@ Fixed
 - Kick calculations with Ehrenfest ion dynamics for pump-probe simulations
   now work correctly.
 
+- Fix GeometryOptimization for FixAngles, FixLengths and Isotropic
+  cases.
+
 
 25.1 (2025-12-18)
 =================
