@@ -817,7 +817,7 @@ contains
           call getNextToken(commandInput, text, iStart, iErr)
           call checkError(node, iErr, "Error reading boundary in command file")
           if (char(text) /= "p") then
-            call detailedError(node, "Only periodic boundary conditions supported")
+            call detailedWarning(node, "No periodic boundary condition in dimension " // i2c(i))
           end if
         end do
         call jumpToEndOfLine(commandInput, iStart)
