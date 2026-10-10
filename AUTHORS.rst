@@ -97,3 +97,5 @@ contributed to DFTB+ :
 * Shan Yu
 
 * Victor Yu (Duke University, USA)
+
+* Samuel Zheng (National Tsing Hua University, Taiwan)
