@@ -36,7 +36,7 @@ module dftbp_type_orbitals
     integer, allocatable :: iShellOrb(:,:)
 
     !> Starting pos. within the atomic block of the each of the shells of each species
-    !> (maxval(nShell)+1, nSpecies)
+    !! (maxval(nShell)+1, nSpecies)
     integer, allocatable :: posShell(:,:)
 
     !> Max. nr. of shells for any species
@@ -53,20 +53,19 @@ module dftbp_type_orbitals
   !> Length of labels for atomic orbitals
   integer, parameter :: lenOrbitalNames = 9
 
-  !> Names of the atomic orbitals in tesseral basis
-  !> general set for f orbitals (not cubic), see
-  !> http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
+  !> Names of the atomic orbitals in tesseral basis general set for f orbitals (not cubic), see
+  !! http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
   character(lenOrbitalNames), parameter :: orbitalNames(-3:3,0:3) = reshape([&
       & '         ','         ','         ','         ','         ','         ','         ',&
       & '         ','         ','y        ','z        ','x        ','         ','         ',&
       & '         ','xy       ','yz       ','z2       ','xz       ','x2-y2    ','         ',&
-      & 'y(3x2-y2)','x2+y2+z2 ','yz2      ','z3       ','xz2      ','z(x2-y2) ','x(x2-3y2)'&
+      & 'y(3x2-y2)','xyz      ','yz2      ','z3       ','xz2      ','z(x2-y2) ','x(x2-3y2)'&
       &], [7,4])
 
 contains
 
-  !> Builds a unique names for the atomic orbitals.
-  !> Assign 's', 'p', 'd' to first occurring shells of each angular momentum, then 's2', 'p2', ...
+  !> Builds a unique names for the atomic orbitals.  Assigns 's', 'p', 'd', 'f' to first occurring
+  !! shells of each angular momentum, then 's2', 'p2', ...
   subroutine getShellNames(iSpecies, orb, shellNamesTmp)
 
     !> specific atomic species

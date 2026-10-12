@@ -81,6 +81,8 @@ Fixed
 - Fix GeometryOptimization for FixAngles, FixLengths and Isotropic
   cases.
 
+- Corrected f_xyz orbital label
+
 
 25.1 (2025-12-18)
 =================

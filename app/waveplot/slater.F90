@@ -134,13 +134,13 @@ contains
     case(3)
 
       !> general set for f orbitals (not cubic), see
-      !> http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
+      !! http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
       select case (mm)
       case(-3)
         ! y(3x**2-y**2)
         rty = 0.5900435899266435_dp * yy * (3.0_dp * xx**2 - yy**2) / rr**3
       case(-2)
-        ! x**2+y**2+z**2
+        ! xyz
         rty = 2.890611442640554_dp * xx * yy *zz / rr**3
       case(-1)
         ! yz**2
