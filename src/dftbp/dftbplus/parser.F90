@@ -199,7 +199,7 @@ contains
 
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
-      call detailedError(child, "Be patient... Dephasing feature will be available soon!")
+      call detailedError(child, "Please be patient... Dephasing feature will be available soon!")
     end if
 
     ! electronic Hamiltonian
@@ -1153,7 +1153,7 @@ contains
     type(TPoissonInfo), intent(inout) :: poisson
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     type(string) :: buffer
     type(fnode), pointer :: child
@@ -1222,7 +1222,7 @@ contains
     type(TPoissonInfo), intent(inout) :: poisson
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
@@ -1630,7 +1630,8 @@ contains
         & dontMarkProcessed=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geom, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
+      call readDispersion(child, geom, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! Solvation
@@ -1763,7 +1764,7 @@ contains
     type(TPoissonInfo), intent(inout) :: poisson
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -1881,7 +1882,8 @@ contains
         & dontMarkProcessed=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geom, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
+      call readDispersion(child, geom, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! Solvation
@@ -2918,7 +2920,7 @@ contains
     type(TGeometry), intent(in) :: geom
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     ! Assume SCC can has usual default number of steps if needed
     ctrl%poorKSampling = .false.
@@ -3035,7 +3037,7 @@ contains
     type(TGeometry), intent(in) :: geom
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
@@ -3061,7 +3063,7 @@ contains
     case ("supercellfolding")
       call getChildValue(node, "ReduceKPointsByInversion", ctrl%tReduceByInversion, .true.)
       if(ctrl%tReduceByInversion .and. ctrl%tSpinOrbit) then
-        call detailedWarning(node, "Kpoints will not be reduced by inversion as Spin-Orbit & 
+        call detailedWarning(node, "Kpoints will not be reduced by inversion as Spin-Orbit &
             & is requested.")
       end if
       ctrl%tReduceByInversion = ctrl%tReduceByInversion .and. .not.ctrl%tSpinOrbit
@@ -3374,7 +3376,7 @@ contains
 
     ! self consistency required or not to proceed
     call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
-    
+
     call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
 
     call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
@@ -4226,7 +4228,7 @@ contains
 
 
   !> Reads in dispersion related settings
-  subroutine readDispersion(node, geom, input, nrChrg, tSCC)
+  subroutine readDispersion(node, geom, input, nrChrg, tSCC, errStatus)
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -4243,6 +4245,9 @@ contains
     !> SCC calculation?
     logical, intent(in) :: tScc
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     type(fnode), pointer :: dispModel
     type(string) :: buffer
 
@@ -4251,7 +4256,8 @@ contains
     select case (char(buffer))
     case ("slaterkirkwood")
       allocate(input%slakirk)
-      call readDispSlaKirk(dispModel, geom, input%slakirk)
+      call readDispSlaKirk(dispModel, geom, input%slakirk, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case ("lennardjones")
       allocate(input%uff)
       call readDispVdWUFF(dispModel, geom, input%uff)
@@ -4286,7 +4292,7 @@ contains
 
 
   !> Reads in the dispersion input data for the Slater-Kirkwood dispersion model
-  subroutine readDispSlaKirk(node, geom, input)
+  subroutine readDispSlaKirk(node, geom, input, errStatus)
 
     !> Node to process
     type(fnode), pointer :: node
@@ -4296,6 +4302,9 @@ contains
 
     !> Contains the input for the dispersion module on exit
     type(TDispSlaKirkInp), intent(out) :: input
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     type(fnode), pointer :: value1, value2, child, child2, child3
     type(string) :: buffer, modifier, modifier2, modifiers(3)
@@ -4308,7 +4317,6 @@ contains
     integer, allocatable :: img2CentCell(:), iCellVec(:)
     integer :: nAllAtom
     type(TNeighbourList) :: neighs
-    type(TStatus) :: errStatus
 
     allocate(tmpR2(3, geom%nAtom))
     allocate(input%polar(geom%nAtom))
@@ -4377,9 +4385,7 @@ contains
       allocate(iCellVec(nAllAtom))
       call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, nAllAtom, geom%coords,&
           & mCutoff, rCellVec, errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+      @:PROPAGATE_ERROR(errStatus)
       allocate(nNeighs(geom%nAtom))
       nNeighs(:) = 0
       do iAt1 = 1, geom%nAtom
@@ -5061,11 +5067,11 @@ contains
 
       call getChild(child, "StateOfInterest", child2, requested=.false.)
       if (.not. associated(child2)) then
-        ctrl%lrespini%tnstat = .false. 
+        ctrl%lrespini%tnstat = .false.
         ctrl%lrespini%nstat = 0
         call setChildValue(child, "StateOfInterest", 0)
       else
-        ctrl%lrespini%tnstat = .true. 
+        ctrl%lrespini%tnstat = .true.
         call getChildValue(child2, "", buffer)
         if (tolower(unquote(char(buffer))) == "brightest") then
           if (ctrl%lrespini%sym /= "S" .or. ctrl%tSpin) then
@@ -5914,7 +5920,6 @@ contains
     type(TListReal) :: realBuffer
     character(lc) :: strTmp
     real(dp) :: rWork(maxval(orb%nShell)**2)
-    type(TStatus) :: errStatus
 
     tLRNeedsSpinConstants = .false.
 
@@ -8497,19 +8502,19 @@ contains
 
     !> Parent node of the thermostat node
     type(fnode), pointer, intent(in) :: node
-    
+
     !> Time step
     real(dp), intent(in) :: deltaT
-    
+
     !> Whether initial velocities had been specified for the MD run
     logical, intent(in) :: hasInitVelocities
-    
+
     !> Number of MD timesteps, will be updated by adding up the steps in the temperature profile
     integer, intent(inout) :: maxRun
-    
+
     !> Thermostat input filled up from the HSD data
     type(TThermostatInput), allocatable, intent(out) :: thermostatInp
-    
+
     !> Temperature profile input filled up from the HSD data
     type(TTempProfileInput), allocatable, intent(out) :: tempProfileInp
 
