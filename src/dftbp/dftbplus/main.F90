@@ -174,7 +174,7 @@ contains
     logical :: tGeomEnd
 
     !> Do we take an optimization step on the lattice or the internal coordinates if optimizing both
-    !> in a periodic geometry
+    !! in a periodic geometry
     logical :: tCoordStep
 
     !> If scc/geometry driver should be stopped
@@ -184,7 +184,7 @@ contains
     real(dp) :: localisation
 
     !> Flag to write out geometries (and charge data if scc) when moving atoms about - in the case
-    !> of drivers like conjugate gradient/steepest descent the geometries are written anyway
+    !! of drivers like conjugate gradient/steepest descent the geometries are written anyway
     logical :: tWriteRestart
 
     !> Lattice vectors returned by the optimizer
@@ -2066,7 +2066,7 @@ contains
     real(dp), intent(in) :: constrLatDerivs(:)
 
     !> Do we take an optimization step on the lattice or the internal coordinates if optimizing both
-    !> in a periodic geometry
+    !! in a periodic geometry
     logical, intent(inout) :: tCoordStep
 
     !> Do we have the final geometry?
@@ -2750,11 +2750,11 @@ contains
     real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
 
     !> Sparse storage for imaginary part of density matrix (not reallocated if not initially
-    !> allocated)
+    !! allocated)
     real(dp), allocatable, intent(inout) :: iRhoPrim(:,:)
 
     !> Sparse storage for energy weighted density matrix (not reallocated if not initially
-    !> allocated)
+    !! allocated)
     real(dp), allocatable, intent(inout) :: ERhoPrim(:)
 
     integer :: nSpin, nDipole, nQuadrupole
@@ -2887,11 +2887,10 @@ contains
 
 
   !> Transform the hamiltonian from QM to UD representation
-  !> Hack due to not using Pauli-type structure for diagonalisation
-  !> For collinear spin, qm2ud will produce the right potential:
-  !> (Vq, uB*Bz*\sigma_z) -> (Vq + uB*Bz*\sigma_z, Vq - uB*Bz*\sigma_z)
-  !> For non-collinear spin-orbit, all blocks are multiplied by 1/2:
-  !> (Vq/2, uL* Lx*\sigma_x/2, uL* Ly*\sigma_y/2, uL* Lz*\sigma_z/2)
+  !! Hack due to not using Pauli-type structure for diagonalisation:
+  !! For collinear spin, qm2ud will produce the right potential: (Vq, uB*Bz*\sigma_z) -> (Vq +
+  !! uB*Bz*\sigma_z, Vq - uB*Bz*\sigma_z). For non-collinear spin-orbit, all blocks are multiplied
+  !! by 1/2: (Vq/2, uL* Lx*\sigma_x/2, uL* Ly*\sigma_y/2, uL* Lz*\sigma_z/2)
   subroutine convertToUpDownRepr(Ham, iHam)
     real(dp), intent(inout) :: Ham(:,:)
     real(dp), intent(inout), allocatable :: iHam(:,:)
@@ -2918,11 +2917,11 @@ contains
 
 
   !> Returns the sparse density matrix.
-  !>
-  !> All operations (e.g. non-dual spin orbit coupling), which need access to full (unpacked)
-  !> Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
-  !> as those unpacked quantities do not exist elsewhere.
-  !>
+  !!
+  !! All operations (e.g. non-dual spin orbit coupling), which need access to full (unpacked)
+  !! Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
+  !! as those unpacked quantities do not exist elsewhere.
+  !!
   subroutine getDensity(env, negfInt, iScc, denseDesc, ints, neighbourList, symNeighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
       & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
@@ -4579,7 +4578,7 @@ contains
     integer, intent(in) :: iDistribFn
 
     !> Fixed Fermi levels on entry, if tFixEf is .true., otherwise the Fermi levels found for the
-    !> given number of electrons on exit
+    !! given number of electrons on exit
     real(dp), intent(inout) :: Ef(:)
 
     !> Fillings (orbital, kpoint, spin)
@@ -6217,9 +6216,9 @@ contains
 
 
   !> Calculate the energy weighted density matrix
-  !>
-  !> NOTE: Dense eigenvector and overlap matrices are overwritten.
-  !>
+  !!
+  !! NOTE: Dense eigenvector and overlap matrices are overwritten.
+  !!
   subroutine getEnergyWeightedDensity(env, negfInt, electronicSolver, denseDesc, forceType,&
       & filling, eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart,&
       & img2CentCell, iCellVEc, cellVec, tRealHS, ints, parallelKS, tHelical, species, coord,&
@@ -8319,10 +8318,9 @@ contains
   !!!! REKS subroutines
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> Diagonalize H0 to obtain initial guess of eigenvectors
-  !> or read eigenvectors in REKS
-  !> Save dense overlap matrix elements
-  !> Check Gamma point condition and set filling information
+  !> Diagonalize H0 to obtain initial guess of eigenvectors or read eigenvectors in REKS
+  !! Save dense overlap matrix elements
+  !! Check Gamma point condition and set filling information
   subroutine getReksInitialSettings(env, denseDesc, h0, ints, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, electronicSolver, iGeoStep, HSqrReal, SSqrReal, eigvecsReal,&
       & eigen, reks, errStatus)
@@ -8705,8 +8703,8 @@ contains
   end subroutine getMullikenPopulationL
 
 
-  !> Build L, spin dependent Hamiltonian with various contributions
-  !> and compute the energy of microstates
+  !> Build L, spin dependent Hamiltonian with various contributions and compute the energy of
+  !! microstates
   subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, tblite, orb, species,&
       & neighbourList, symNeighbourList, nNeighbourSK, iSparseStart, img2CentCell, H0, ints, spinW,&
       & cellVol, extPressure, energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential,&
@@ -8820,7 +8818,7 @@ contains
     logical, intent(in) :: tFixEf
 
     !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
-    !> from the given number of electrons
+    !! from the given number of electrons
     real(dp), intent(inout) :: Ef(:)
 
     !> Sparse density matrix
@@ -9055,8 +9053,8 @@ contains
 
 
   !> Optimize the fractional occupation numbers (FONs) and weights
-  !> Swap the active orbitals when fa < fb
-  !> Compute the several energy contributions
+  !! Swap the active orbitals when fa < fb
+  !! Compute the various energy contributions
   subroutine optimizeFONsAndWeights(eigvecs, filling, energy, reks)
 
     !> Eigenvectors
