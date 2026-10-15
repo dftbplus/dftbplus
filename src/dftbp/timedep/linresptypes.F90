@@ -32,6 +32,9 @@ module dftbp_timedep_linresptypes
     !> Number of excitations to be calculated
     integer :: nExc
 
+    !> Is Tamm-Dancoff Approximation being used?
+    logical :: tTDA
+
     !> State of interest (< 0 find brightest, 0 calculate all nexc states, > 0 that specific state)
     integer :: nStat
 
