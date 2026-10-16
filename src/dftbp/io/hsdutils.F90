@@ -1841,8 +1841,11 @@ contains
 
 
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
-  subroutine getSelectedAtomIndices(node, selectionExpr, speciesNames, species, selectedIndices,&
+  subroutine getSelectedAtomIndices(output, node, selectionExpr, speciesNames, species, selectedIndices,&
         & selectionRange, indexRange)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Top node for detailed errors.
     type(fnode), pointer, intent(in) :: node
@@ -1886,14 +1889,17 @@ contains
     end if
     selectedIndices = pack([(ii, ii = selectionRange_(1), selectionRange_(2))], selected)
     if (size(selectedIndices) == 0) then
-      call detailedWarning(node, "Atom index selection expression selected no atoms")
+      call detailedWarning(output, node, "Atom index selection expression selected no atoms")
     end if
 
   end subroutine getSelectedAtomIndices
 
 
   !> Converts a string containing indices and ranges to a list of indices.
-  subroutine getSelectedIndices(node, selectionExpr, selectionRange, selectedIndices, indexRange)
+  subroutine getSelectedIndices(output, node, selectionExpr, selectionRange, selectedIndices, indexRange)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Top node for detailed errors.
     type(fnode), pointer, intent(in) :: node
@@ -1924,7 +1930,7 @@ contains
     end if
     selectedIndices = pack([(ii, ii = selectionRange(1), selectionRange(2))], selected)
     if (size(selectedIndices) == 0) then
-      call detailedWarning(node, "Atom index selection expression selected no atoms")
+      call detailedWarning(output, node, "Atom index selection expression selected no atoms")
     end if
 
   end subroutine getSelectedIndices
@@ -3598,7 +3604,10 @@ contains
 
 
   !> Prints detailed warning, including line number and path
-  subroutine detailedWarning(node, msg)
+  subroutine detailedWarning(output, node, msg)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Node where the error occurred.
     type(fnode), pointer :: node
@@ -3610,7 +3619,7 @@ contains
 
     str = trim(msg)
     call appendPathAndLine(node, str)
-    call warning(char(str) // newline)
+    call warning(output, char(str) // newline)
 
   end subroutine detailedWarning
 
