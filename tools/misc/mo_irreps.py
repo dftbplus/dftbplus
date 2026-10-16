@@ -14,61 +14,89 @@ from pathlib import Path
 import numpy as np
 
 FLOAT = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?"
-REAL_LINE = re.compile(rf"^(?P<label>.*?)\s+(?P<coef>{FLOAT})\s+(?P<frac>{FLOAT})\s*$")
+SYMMETRY_CLOSURE_TOL = 1.0e-3
+REAL_LINE = re.compile(
+    rf"^(?P<label>.*?)\s+(?P<coef>{FLOAT})\s+(?P<frac>{FLOAT})\s*$"
+)
 CMPLX_LINE = re.compile(
     rf"^(?P<label>.*?)\s+\(\s*(?P<real>{FLOAT})\s*,\s*(?P<imag>{FLOAT})\s*\)\s+"
     rf"(?P<frac>{FLOAT})\s*$"
 )
-REAL_HEADER = re.compile(r"Eigenvector:\s*(?P<state>\d+)\s*\((?P<spin>[^)]*)\)")
+REAL_HEADER = re.compile(
+    r"Eigenvector:\s*(?P<state>\d+)\s*\((?P<spin>[^)]*)\)"
+)
 K_HEADER = re.compile(
     r"K-point:\s*(?P<kpt>\d+)\s+Eigenvector:\s*(?P<state>\d+)"
     + r"(?:\s*\((?P<spin>[^)]*)\))?"
 )
 BAND_HEADER = re.compile(
-    r"KPT\s+(?P<kpt>\d+)(?:\s+SPIN\s+(?P<spin>\d+))?(?:\s+KWEIGHT\s+" + FLOAT + r")?"
+    r"KPT\s+(?P<kpt>\d+)(?:\s+SPIN\s+(?P<spin>\d+))?(?:\s+KWEIGHT\s+"
+    + FLOAT
+    + r")?"
 )
 
-ORBITAL_LABELS = [
-    "y(3x2-y2)",
-    "x2+y2+z2",
-    "z(x2-y2)",
-    "x(x2-3y2)",
-    "x2-y2",
-    "xy",
-    "yz",
-    "z2",
-    "xz",
-    "x",
-    "y",
-    "z",
-    "s",
-]
-
-POLYS = {
-    "s": {(0, 0, 0): 1.0},
-    "x": {(1, 0, 0): 1.0},
-    "y": {(0, 1, 0): 1.0},
-    "z": {(0, 0, 1): 1.0},
-    "xy": {(1, 1, 0): 1.0},
-    "yz": {(0, 1, 1): 1.0},
-    "z2": {(0, 0, 2): 2.0, (2, 0, 0): -1.0, (0, 2, 0): -1.0},
-    "xz": {(1, 0, 1): 1.0},
-    "x2-y2": {(2, 0, 0): 1.0, (0, 2, 0): -1.0},
-    "y(3x2-y2)": {(2, 1, 0): 3.0, (0, 3, 0): -1.0},
-    "x2+y2+z2": {(2, 0, 1): 1.0, (0, 2, 1): 1.0, (0, 0, 3): 1.0},
-    "yz2": {(0, 1, 2): 1.0},
-    "z3": {(0, 0, 3): 1.0},
-    "xz2": {(1, 0, 2): 1.0},
-    "z(x2-y2)": {(2, 0, 1): 1.0, (0, 2, 1): -1.0},
-    "x(x2-3y2)": {(3, 0, 0): 1.0, (1, 2, 0): -3.0},
+# Ordered exactly as the real tesseral harmonics in DFTB+ (m = -l, ..., +l).
+# The strings identify fields in eigenvec.out; the position, rather than the
+# descriptive label, determines the corresponding angular function.
+SHELL_POLYS = {
+    "s": {
+        "s": {(0, 0, 0): 1.0},
+    },
+    "p": {
+        "y": {(0, 1, 0): 1.0},
+        "z": {(0, 0, 1): 1.0},
+        "x": {(1, 0, 0): 1.0},
+    },
+    "d": {
+        # A common normalization factor 1 / (4 sqrt(pi)) is omitted.
+        "xy": {(1, 1, 0): 2.0 * math.sqrt(15.0)},
+        "yz": {(0, 1, 1): 2.0 * math.sqrt(15.0)},
+        "z2": {
+            (0, 0, 2): 2.0 * math.sqrt(5.0),
+            (2, 0, 0): -math.sqrt(5.0),
+            (0, 2, 0): -math.sqrt(5.0),
+        },
+        "xz": {(1, 0, 1): 2.0 * math.sqrt(15.0)},
+        "x2-y2": {
+            (2, 0, 0): math.sqrt(15.0),
+            (0, 2, 0): -math.sqrt(15.0),
+        },
+    },
+    "f": {
+        # A common normalization factor 1 / (4 sqrt(2 pi)) is omitted.
+        "y(3x2-y2)": {
+            (2, 1, 0): 3.0 * math.sqrt(35.0),
+            (0, 3, 0): -math.sqrt(35.0),
+        },
+        "xyz": {(1, 1, 1): 2.0 * math.sqrt(210.0)},
+        "yz2": {
+            (0, 1, 2): 4.0 * math.sqrt(21.0),
+            (2, 1, 0): -math.sqrt(21.0),
+            (0, 3, 0): -math.sqrt(21.0),
+        },
+        "z3": {
+            (0, 0, 3): 2.0 * math.sqrt(14.0),
+            (2, 0, 1): -3.0 * math.sqrt(14.0),
+            (0, 2, 1): -3.0 * math.sqrt(14.0),
+        },
+        "xz2": {
+            (1, 0, 2): 4.0 * math.sqrt(21.0),
+            (3, 0, 0): -math.sqrt(21.0),
+            (1, 2, 0): -math.sqrt(21.0),
+        },
+        "z(x2-y2)": {
+            (2, 0, 1): math.sqrt(210.0),
+            (0, 2, 1): -math.sqrt(210.0),
+        },
+        "x(x2-3y2)": {
+            (3, 0, 0): math.sqrt(35.0),
+            (1, 2, 0): -3.0 * math.sqrt(35.0),
+        },
+    },
 }
 
-SHELLS = {
-    "s": ["s"],
-    "p": ["y", "z", "x"],
-    "d": ["xy", "yz", "z2", "xz", "x2-y2"],
-    "f": ["y(3x2-y2)", "x2+y2+z2", "yz2", "z3", "xz2", "z(x2-y2)", "x(x2-3y2)"],
-}
+SHELLS = {shell: list(polys) for shell, polys in SHELL_POLYS.items()}
+ORBITAL_LABELS = {label for labels in SHELLS.values() for label in labels}
 
 D6H_CLASSES = [
     ("E", 1),
@@ -181,7 +209,14 @@ POINT_GROUPS = {
         },
     },
     "C6v": {
-        "classes": [("E", 1), ("2C6", 2), ("2C3", 2), ("C2", 1), ("3sv", 3), ("3sd", 3)],
+        "classes": [
+            ("E", 1),
+            ("2C6", 2),
+            ("2C3", 2),
+            ("C2", 1),
+            ("3sv", 3),
+            ("3sd", 3),
+        ],
         "characters": {
             "A1": [1, 1, 1, 1, 1, 1],
             "A2": [1, 1, 1, 1, -1, -1],
@@ -192,7 +227,14 @@ POINT_GROUPS = {
         },
     },
     "C3h": {
-        "classes": [("E", 1), ("C3+", 1), ("C3-", 1), ("sh", 1), ("S3+", 1), ("S3-", 1)],
+        "classes": [
+            ("E", 1),
+            ("C3+", 1),
+            ("C3-", 1),
+            ("sh", 1),
+            ("S3+", 1),
+            ("S3-", 1),
+        ],
         "characters": {
             "A'": [1, 1, 1, 1, 1, 1],
             "E1'": [
@@ -268,7 +310,14 @@ POINT_GROUPS = {
         },
     },
     "D3d": {
-        "classes": [("E", 1), ("2C3", 2), ("3C2p", 3), ("i", 1), ("2S6", 2), ("3sd", 3)],
+        "classes": [
+            ("E", 1),
+            ("2C3", 2),
+            ("3C2p", 3),
+            ("i", 1),
+            ("2S6", 2),
+            ("3sd", 3),
+        ],
         "characters": {
             "A1g": [1, 1, 1, 1, 1, 1],
             "A2g": [1, 1, -1, 1, 1, -1],
@@ -344,8 +393,14 @@ POINT_GROUPS = {
 }
 
 ORIENTATION_WARNINGS = {
-    "C2v": ("exchanging the x and y conventions swaps B1 <-> B2; " "A1 and A2 are unchanged"),
-    "D2": ("permuting the x, y, and z conventions permutes B1, B2, and B3; " "A is unchanged"),
+    "C2v": (
+        "exchanging the x and y conventions swaps B1 <-> B2; "
+        "A1 and A2 are unchanged"
+    ),
+    "D2": (
+        "permuting the x, y, and z conventions permutes B1, B2, and B3; "
+        "A is unchanged"
+    ),
     "D2h": (
         "permuting the x, y, and z conventions permutes B1g/B2g/B3g and "
         "B1u/B2u/B3u separately; Ag, Au, and g/u parity are unchanged"
@@ -427,7 +482,9 @@ def parse_xyz(path: Path) -> tuple[list[str], np.ndarray]:
     natom = int(lines[0].strip())
     atom_lines = [line for line in lines[2:] if line.strip()][:natom]
     if len(atom_lines) != natom:
-        raise ValueError(f"{path}: expected {natom} atoms, found {len(atom_lines)}")
+        raise ValueError(
+            f"{path}: expected {natom} atoms, found {len(atom_lines)}"
+        )
     species = []
     coords = []
     for line in atom_lines:
@@ -439,8 +496,13 @@ def parse_xyz(path: Path) -> tuple[list[str], np.ndarray]:
     return species, arr
 
 
-def parse_ao_label(raw: str, cur_atom: int | None, cur_species: str | None) -> tuple[int, str, str]:
-    """Parse an AO label, inheriting omitted atom metadata from the prior row."""
+def parse_ao_label(
+    raw: str, cur_atom: int | None, cur_species: str | None
+) -> tuple[int, str, str]:
+    """Parse an AO label.
+
+    Inherit omitted atom metadata from the prior row.
+    """
     text = raw.strip()
     words = text.split()
     if words and words[0].isdigit():
@@ -451,9 +513,9 @@ def parse_ao_label(raw: str, cur_atom: int | None, cur_species: str | None) -> t
         body = text
     if cur_atom is None or cur_species is None:
         raise ValueError(f"AO line does not start with an atom: {raw!r}")
-    for label in ORBITAL_LABELS:
-        if body.endswith(label):
-            return cur_atom, cur_species, label
+    label = body.rsplit("_", maxsplit=1)[-1]
+    if label in ORBITAL_LABELS:
+        return cur_atom, cur_species, label
     raise ValueError(f"Could not infer AO label from {raw!r}")
 
 
@@ -525,15 +587,21 @@ def parse_eigenvec(path: Path) -> tuple[list[AO], list[Eigenvector]]:
             continue
         match = CMPLX_LINE.match(line)
         if match:
-            atom, species, label = parse_ao_label(match.group("label"), cur_atom, cur_species)
+            atom, species, label = parse_ao_label(
+                match.group("label"), cur_atom, cur_species
+            )
             cur_atom, cur_species = atom, species
             cur_meta.append(AO(atom, species, label, shell_for_label(label)))
-            cur_coeffs.append(complex(float(match.group("real")), float(match.group("imag"))))
+            cur_coeffs.append(
+                complex(float(match.group("real")), float(match.group("imag")))
+            )
             cur_fracs.append(float(match.group("frac")))
             continue
         match = REAL_LINE.match(line)
         if match:
-            atom, species, label = parse_ao_label(match.group("label"), cur_atom, cur_species)
+            atom, species, label = parse_ao_label(
+                match.group("label"), cur_atom, cur_species
+            )
             cur_atom, cur_species = atom, species
             cur_meta.append(AO(atom, species, label, shell_for_label(label)))
             cur_coeffs.append(complex(float(match.group("coef")), 0.0))
@@ -584,10 +652,17 @@ def parse_oversqr(path: Path) -> dict[int, np.ndarray]:
     for _ in range(nkpt):
         while pos < len(tokens) and tokens[pos] == "#":
             pos += 1
-            while pos < len(tokens) and not re.fullmatch(r"[+-]?\d+", tokens[pos]):
+            while pos < len(tokens) and not re.fullmatch(
+                r"[+-]?\d+", tokens[pos]
+            ):
                 pos += 1
         ikpt = int(tokens[pos])
-        pos += 2 if pos + 1 < len(tokens) and re.fullmatch(r"[+-]?\d+", tokens[pos + 1]) else 1
+        pos += (
+            2
+            if pos + 1 < len(tokens)
+            and re.fullmatch(r"[+-]?\d+", tokens[pos + 1])
+            else 1
+        )
         while pos < len(tokens) and tokens[pos] == "#":
             pos += 2
         nvals = norb * norb if is_real else 2 * norb * norb
@@ -596,7 +671,9 @@ def parse_oversqr(path: Path) -> dict[int, np.ndarray]:
         if is_real:
             mat = vals.reshape((norb, norb), order="F")
         else:
-            mat = (vals[0::2] + 1j * vals[1::2]).reshape((norb, norb), order="F")
+            mat = (vals[0::2] + 1j * vals[1::2]).reshape(
+                (norb, norb), order="F"
+            )
         matrices[ikpt] = mat
     return matrices
 
@@ -622,7 +699,9 @@ def c2_axis(op: np.ndarray) -> np.ndarray:
     return unit_vector(np.real(vecs[:, idx]))
 
 
-def angle_about_axis(vec: np.ndarray, ref: np.ndarray, normal: np.ndarray) -> float:
+def angle_about_axis(
+    vec: np.ndarray, ref: np.ndarray, normal: np.ndarray
+) -> float:
     """Measure a vector's signed planar angle from a reference direction."""
     x = unit_vector(ref - np.dot(ref, normal) * normal)
     y = np.cross(normal, x)
@@ -638,16 +717,20 @@ def infer_d6_axis(coords: np.ndarray) -> np.ndarray:
 
 
 def infer_c2_reference(coords: np.ndarray, axis: np.ndarray) -> np.ndarray:
-    """Choose a geometry-defined reference direction perpendicular to an axis."""
+    """Choose a geometry-defined reference perpendicular to an axis."""
     centered = coords - coords.mean(axis=0)
     projected = centered - np.outer(centered @ axis, axis)
     norms = np.linalg.norm(projected, axis=1)
     if np.max(norms) < 1e-12:
-        raise ValueError("Could not infer an in-plane D6h reference axis from geometry")
+        raise ValueError(
+            "Could not infer an in-plane D6h reference axis from geometry"
+        )
     return unit_vector(projected[int(np.argmax(norms))])
 
 
-def classify_proper_d6h_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndarray) -> str:
+def classify_proper_d6h_operation(
+    op: np.ndarray, axis: np.ndarray, ref: np.ndarray
+) -> str:
     """Classify a proper D6h operation into a character-table class."""
     angle = rotation_angle(op)
     if angle < 1e-5:
@@ -657,7 +740,9 @@ def classify_proper_d6h_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndar
     if abs(angle - 2.0 * math.pi / 3.0) < 1e-4:
         return "2C3"
     if abs(angle - math.pi) > 1e-4:
-        raise ValueError(f"Cannot classify D6h proper rotation angle {angle:.8f}")
+        raise ValueError(
+            f"Cannot classify D6h proper rotation angle {angle:.8f}"
+        )
     rot_axis = c2_axis(op)
     if abs(float(np.dot(rot_axis, axis))) > 0.9:
         return "C2"
@@ -666,7 +751,9 @@ def classify_proper_d6h_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndar
     return "3C2p" if min(abs(sector), abs(sector - 2.0)) < 0.5 else "3C2pp"
 
 
-def classify_d6h_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndarray) -> str:
+def classify_d6h_operation(
+    op: np.ndarray, axis: np.ndarray, ref: np.ndarray
+) -> str:
     """Classify a proper or improper D6h operation."""
     det = np.linalg.det(op)
     if det > 0.0:
@@ -693,7 +780,9 @@ def classify_d3h_operation(op: np.ndarray, axis: np.ndarray) -> str:
         if abs(angle - math.pi) < 1e-4:
             if abs(float(np.dot(operation_axis(op), axis))) < 0.1:
                 return "3C2p"
-        raise ValueError(f"Cannot classify D3h proper rotation angle {angle:.8f}")
+        raise ValueError(
+            f"Cannot classify D3h proper rotation angle {angle:.8f}"
+        )
 
     proper = -op
     angle = rotation_angle(proper)
@@ -705,17 +794,23 @@ def classify_d3h_operation(op: np.ndarray, axis: np.ndarray) -> str:
             return "sh"
         if abs(float(np.dot(rot_axis, axis))) < 0.1:
             return "3sv"
-    raise ValueError(f"Cannot classify D3h improper operation (angle of -R {angle:.8f})")
+    raise ValueError(
+        f"Cannot classify D3h improper operation (angle of -R {angle:.8f})"
+    )
 
 
-def signed_planar_angle(op: np.ndarray, axis: np.ndarray, ref: np.ndarray) -> float:
-    """Return the signed angle through which an operation rotates a reference."""
+def signed_planar_angle(
+    op: np.ndarray, axis: np.ndarray, ref: np.ndarray
+) -> float:
+    """Return the signed angle by which an operation rotates a reference."""
     x = unit_vector(ref - np.dot(ref, axis) * axis)
     y = np.cross(axis, x)
     return math.atan2(float(np.dot(y, op @ x)), float(np.dot(x, op @ x)))
 
 
-def improper_principal_axis(operations: list[np.ndarray], angle: float) -> np.ndarray:
+def improper_principal_axis(
+    operations: list[np.ndarray], angle: float
+) -> np.ndarray:
     """Infer the common axis of improper rotations with a requested angle."""
     # For an S_n operation, -R is a proper rotation about the same principal
     # axis.  Project small numerical errors out before inspecting its angle.
@@ -725,7 +820,10 @@ def improper_principal_axis(operations: list[np.ndarray], angle: float) -> np.nd
         proper = -op
         left, _, right = np.linalg.svd(proper)
         proper = left @ right
-        if np.linalg.det(proper) > 0.0 and abs(rotation_angle(proper) - angle) < 1e-3:
+        if (
+            np.linalg.det(proper) > 0.0
+            and abs(rotation_angle(proper) - angle) < 1e-3
+        ):
             return operation_axis(proper)
 
     # An S4 matrix has one real eigenvalue -1 along its axis and a complex
@@ -749,7 +847,9 @@ def improper_principal_axis(operations: list[np.ndarray], angle: float) -> np.nd
     )
 
 
-def classify_c3h_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndarray) -> str:
+def classify_c3h_operation(
+    op: np.ndarray, axis: np.ndarray, ref: np.ndarray
+) -> str:
     """Classify a C3h symmetry operation."""
     if np.linalg.det(op) > 0.0:
         angle = rotation_angle(op)
@@ -763,7 +863,9 @@ def classify_c3h_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndarray) ->
     return "S3+" if signed > 0.0 else "S3-"
 
 
-def classify_s4_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndarray) -> str:
+def classify_s4_operation(
+    op: np.ndarray, axis: np.ndarray, ref: np.ndarray
+) -> str:
     """Classify an S4 point-group operation."""
     if np.linalg.det(op) > 0.0:
         return "E" if rotation_angle(op) < 1e-5 else "C2"
@@ -794,7 +896,10 @@ def classify_d3d_operation(op: np.ndarray, axis: np.ndarray) -> str:
         name = "E"
     elif abs(angle - 2.0 * math.pi / 3.0) < 1e-4:
         name = "2C3"
-    elif abs(angle - math.pi) < 1e-4 and abs(float(np.dot(operation_axis(proper), axis))) < 0.1:
+    elif (
+        abs(angle - math.pi) < 1e-4
+        and abs(float(np.dot(operation_axis(proper), axis))) < 0.1
+    ):
         name = "3C2p"
     else:
         raise ValueError(f"Cannot classify D3d operation angle {angle:.8f}")
@@ -803,7 +908,9 @@ def classify_d3d_operation(op: np.ndarray, axis: np.ndarray) -> str:
     return {"E": "i", "2C3": "2S6", "3C2p": "3sd"}[name]
 
 
-def classify_d4h_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndarray) -> str:
+def classify_d4h_operation(
+    op: np.ndarray, axis: np.ndarray, ref: np.ndarray
+) -> str:
     """Classify a D4h symmetry operation."""
     det = np.linalg.det(op)
     proper = op if det > 0.0 else -op
@@ -819,12 +926,18 @@ def classify_d4h_operation(op: np.ndarray, axis: np.ndarray, ref: np.ndarray) ->
         else:
             phi = angle_about_axis(rot_axis, ref, axis)
             sector = (phi / (math.pi / 4.0)) % 2.0
-            name = "2C2p" if min(abs(sector), abs(sector - 2.0)) < 0.5 else "2C2pp"
+            name = (
+                "2C2p"
+                if min(abs(sector), abs(sector - 2.0)) < 0.5
+                else "2C2pp"
+            )
     else:
         raise ValueError(f"Cannot classify D4h operation angle {angle:.8f}")
     if det > 0.0:
         return name
-    return {"E": "i", "2C4": "2S4", "C2": "sh", "2C2p": "2sv", "2C2pp": "2sd"}[name]
+    return {"E": "i", "2C4": "2S4", "C2": "sh", "2C2p": "2sv", "2C2pp": "2sd"}[
+        name
+    ]
 
 
 def classify_td_operation(op: np.ndarray) -> str:
@@ -859,15 +972,23 @@ def classify_oh_operation(op: np.ndarray, c4_axes: list[np.ndarray]) -> str:
         name = "6C4"
     elif abs(angle - math.pi) < 1e-4:
         axis = operation_axis(proper)
-        name = "3C2" if any(abs(float(np.dot(axis, old))) > 0.9 for old in c4_axes) else "6C2p"
+        name = (
+            "3C2"
+            if any(abs(float(np.dot(axis, old))) > 0.9 for old in c4_axes)
+            else "6C2p"
+        )
     else:
         raise ValueError(f"Cannot classify Oh operation angle {angle:.8f}")
     if det > 0.0:
         return name
-    return {"E": "i", "8C3": "8S6", "6C2p": "6sd", "6C4": "6S4", "3C2": "3sh"}[name]
+    return {"E": "i", "8C3": "8S6", "6C2p": "6sd", "6C4": "6S4", "3C2": "3sh"}[
+        name
+    ]
 
 
-def axis_from_analyzer(analyzer, coords: np.ndarray, order: int | None = None) -> np.ndarray:
+def axis_from_analyzer(
+    analyzer, coords: np.ndarray, order: int | None = None
+) -> np.ndarray:
     """Obtain a principal rotation axis from pymatgen or the geometry."""
     if order is not None:
         for candidate, candidate_order in analyzer.rot_sym:
@@ -914,10 +1035,14 @@ def classify_cn_proper(op: np.ndarray, nfold: int) -> str:
             return "2C3"
         if abs(angle - math.pi) < 1e-4:
             return "C2"
-    raise ValueError(f"Cannot classify C{nfold}v proper rotation angle {angle:.8f}")
+    raise ValueError(
+        f"Cannot classify C{nfold}v proper rotation angle {angle:.8f}"
+    )
 
 
-def classify_cnv_reflection(op: np.ndarray, pg: str, axis: np.ndarray, ref: np.ndarray) -> str:
+def classify_cnv_reflection(
+    op: np.ndarray, pg: str, axis: np.ndarray, ref: np.ndarray
+) -> str:
     """Classify a vertical reflection in a supported Cnv point group."""
     if pg == "C3v":
         return "3sv"
@@ -926,7 +1051,11 @@ def classify_cnv_reflection(op: np.ndarray, pg: str, axis: np.ndarray, ref: np.n
     if pg == "C2v":
         return "sv" if abs(math.cos(phi)) < 0.5 else "svp"
     sector = (phi / (math.pi / int(pg[1]))) % 2.0
-    return f"{int(pg[1]) // 2}sv" if abs(math.sin(phi)) < 0.5 else f"{int(pg[1]) // 2}sd"
+    return (
+        f"{int(pg[1]) // 2}sv"
+        if abs(math.sin(phi)) < 0.5
+        else f"{int(pg[1]) // 2}sd"
+    )
 
 
 def analyzer_operation_matrices(analyzer) -> list[np.ndarray]:
@@ -944,7 +1073,9 @@ def analyzer_operation_matrices(analyzer) -> list[np.ndarray]:
         try:
             value = getter()
             value = getattr(value, "symmetry_ops", value)
-            matrices = [np.array(item.rotation_matrix, dtype=float) for item in value]
+            matrices = [
+                np.array(item.rotation_matrix, dtype=float) for item in value
+            ]
             if matrices:
                 candidates.append(matrices)
         except (AttributeError, TypeError):
@@ -966,7 +1097,10 @@ def analyzer_operation_matrices(analyzer) -> list[np.ndarray]:
                 continue
             group.append(matrix)
             if len(group) > 240:
-                raise ValueError("Symmetry-operation closure unexpectedly exceeds 240 elements")
+                raise ValueError(
+                    "Symmetry-operation closure unexpectedly exceeds "
+                    "240 elements"
+                )
             pending.extend(matrix @ old for old in group)
             pending.extend(old @ matrix for old in group)
         completed.append(group)
@@ -975,11 +1109,14 @@ def analyzer_operation_matrices(analyzer) -> list[np.ndarray]:
     # Some pymatgen releases label an S4 molecule correctly but expose only
     # its proper C2 subgroup.  Reconstruct the two S4 operations from that
     # unique C2 axis; their sense is immaterial because both are included.
-    if analyzer.sch_symbol == "S4" and not any(np.linalg.det(op) < 0.0 for op in group):
+    if analyzer.sch_symbol == "S4" and not any(
+        np.linalg.det(op) < 0.0 for op in group
+    ):
         c2_ops = [
             op
             for op in group
-            if np.linalg.det(op) > 0.0 and abs(rotation_angle(op) - math.pi) < 1e-4
+            if np.linalg.det(op) > 0.0
+            and abs(rotation_angle(op) - math.pi) < 1e-4
         ]
         if len(c2_ops) == 1:
             axis = operation_axis(c2_ops[0])
@@ -1008,12 +1145,18 @@ def analyzer_operation_matrices(analyzer) -> list[np.ndarray]:
 def d2_frame(analyzer) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Construct conventionally ordered Cartesian axes for a D2 subgroup."""
     if hasattr(analyzer, "principal_axes"):
-        axes = [unit_vector(np.array(axis, dtype=float)) for axis in analyzer.principal_axes]
+        axes = [
+            unit_vector(np.array(axis, dtype=float))
+            for axis in analyzer.principal_axes
+        ]
         if len(axes) >= 3:
             return axes[2], axes[1], axes[0]
     proper_axes = []
     for mat in analyzer_operation_matrices(analyzer):
-        if np.linalg.det(mat) > 0.0 and abs(rotation_angle(mat) - math.pi) < 1e-4:
+        if (
+            np.linalg.det(mat) > 0.0
+            and abs(rotation_angle(mat) - math.pi) < 1e-4
+        ):
             axis = operation_axis(mat)
             if all(abs(float(np.dot(axis, old))) < 0.9 for old in proper_axes):
                 proper_axes.append(axis)
@@ -1022,33 +1165,45 @@ def d2_frame(analyzer) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return proper_axes[0], proper_axes[1], proper_axes[2]
 
 
-def closest_d2_axis_name(axis: np.ndarray, frame: tuple[np.ndarray, np.ndarray, np.ndarray]) -> str:
+def closest_d2_axis_name(
+    axis: np.ndarray, frame: tuple[np.ndarray, np.ndarray, np.ndarray]
+) -> str:
     """Name a twofold axis by the closest member of a D2 Cartesian frame."""
     names = ["C2z", "C2y", "C2x"]
     dots = [abs(float(np.dot(axis, candidate))) for candidate in frame]
     return names[int(np.argmax(dots))]
 
 
-def classify_operation(pg: str, op: np.ndarray, analyzer, coords: np.ndarray) -> str:
+def classify_operation(
+    pg: str, op: np.ndarray, analyzer, coords: np.ndarray
+) -> str:
     """Assign a Cartesian symmetry operation to a point-group class."""
     det = np.linalg.det(op)
     if pg == "C3h":
         axis = axis_from_analyzer(analyzer, coords, 3)
-        return classify_c3h_operation(op, axis, infer_c2_reference(coords, axis))
+        return classify_c3h_operation(
+            op, axis, infer_c2_reference(coords, axis)
+        )
     if pg in ("S4", "D2d"):
         matrices = analyzer_operation_matrices(analyzer)
         axis = improper_principal_axis(matrices, math.pi / 2.0)
         if pg == "S4":
-            return classify_s4_operation(op, axis, infer_c2_reference(coords, axis))
+            return classify_s4_operation(
+                op, axis, infer_c2_reference(coords, axis)
+            )
         return classify_d2d_operation(op, axis)
     if pg == "D3d":
-        return classify_d3d_operation(op, axis_from_analyzer(analyzer, coords, 3))
+        return classify_d3d_operation(
+            op, axis_from_analyzer(analyzer, coords, 3)
+        )
     if pg == "D3h":
         axis = axis_from_analyzer(analyzer, coords, 3)
         return classify_d3h_operation(op, axis)
     if pg == "D4h":
         axis = axis_from_analyzer(analyzer, coords, 4)
-        return classify_d4h_operation(op, axis, infer_c2_reference(coords, axis))
+        return classify_d4h_operation(
+            op, axis, infer_c2_reference(coords, axis)
+        )
     if pg == "D6h":
         axis = axis_from_analyzer(analyzer, coords, 6)
         ref = infer_c2_reference(coords, axis)
@@ -1059,7 +1214,8 @@ def classify_operation(pg: str, op: np.ndarray, analyzer, coords: np.ndarray) ->
         c4_axes = [
             operation_axis(matrix)
             for matrix in analyzer_operation_matrices(analyzer)
-            if np.linalg.det(matrix) > 0.0 and abs(rotation_angle(matrix) - math.pi / 2.0) < 1e-4
+            if np.linalg.det(matrix) > 0.0
+            and abs(rotation_angle(matrix) - math.pi / 2.0) < 1e-4
         ]
         return classify_oh_operation(op, c4_axes)
     if det > 0.0 and rotation_angle(op) < 1e-5:
@@ -1094,7 +1250,11 @@ def classify_operation(pg: str, op: np.ndarray, analyzer, coords: np.ndarray) ->
 
 def subgroup_hint(pg: str) -> str:
     """Build an error message suggesting supported subgroups."""
-    suggestions = [item for item in SUBGROUP_SUGGESTIONS.get(pg, []) if item in POINT_GROUPS]
+    suggestions = [
+        item
+        for item in SUBGROUP_SUGGESTIONS.get(pg, [])
+        if item in POINT_GROUPS
+    ]
     if not suggestions:
         suggestions = ["C1"]
     return (
@@ -1108,14 +1268,16 @@ def subgroup_hint(pg: str) -> str:
 def select_subgroup_operations(
     requested_pg: str, analyzer, coords: np.ndarray
 ) -> list[tuple[str, np.ndarray]]:
-    """Select a complete requested subgroup from detected symmetry operations."""
+    """Select a complete subgroup from detected symmetry operations."""
     target_counts = dict(POINT_GROUPS[requested_pg]["classes"])
     selected: list[tuple[str, np.ndarray]] = []
     counts = defaultdict(int)
 
     for mat in analyzer_operation_matrices(analyzer):
         try:
-            class_name = classify_operation(requested_pg, mat, analyzer, coords)
+            class_name = classify_operation(
+                requested_pg, mat, analyzer, coords
+            )
         except Exception:
             continue
         if class_name not in target_counts:
@@ -1132,7 +1294,8 @@ def select_subgroup_operations(
     ]
     if missing:
         raise ValueError(
-            f"Could not construct requested {requested_pg} subgroup from detected symmetry "
+            f"Could not construct requested {requested_pg} subgroup from "
+            "detected symmetry "
             f"operations; missing classes: {', '.join(missing)}"
         )
     return selected
@@ -1148,14 +1311,19 @@ def pymatgen_point_group_operations(
     except ImportError as exc:
         raise RuntimeError("pymatgen is not installed") from exc
 
-    analyzer = PointGroupAnalyzer(Molecule(species, coords), tolerance=tolerance)
+    analyzer = PointGroupAnalyzer(
+        Molecule(species, coords), tolerance=tolerance
+    )
     pg = analyzer.sch_symbol
     if requested_pg != "auto" and pg != requested_pg:
         if requested_pg not in POINT_GROUPS:
-            raise ValueError(f"Requested point group {requested_pg} is not supported")
+            raise ValueError(
+                f"Requested point group {requested_pg} is not supported"
+            )
         ops = select_subgroup_operations(requested_pg, analyzer, coords)
         print(
-            f"mo_irreps.py: warning: pymatgen detected {pg}; analyzing requested "
+            "mo_irreps.py: warning: pymatgen detected "
+            f"{pg}; analyzing requested "
             f"{requested_pg} subgroup instead.",
             file=sys.stderr,
         )
@@ -1169,7 +1337,9 @@ def pymatgen_point_group_operations(
     return pg, ops
 
 
-def polynomial_value(poly: dict[tuple[int, int, int], float], points: np.ndarray) -> np.ndarray:
+def polynomial_value(
+    poly: dict[tuple[int, int, int], float], points: np.ndarray
+) -> np.ndarray:
     """Evaluate a Cartesian monomial expansion at a set of points."""
     out = np.zeros(len(points))
     x, y, z = points[:, 0], points[:, 1], points[:, 2]
@@ -1180,7 +1350,7 @@ def polynomial_value(poly: dict[tuple[int, int, int], float], points: np.ndarray
 
 def shell_transform(shell: str, op: np.ndarray) -> np.ndarray:
     """Construct the real-AO transformation matrix for one shell."""
-    labels = SHELLS[shell]
+    polynomials = list(SHELL_POLYS[shell].values())
     if shell == "s":
         return np.ones((1, 1))
     grid = np.array(
@@ -1197,11 +1367,13 @@ def shell_transform(shell: str, op: np.ndarray) -> np.ndarray:
         ],
         dtype=float,
     )
-    basis = np.column_stack([polynomial_value(POLYS[label], grid) for label in labels])
+    basis = np.column_stack(
+        [polynomial_value(poly, grid) for poly in polynomials]
+    )
     transformed_points = grid @ op
-    transform = np.zeros((len(labels), len(labels)))
-    for j, label in enumerate(labels):
-        vals = polynomial_value(POLYS[label], transformed_points)
+    transform = np.zeros((len(polynomials), len(polynomials)))
+    for j, poly in enumerate(polynomials):
+        vals = polynomial_value(poly, transformed_points)
         transform[:, j], *_ = np.linalg.lstsq(basis, vals, rcond=None)
     return transform
 
@@ -1217,7 +1389,11 @@ def atom_permutation(
         distances = np.linalg.norm(coords - point, axis=1)
         candidates = np.argsort(distances)
         for new in candidates:
-            if new not in used and species[new] == species[old] and distances[new] <= tol:
+            if (
+                new not in used
+                and species[new] == species[old]
+                and distances[new] <= tol
+            ):
                 perm[old] = int(new)
                 used.add(int(new))
                 break
@@ -1230,7 +1406,11 @@ def atom_permutation(
 
 
 def build_ao_operation(
-    aos: list[AO], species: list[str], coords: np.ndarray, op: np.ndarray, tolerance: float
+    aos: list[AO],
+    species: list[str],
+    coords: np.ndarray,
+    op: np.ndarray,
+    tolerance: float,
 ) -> np.ndarray:
     """Construct a symmetry-operation matrix in the complete AO basis."""
     perm = atom_permutation(species, coords, op, tolerance)
@@ -1249,7 +1429,8 @@ def build_ao_operation(
             new_labels = [aos[i].label for i in new_idxs]
             if old_labels != SHELLS[shell] or new_labels != SHELLS[shell]:
                 raise ValueError(
-                    f"AO order for atom {atom} shell {shell} is not the expected DFTB+ order"
+                    f"AO order for atom {atom} shell {shell} is not the "
+                    "expected DFTB+ order"
                 )
             block = shell_blocks[shell]
             matrix[np.ix_(new_idxs, old_idxs)] = block
@@ -1260,9 +1441,14 @@ def group_blocks_from_band(
     band: list[BandState], eigvecs: list[Eigenvector], energy_tol: float
 ) -> list[tuple[int, int, list[int], float | None, float | None]]:
     """Group eigenvectors into energy-degenerate blocks using ``band.out``."""
-    by_vec = {(vec.kpt, spin_number(vec.spin), vec.state): idx for idx, vec in enumerate(eigvecs)}
+    by_vec = {
+        (vec.kpt, spin_number(vec.spin), vec.state): idx
+        for idx, vec in enumerate(eigvecs)
+    }
     blocks = []
-    for key, states in groupby_key(band, lambda item: (item.kpt, item.spin)).items():
+    for key, states in groupby_key(
+        band, lambda item: (item.kpt, item.spin)
+    ).items():
         current: list[int] = []
         current_energy: float | None = None
         current_occ = 0.0
@@ -1270,15 +1456,23 @@ def group_blocks_from_band(
             idx = by_vec.get((state.kpt, state.spin, state.state))
             if idx is None:
                 continue
-            if current and abs(state.energy - (current_energy or state.energy)) > energy_tol:
-                blocks.append((key[0], key[1], current, current_energy, current_occ))
+            if (
+                current
+                and abs(state.energy - (current_energy or state.energy))
+                > energy_tol
+            ):
+                blocks.append(
+                    (key[0], key[1], current, current_energy, current_occ)
+                )
                 current = []
                 current_occ = 0.0
             current.append(idx)
             current_energy = state.energy
             current_occ += state.occ
         if current:
-            blocks.append((key[0], key[1], current, current_energy, current_occ))
+            blocks.append(
+                (key[0], key[1], current, current_energy, current_occ)
+            )
     return blocks
 
 
@@ -1300,12 +1494,19 @@ def spin_number(spin: str) -> int:
     return 1
 
 
-def default_blocks(eigvecs: list[Eigenvector]) -> list[tuple[int, int, list[int], None, None]]:
+def default_blocks(
+    eigvecs: list[Eigenvector],
+) -> list[tuple[int, int, list[int], None, None]]:
     """Create one-orbital blocks when no band grouping is available."""
-    return [(vec.kpt, spin_number(vec.spin), [idx], None, None) for idx, vec in enumerate(eigvecs)]
+    return [
+        (vec.kpt, spin_number(vec.spin), [idx], None, None)
+        for idx, vec in enumerate(eigvecs)
+    ]
 
 
-def class_average(point_group: str, chars_by_op: list[tuple[str, complex]]) -> np.ndarray:
+def class_average(
+    point_group: str, chars_by_op: list[tuple[str, complex]]
+) -> np.ndarray:
     """Average representation characters over each conjugacy class."""
     values = []
     grouped = groupby_key(chars_by_op, lambda item: item[0])
@@ -1313,7 +1514,8 @@ def class_average(point_group: str, chars_by_op: list[tuple[str, complex]]) -> n
         vals = [char for _, char in grouped[name]]
         if len(vals) != count:
             raise ValueError(
-                f"Internal error: class {name} has {len(vals)} operations, expected {count}"
+                f"Internal error: class {name} has {len(vals)} operations, "
+                f"expected {count}"
             )
         values.append(sum(vals) / count)
     return np.array(values, dtype=complex)
@@ -1336,7 +1538,9 @@ def decompose(point_group: str, characters: np.ndarray) -> dict[str, float]:
     return out
 
 
-def normalize_coeffs(coeffs: np.ndarray, overlap: np.ndarray | None) -> tuple[np.ndarray, float]:
+def normalize_coeffs(
+    coeffs: np.ndarray, overlap: np.ndarray | None
+) -> tuple[np.ndarray, float]:
     """Normalize orbital coefficients in the AO overlap metric."""
     if overlap is None:
         norm = np.vdot(coeffs, coeffs).real
@@ -1358,7 +1562,11 @@ def format_mult(mult: dict[str, float], point_group: str) -> str:
     elif point_group == "S4":
         conjugate_pairs = [("E+", "E-", "E")]
     for first, second, combined in conjugate_pairs:
-        if first in mult and second in mult and abs(mult[first] - mult[second]) < 0.2:
+        if (
+            first in mult
+            and second in mult
+            and abs(mult[first] - mult[second]) < 0.2
+        ):
             mult[combined] = 0.5 * (mult.pop(first) + mult.pop(second))
     parts = []
     for name, value in sorted(mult.items()):
@@ -1373,7 +1581,9 @@ def format_mult(mult: dict[str, float], point_group: str) -> str:
     return " + ".join(parts) if parts else "unassigned"
 
 
-def representation_characters(point_group: str, mult: dict[str, float]) -> np.ndarray:
+def representation_characters(
+    point_group: str, mult: dict[str, float]
+) -> np.ndarray:
     """Reconstruct representation characters from irrep multiplicities."""
     table = POINT_GROUPS[point_group]["characters"]
     chars = np.zeros(len(POINT_GROUPS[point_group]["classes"]), dtype=complex)
@@ -1401,7 +1611,9 @@ def annotate_exc_dat(
 ) -> None:
     """Append dominant occupied-virtual product symmetries to EXC.DAT."""
     if input_path.resolve() == output_path.resolve():
-        raise ValueError("Excitation input and annotated output paths must be different")
+        raise ValueError(
+            "Excitation input and annotated output paths must be different"
+        )
 
     transition = re.compile(r"(?P<occ>\d+)\s*->\s*(?P<virt>\d+)")
     output = []
@@ -1421,12 +1633,17 @@ def annotate_exc_dat(
         if occ_irrep is None or virt_irrep is None:
             label = "unassigned"
         else:
-            label = format_mult(transition_product(point_group, occ_irrep, virt_irrep), point_group)
+            label = format_mult(
+                transition_product(point_group, occ_irrep, virt_irrep),
+                point_group,
+            )
         output.append(f"{line}      {label}")
         annotated += 1
 
     if annotated == 0:
-        raise ValueError(f"{input_path}: no occupied -> virtual transitions found")
+        raise ValueError(
+            f"{input_path}: no occupied -> virtual transitions found"
+        )
     output_path.write_text("\n".join(output) + "\n")
 
 
@@ -1459,19 +1676,33 @@ def orientation_description(
         return "[" + ", ".join(f"{value:+.8f}" for value in vec) + "]"
 
     by_class = groupby_key(operations, lambda item: item[0])
-    lines = ["orientation: molecule was not rotated; vectors below are in the input XYZ frame"]
+    lines = [
+        "orientation: molecule was not rotated; vectors below are in the "
+        "input XYZ frame"
+    ]
 
     if point_group in ("C2", "C2h", "C2v", "S4", "D2d"):
         c2 = by_class.get("C2", [])
         if c2:
-            lines.append(f"orientation C2/z axis: {fmt(operation_axis(c2[0][1]))}")
+            lines.append(
+                f"orientation C2/z axis: {fmt(operation_axis(c2[0][1]))}"
+            )
         if point_group == "C2v" and c2:
             axis = operation_axis(c2[0][1])
             lines.append(
                 "orientation geometry-selected in-plane reference: "
                 f"{fmt(infer_c2_reference(coords, axis))}"
             )
-    elif point_group in ("C3h", "C3v", "C4v", "C6v", "D3d", "D3h", "D4h", "D6h"):
+    elif point_group in (
+        "C3h",
+        "C3v",
+        "C4v",
+        "C6v",
+        "D3d",
+        "D3h",
+        "D4h",
+        "D6h",
+    ):
         class_name = {
             "C3h": "C3+",
             "C3v": "2C3",
@@ -1500,7 +1731,9 @@ def orientation_description(
             rotations = by_class.get(class_name, [])
             if rotations:
                 axis = operation_axis(rotations[0][1])
-                lines.append(f"orientation {label} axis ({class_name}): {fmt(axis)}")
+                lines.append(
+                    f"orientation {label} axis ({class_name}): {fmt(axis)}"
+                )
     elif point_group == "Cs":
         mirrors = by_class.get("s", [])
         if mirrors:
@@ -1526,9 +1759,13 @@ def analyze(args: argparse.Namespace) -> int:
     species, coords = parse_xyz(args.geometry)
     aos, eigvecs = parse_eigenvec(args.eigenvec)
     if len(aos) != len(eigvecs[0].coeffs):
-        raise ValueError("AO metadata length does not match coefficient length")
+        raise ValueError(
+            "AO metadata length does not match coefficient length"
+        )
     if len(species) != max(ao.atom for ao in aos):
-        raise ValueError("Geometry atom count does not match eigenvec.out atom numbering")
+        raise ValueError(
+            "Geometry atom count does not match eigenvec.out atom numbering"
+        )
 
     overlaps = parse_oversqr(args.overlap)
     band = parse_band(args.band)
@@ -1539,15 +1776,20 @@ def analyze(args: argparse.Namespace) -> int:
     )
     warn_if_orientation_convention_matters(point_group)
     ao_ops = [
-        (name, build_ao_operation(aos, species, coords, op, args.tol)) for name, op in operations
+        (name, build_ao_operation(aos, species, coords, op, args.tol))
+        for name, op in operations
     ]
 
     print(f"# MO irreps for point group {point_group}")
     for line in orientation_description(point_group, operations, coords):
         print(f"# {line}")
-    print("# columns: kpt spin states energy occ irrep norm_error")
+    print(
+        "# columns: kpt spin states energy occ irrep norm_error "
+        "sym_error"
+    )
     metric_ops_by_kpt: dict[int, list[tuple[str, np.ndarray]]] = {}
     mo_irreps: dict[tuple[int, int, int], dict[str, float]] = {}
+    broken_blocks = 0
     for kpt, spin, indices, energy, occ in blocks:
         overlap = overlaps.get(kpt)
         coeff_cols = []
@@ -1560,51 +1802,97 @@ def analyze(args: argparse.Namespace) -> int:
         chars_by_op = []
         metric = overlap if overlap is not None else np.eye(len(aos))
         if kpt not in metric_ops_by_kpt:
-            metric_ops_by_kpt[kpt] = [(class_name, metric @ ao_op) for class_name, ao_op in ao_ops]
+            metric_ops_by_kpt[kpt] = [
+                (class_name, metric @ ao_op) for class_name, ao_op in ao_ops
+            ]
+        closure_errors = []
+        identity = np.eye(len(indices))
         for class_name, metric_op in metric_ops_by_kpt[kpt]:
             rep = coeffs.conj().T @ metric_op @ coeffs
             chars_by_op.append((class_name, np.trace(rep)))
+            closure_errors.append(
+                np.linalg.norm(
+                    rep.conj().T @ rep - identity, ord="fro"
+                )
+                / math.sqrt(len(indices))
+            )
         chars = class_average(point_group, chars_by_op)
         mult = decompose(point_group, chars)
+        closure_error = max(closure_errors)
+        symmetry_broken = closure_error > SYMMETRY_CLOSURE_TOL
+        if symmetry_broken:
+            broken_blocks += 1
         for idx in indices:
             vec = eigvecs[idx]
-            mo_irreps[(vec.kpt, spin_number(vec.spin), vec.state)] = mult
+            mo_irreps[(vec.kpt, spin_number(vec.spin), vec.state)] = (
+                {} if symmetry_broken else mult
+            )
         states = ",".join(str(eigvecs[idx].state) for idx in indices)
         energy_txt = f"{energy:.8f}" if energy is not None else "-"
         occ_txt = f"{occ:.5f}" if occ is not None else "-"
         norm_txt = f"{max(norm_errors):.2e}" if norm_errors else "-"
+        irrep_txt = (
+            "symmetry-broken"
+            if symmetry_broken
+            else format_mult(mult, point_group)
+        )
         print(
             f"{kpt:3d} {spin:3d} {states:>9s} {energy_txt:>14s} {occ_txt:>9s} "
-            f"{format_mult(mult, point_group):>14s} {norm_txt:>10s}"
+            f"{irrep_txt:>16s} {norm_txt:>10s} {closure_error:10.2e}"
+        )
+    if broken_blocks:
+        print(
+            "mo_irreps.py: warning: "
+            f"{broken_blocks} orbital block(s) are not closed under the "
+            f"detected {point_group} operations; their electronic symmetry "
+            "is lower than the nuclear geometry or a degenerate block is "
+            "incomplete.",
+            file=sys.stderr,
         )
     if args.exc_input.exists():
-        annotate_exc_dat(args.exc_input, args.exc_output, point_group, mo_irreps)
+        annotate_exc_dat(
+            args.exc_input, args.exc_output, point_group, mo_irreps
+        )
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     """Parse command-line arguments and run the symmetry analysis."""
     parser = argparse.ArgumentParser(
-        description="Determine molecular-orbital irreps from DFTB+ eigenvec.out.",
+        description=(
+            "Determine molecular-orbital irreps from DFTB+ eigenvec.out."
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Required inputs:\n"
-            "  eigenvec.out  MO coefficients and AO order, from WriteEigenvectors "
+            "  eigenvec.out  MO coefficients and AO order, from "
+            "WriteEigenvectors "
             "+ EigenvectorsAsText.\n"
-            "  geometry      XYZ geometry matching the atom order in eigenvec.out.\n"
-            "  band.out      Energies/occupations; used to group degenerate orbitals.\n"
-            "  oversqr.dat   AO overlap matrix; used for S-normalization and projections.\n"
-            "  EXC.DAT       Optional excitation list; its dominant MO products are annotated.\n"
-            "  pymatgen      Required for point-group detection and symmetry operations.\n\n"
+            "  geometry      XYZ geometry matching the atom order in "
+            "eigenvec.out.\n"
+            "  band.out      Energies/occupations; used to group "
+            "degenerate orbitals.\n"
+            "  oversqr.dat   AO overlap matrix; used for S-normalization "
+            "and projections.\n"
+            "  EXC.DAT       Optional excitation list; its dominant MO "
+            "products are annotated.\n"
+            "  pymatgen      Required for point-group detection and "
+            "symmetry operations.\n\n"
             "Tolerance tips:\n"
-            "  --tol controls both pymatgen point-group detection and the atom-mapping\n"
-            "    check used to construct AO symmetry operations. Increase it for a\n"
+            "  --tol controls both pymatgen point-group detection and the "
+            "atom-mapping\n"
+            "    check used to construct AO symmetry operations. Increase "
+            "it for a\n"
             "    slightly distorted or rounded geometry.\n"
-            "  --energy-tol controls grouping of nearly-degenerate levels from band.out.\n"
-            "    Increase it if a true degenerate pair is printed as separate 0.5E-like pieces.\n\n"
+            "  --energy-tol controls grouping of nearly-degenerate levels "
+            "from band.out.\n"
+            "    Increase it if a true degenerate pair is printed as "
+            "separate 0.5E-like pieces.\n\n"
             "Unsupported high-symmetry groups:\n"
-            "  The script stops and suggests supported subgroup analyses. Use --point-group\n"
-            "  explicitly to request one of those subgroups; no subgroup fallback is automatic."
+            "  The script stops and suggests supported subgroup analyses. "
+            "Use --point-group\n"
+            "  explicitly to request one of those subgroups; no subgroup "
+            "fallback is automatic."
         ),
     )
     parser.add_argument(
@@ -1612,7 +1900,10 @@ def main(argv: list[str] | None = None) -> int:
         "--eigenvec",
         type=Path,
         default=Path("eigenvec.out"),
-        help="DFTB+ text eigenvector file with MO coefficients and AO order (required)",
+        help=(
+            "DFTB+ text eigenvector file with MO coefficients and AO order "
+            "(required)"
+        ),
     )
     parser.add_argument(
         "-g",
@@ -1626,20 +1917,29 @@ def main(argv: list[str] | None = None) -> int:
         "--band",
         type=Path,
         default=Path("band.out"),
-        help="DFTB+ band.out file for energies, occupations, and degeneracy grouping (required)",
+        help=(
+            "DFTB+ band.out file for energies, occupations, and degeneracy "
+            "grouping (required)"
+        ),
     )
     parser.add_argument(
         "-s",
         "--overlap",
         type=Path,
         default=Path("oversqr.dat"),
-        help="DFTB+ square overlap matrix for normalization/projections (required)",
+        help=(
+            "DFTB+ square overlap matrix for normalization/projections "
+            "(required)"
+        ),
     )
     parser.add_argument(
         "--exc-input",
         type=Path,
         default=Path("EXC.DAT"),
-        help="DFTB+ excitation file to annotate when present (default: EXC.DAT)",
+        help=(
+            "DFTB+ excitation file to annotate when present "
+            "(default: EXC.DAT)"
+        ),
     )
     parser.add_argument(
         "--exc-output",
