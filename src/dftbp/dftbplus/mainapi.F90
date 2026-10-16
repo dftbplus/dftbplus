@@ -296,8 +296,8 @@ contains
     main%tCoordsChanged = .true.
 
     call warning(env%stdOut,&
-        & ["Generic derivatives settings initialised inside API an property request.",&
-        & "For more control, setup forces at calculation initialisation.           "])
+        & ["Generic derivatives settings initialised inside API and property requested.",&
+        & "For more control, setup forces at calculation initialisation.              "])
 
   end subroutine genericGradientInit
 

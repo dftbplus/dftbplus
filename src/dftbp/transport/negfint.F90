@@ -2180,7 +2180,7 @@ contains
       write(env%stdOut,*)
       call writeXYZFormat("supercell.xyz", lc_coord, lc_species,&
           & speciesName)
-      write(env%stdOut,*) " <<< supercell.xyz written on file"
+      write(env%stdOut,*) " <<< supercell.xyz written to file"
     end if
 
   contains

@@ -36,9 +36,21 @@ module dftbp_common_globalenv
 
 
   !> Unredirected standard out
+  !!
+  !! Note: Do NOT use this parameter in the production part of the code, as the standard output unit
+  !! number should always be taken from the actual environment instance (which is passed
+  !! around). Using it in debug-only parts (e.g. in asserts) and in printing error messages
+  !! immediately before an error stop is OK.
+  !!
   integer, parameter :: stdOut0 = output_unit
 
   !> Unredirected standard error
+  !!
+  !! Note: Do NOT use this parameter in the production part of the code, as the standard error unit
+  !! number should always be taken from the actual environment instance (which is passed
+  !! around). Using it in debug-only parts (e.g. in asserts) and in printing error messages
+  !! immediately before an error stop is OK.
+  !!
   integer, parameter :: stdErr0 = error_unit
 
   !> Whether current process is the global lead process
