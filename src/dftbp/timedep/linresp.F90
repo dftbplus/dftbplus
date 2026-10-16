@@ -296,7 +296,7 @@ contains
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine linResp_calcExcitations(env, this, denseDesc, eigVec, eigVal, SSqrReal,&
       & filling, coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb,&
-      & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies)
+      & fdAutotest, fdResults, taggedWriter, hybridXc, excEnergy, allExcEnergies)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -340,8 +340,11 @@ contains
     !> Data type with atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> File id for tagging information
-    type(TFileDescr), intent(in) :: fdTagged
+    !> File id for tagging information for regression system
+    type(TFileDescr), intent(in) :: fdAutotest
+
+    !> File id for tagged results output
+    type(TFileDescr), intent(in) :: fdResults
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -358,8 +361,8 @@ contains
     if (this%tInit) then
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
-          & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-          & hybridXc, excEnergy, allExcEnergies)
+          & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdAutotest, fdResults,&
+          & taggedWriter, hybridXc, excEnergy, allExcEnergies)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations.')
     end if
@@ -370,8 +373,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(env, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies, excgradient, nacv, derivator,&
-      & rhoSqr, deltaRho, occNatural, naturalOrbs)
+      & fdAutotest, fdResults, taggedWriter, hybridXc, excEnergy, allExcEnergies, excgradient,&
+      & nacv, derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -431,7 +434,10 @@ contains
     real(dp), intent(inout), allocatable :: deltaRho(:,:,:)
 
     !> File descriptor for tagged data
-    type(TFileDescr), intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdAutotest
+
+    !> File id for tagged results information
+    type(TFileDescr), intent(in) :: fdResults
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -472,16 +478,17 @@ contains
 
       if (allocated(occNatural)) then
         call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-            & hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho, shift=shiftPerAtom,&
-            & skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient, nacv=nacv,&
-            & derivator=derivator, rhoSqr=rhoSqr, occNatural=occNatural, naturalOrbs=naturalOrbs)
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdAutotest, fdResults,&
+            & taggedWriter, hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho,&
+            & shift=shiftPerAtom, skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient,&
+            & nacv=nacv, derivator=derivator, rhoSqr=rhoSqr, occNatural=occNatural,&
+            & naturalOrbs=naturalOrbs)
       else
-         call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-            & hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho, shift=shiftPerAtom,&
-            & skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient, nacv=nacv,&
-            & derivator=derivator, rhoSqr=rhoSqr)
+        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdAutotest, fdResults,&
+            & taggedWriter, hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho,&
+            & shift=shiftPerAtom, skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient,&
+            & nacv=nacv, derivator=derivator, rhoSqr=rhoSqr)
       end if
 
     else
