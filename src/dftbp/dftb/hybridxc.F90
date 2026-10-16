@@ -6235,7 +6235,8 @@ contains
     allocate(camGammaAO(nOrb, nOrb))
 
     ! symmetrize square overlap and density matrix
-    overlapSym = cmplx(overlap, 0.0_dp, dp)
+    allocate(overlapSym(size(overlap, dim=1), size(overlap, dim=2)))
+    overlapSym(:,:) = cmplx(overlap, 0.0_dp, dp)
     call adjointLowerTriangle(overlapSym)
     deltaRhoSqrSym = deltaRhoSqr
     do iSpin = 1, nSpin
