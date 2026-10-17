@@ -13,6 +13,7 @@ module dftbp_elecsolvers_elecsolvers
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
   use dftbp_elecsolvers_elpa, only : TElpa, TElpaInp
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver, TElsiSolverInp
+  use dftbp_elecsolvers_partialdiag, only : TPartialDiag
   use dftbp_extlibs_elpa, only : withElpa
   use dftbp_extlibs_elsiiface, only: withElsi
   implicit none
@@ -72,6 +73,9 @@ module dftbp_elecsolvers_elecsolvers
     !> Data for ELPA solver
     type(TElpa), public, allocatable :: elpa
 
+    !> State counting, if only a part of the spectrum is being calculated
+    type(TPartialDiag), public :: partialDiag
+
     !> Are Choleskii factors already available for the overlap matrix
     logical, public, allocatable :: hasCholesky(:)
 
@@ -87,6 +91,7 @@ module dftbp_elecsolvers_elecsolvers
   contains
     procedure :: getSolverName => TElectronicSolver_getSolverName
     procedure :: reset => TElectronicSolver_reset
+    procedure :: setNState => TElectronicSolver_setNState
     procedure, private :: getCholeskyReal => TElectronicSolver_getCholeskyReal
     procedure, private :: getCholeskyCmplx => TElectronicSolver_getCholeskyCmplx
     procedure, private :: storeCholeskyReal => TElectronicSolver_storeCholeskyReal
@@ -195,6 +200,26 @@ contains
         & electronicSolverTypes%magmaGvd])
 
   end function providesEigenvalues
+
+
+  !> Changes the number of states the solver should return.
+  subroutine TElectronicSolver_setNState(this, nState)
+
+    !> Instance.
+    class(TElectronicSolver), intent(inout) :: this
+
+    !> Number of states to calculate from now on
+    integer, intent(in) :: nState
+
+    if (this%isElsiSolver) then
+      call this%elsi%setNState(nState)
+    end if
+
+    ! The solver instance is built again for the new number of states, so it will factorise the
+    ! overlap once more. That needs the original matrix, not the stored factorisation.
+    this%hasCholesky(:) = .false.
+
+  end subroutine TElectronicSolver_setNState
 
 
   !> Resets the electronic solver for the next geometry step.
