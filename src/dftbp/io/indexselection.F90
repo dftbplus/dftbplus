@@ -83,10 +83,7 @@ module dftbp_io_indexselection
     integer :: indexRange(2)
 
     !> Names of the species, in case it is an atom index selection. Shape: [nSpecies]
-    !> Workaround: GCC 7 / GCC 8
-    !> Deferred length character array can not be allocated properly
-    !> character(:), allocatable :: speciesNames(:)
-    character(mc), allocatable :: speciesNames(:)
+    character(len=:), allocatable :: speciesNames(:)
 
     !> Species of each atom, in case it is an atom index selection. Shape: [endInd - startInd + 1]
     integer, allocatable :: species(:)
@@ -369,10 +366,7 @@ contains
     ! Non-numerical value. If this is an atom selection, try to interpret it as species name.
     else if (allocated(selection%speciesNames)) then
 
-      ! Workaround: GCC 7 / GCC 8
-      ! Missing findloc() is replaced with special hand-coded one
-      !iSpecies = findloc(selection%speciesNames, tolower(selector), dim=1)
-      iSpecies = findloc_(selection%speciesNames, tolower(selector))
+      iSpecies = findloc(selection%speciesNames, tolower(selector), dim=1)
       if (iSpecies == 0) then
         @:RAISE_FORMATTED_ERROR(errStatus, errors%invalidSelector,&
             & "('Invalid species name ''', A, '''')", trim(selector))
@@ -490,20 +484,6 @@ contains
     end if
 
   end function getTokenType_
-
-
-  !> Replacement for findloc(speciesNames, species, dim=1) to ensure GCC 7/8 compatibility
-  pure function findloc_(speciesNames, speciesName) result(iSpecies)
-    character(*), intent(in) :: speciesNames(:)
-    character(*), intent(in) :: speciesName
-    integer :: iSpecies
-
-    do iSpecies = 1, size(speciesNames)
-      if (speciesNames(iSpecies) == speciesName) return
-    end do
-    iSpecies = 0
-
-  end function findloc_
 
 
 end module dftbp_io_indexselection
