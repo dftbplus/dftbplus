@@ -114,7 +114,8 @@ contains
     !> Output location
     type(c_ptr), value, intent(in) :: outputFileName
 
-    !> MPI-communicator id
+    !> MPI-communicator id. Note this must be a Fortran handle, which can be generated from C with
+    !! MPI_Comm_c2f
     integer(c_int), value, intent(in) :: mpiComm
 
     type(TDftbPlusC), pointer :: instance
