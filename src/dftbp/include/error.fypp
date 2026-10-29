@@ -17,7 +17,7 @@
 
 #! Macro to return an error flag if return variable available or throw
 #! an error and shut down otherwise
-#:def ERROR_HANDLING(errVar, errNumber, msg)
+#:def ERROR_HANDLING(output, errVar, errNumber, msg)
   block
     use dftbp_common_accuracy, only : lc
     use dftbp_io_message, only : error, warning
@@ -27,7 +27,7 @@
     write(stringTmp,"(A)")${msg}$
     if (present(${errVar}$)) then
       ${errVar}$ = ${errNumber}$
-      call warning(stringTmp)
+      call warning(${output}$, stringTmp)
       return
     else
       call error(stringTmp)
@@ -38,7 +38,7 @@
 
 #! Macro to return an error flag if return variable available or throw
 #! an error and shut down otherwise
-#:def FORMATTED_ERROR_HANDLING(errVar, errNumber, formating, *variables)
+#:def FORMATTED_ERROR_HANDLING(output, errVar, errNumber, formating, *variables)
   block
     use dftbp_common_accuracy, only : lc
     use dftbp_io_message, only : error, warning
@@ -48,7 +48,7 @@
     write(stringTmp,${formating}$) ${ ",".join(variables) }$
     if (present(${errVar}$)) then
       ${errVar}$ = ${errNumber}$
-      call warning(stringTmp)
+      call warning(${output}$, stringTmp)
       return
     else
       call error(stringTmp)
