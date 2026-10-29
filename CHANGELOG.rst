@@ -44,6 +44,14 @@ Added
 Changed
 -------
 
+- *Backward incompatible** changes to xTB calculations for periodic
+  systems: The TBLite library introduced breaking changes in periodic
+  system calculations, with no fallback to the legacy
+  implementation. Consequently, results obtained using the xTB
+  Hamiltonian with periodic boundary conditions may differ from those
+  of previous versions. Calculations using the DFTB Hamiltonian, as
+  well as non-periodic xTB calculations, remain unaffected.
+  
 - Binary X+Y data export from time dependent calculations
 
 - Improve control for single-shot transport calculations in cases
