@@ -90,6 +90,11 @@ Fixed
 - Orbital ordering for d-orbitals in xTB calculations follows now the usual
   (m=-l,...,l) convention (fix in the upstream tblite library).
 
+- Forces from the three-body term of the DFT-D3 dispersion were slightly
+  incorrect for periodic systems, as triples involving periodic images of the
+  same atom were weighted wrongly (energies and stress were not affected). Fixed
+  in the upstream simple-dftd3 library.
+
 
 25.1 (2025-12-18)
 =================
