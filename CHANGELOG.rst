@@ -52,14 +52,20 @@ Added
 Changed
 -------
 
-- *Backward incompatible** changes to xTB calculations for periodic
-  systems: The TBLite library introduced breaking changes in periodic
-  system calculations, with no fallback to the legacy
-  implementation. Consequently, results obtained using the xTB
-  Hamiltonian with periodic boundary conditions may differ from those
-  of previous versions. Calculations using the DFTB Hamiltonian, as
-  well as non-periodic xTB calculations, remain unaffected.
-  
+- **Backward incompatible** changes to xTB calculations due to changes
+  in the TBLite library (version 0.8.0), with no fallback to the old
+  implementations:
+
+  * Periodic GFN1/GFN2-xTB: Klopman-Ohno electrostatics is evaluated
+    with an exact generalized Ewald summation.
+
+  * GFN1-xTB and IPEA1-xTB: the original (xtb 6.2) STO-6G expansion with
+    shared s/p exponents is used for 4sp and 5sp shells, slightly
+    changing results for systems containing elements of the 4th and 5th
+    rows.
+
+  Calculations using the DFTB Hamiltonian remain unaffected.
+
 - Binary X+Y data export from time dependent calculations
 
 - Improve control for single-shot transport calculations in cases
