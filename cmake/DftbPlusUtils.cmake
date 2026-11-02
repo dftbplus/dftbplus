@@ -34,10 +34,12 @@ function(dftbp_preprocess preproc preprocopts oldext newext oldfiles newfiles)
     get_filename_component(oldfile ${oldfile} ABSOLUTE ${CMAKE_CURRENT_SOURCE_DIR})
     file(RELATIVE_PATH oldfile ${CMAKE_CURRENT_SOURCE_DIR} ${oldfile})
     dftbp_replace_extension(${oldext} ${newext} ${oldfile} newfile)
+    set(depfile "${newfile}.d")
     add_custom_command(
       OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${newfile}
-      COMMAND ${preproc} ${preprocopts} ${CMAKE_CURRENT_SOURCE_DIR}/${oldfile} ${CMAKE_CURRENT_BINARY_DIR}/${newfile}
-      MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${oldfile})
+      COMMAND ${preproc} ${preprocopts} --depfile ${CMAKE_CURRENT_BINARY_DIR}/${depfile} ${CMAKE_CURRENT_SOURCE_DIR}/${oldfile} ${CMAKE_CURRENT_BINARY_DIR}/${newfile}
+      MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${oldfile}
+      DEPFILE ${CMAKE_CURRENT_BINARY_DIR}/${depfile})
     list(APPEND _newfiles ${CMAKE_CURRENT_BINARY_DIR}/${newfile})
   endforeach()
   set(${newfiles} ${_newfiles} PARENT_SCOPE)
