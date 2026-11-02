@@ -5,5 +5,5 @@ set(WITH_OpenMP ${WITH_OMP})
 
 add_subdirectory(${MULTICHARGE_SOURCE_DIR} ${MULTICHARGE_BINARY_DIR})
 
-add_library(multicharge::multicharge INTERFACE IMPORTED GLOBAL)
-target_link_libraries(multicharge::multicharge INTERFACE multicharge)
+# add_library(multicharge::multicharge INTERFACE IMPORTED GLOBAL)
+# target_link_libraries(multicharge::multicharge INTERFACE multicharge)

@@ -44,7 +44,7 @@ module dftbp_extlibs_tblite
   use tblite_container, only : container_cache
   use tblite_context_type, only : context_type
   use tblite_cutoff, only : get_lattice_points
-  use tblite_integral_multipole, only : maxl, msao, multipole_cgto, multipole_grad_cgto
+  use tblite_integral_native_integrals, only : maxl, msao, multipole_cgto, multipole_grad_cgto
   use tblite_param, only : param_record
   use tblite_scf_info, only : atom_resolved, not_used, orbital_resolved, scf_info, shell_resolved
   use tblite_scf_potential, only : new_potential, potential_type
