@@ -58,7 +58,6 @@ jobs:
         os: [ubuntu-latest]
         mpi: [nompi, openmpi]
         config: [Debug]
-        version: [13]
 
     concurrency:
       group: ${{ github.head_ref || github.ref_name }}-${{ matrix.os }}-${{ matrix.mpi }}
@@ -66,7 +65,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Get the number of available processes
       run: |
@@ -80,20 +79,14 @@ jobs:
         echo "NPROC_HALF=$NPROC_HALF" >> $GITHUB_ENV
 
     - name: Set up python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: '3.x'
 
     - name: Install GCC (Linux)
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt-get update
-        sudo apt-get install -y gcc-${{ matrix.version}} gfortran-${{ matrix.version }} g++-${{ matrix.version }}
-        sudo update-alternatives \
-          --install /usr/bin/gcc gcc /usr/bin/gcc-${{ matrix.version }} 100 \
-          --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ matrix.version }} \
-          --slave /usr/bin/g++ g++ /usr/bin/g++-${{ matrix.version }} \
-          --slave /usr/bin/gcov gcov /usr/bin/gcov-${{ matrix.version }}
+        sudo apt-get install gcc gfortran g++
 
     - name: Enable MPI build
       if: contains(matrix.mpi, 'openmpi') || contains(matrix.mpi, 'mpich')
@@ -102,12 +95,6 @@ jobs:
     - name: Disable MPI build
       if: contains(matrix.mpi, 'nompi')
       run: echo "WITH_MPI=false" >> $GITHUB_ENV
-
-    - name: Set Compiler
-      run: |
-        echo "FC=${FC}" >> ${GITHUB_ENV}
-        echo "CC=${CC}" >> ${GITHUB_ENV}
-        echo "CXX=${CXX}" >> ${GITHUB_ENV}
 
     - name: Check submodule commits
       run: ./utils/test/check_submodule_commits
@@ -177,7 +164,7 @@ jobs:
 
     - name: Upload the archive of failed test output
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: failed-tests.${{ env.TEST_UUID }}.tar
         path: ${{ env.BUILD_DIR }}/failed-tests.${{ env.TEST_UUID }}.tar
@@ -229,10 +216,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: 3.x
 
@@ -240,9 +227,9 @@ jobs:
       uses: rscohn2/setup-oneapi@v0
       with:
         components: |
-          icx@2025.0.0
-          ifx@2025.0.0
-          mkl@2025.0.0
+          icx@2025.2.0
+          ifx@2025.2.0
+          mkl@2025.2.0
 
     - name: Setup Intel environment
       run: |
