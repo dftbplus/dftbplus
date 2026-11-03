@@ -139,7 +139,7 @@ jobs:
         echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
 
     - name: Install requirements (pip)
-      run: pip3 install cmake ninja fypp numpy
+      run: pip3 install cmake ninja fypp numpy pymatgen
 
 
     - name: Set extra CMake flags
