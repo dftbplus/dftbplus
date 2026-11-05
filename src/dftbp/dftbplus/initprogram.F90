@@ -2129,7 +2129,7 @@ contains
       if (allocated(input%ctrl%solver%elpa)) then
         if (input%ctrl%solver%elpa%nEmptyStates >= 0) then
           call error("Partial diagonalisation is currently only available when ELPA is called&
-              & through the ELSI library, to use this feature please also set PreferElsi = Yes")
+              & through the ELSI library")
         end if
       end if
       call TElpa_init(this%electronicSolver%elpa, env, input%ctrl%solver%elpa,&

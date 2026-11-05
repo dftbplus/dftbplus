@@ -2578,12 +2578,11 @@ able to utilise GPUs. It can be included standalone or via the ELSI library.
 It accepts following options
 
 \begin{ptable}
-  \kw{Autotune} & l & external ELPA present & No & \\
-  \kw{AutotuneFile} & s & Autotune = Yes & "elpa\_autotune\_state.out" & \\
+  \kw{Autotune} & l & & No & \\
+  \kw{AutotuneFile} & s & external ELPA and Autotune = Yes & "elpa\_autotune\_state.out" & \\
   \kw{EmptyStates} & i & ELSI used & -1 & \\
-  \kw{Gpu} & l & external ELPA and GPU enabled & No & \\
+  \kw{Gpu} & l & GPU enabled & No & \\
   \kw{Mode} & i & & 2 & \\
-  \kw{PreferElsi} & l & ELSI and external ELPA present & No & \\
   \kw{RedistributeFactor} & i & external ELPA present & 1 & \\
   \kw{RedistributeRanks} & p & RedistributeFactor = 1 & \cb & \\
   \kw{Sparse} & l & ELSI used & No & \\
@@ -2636,9 +2635,6 @@ It accepts following options
 \item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
   default: \is{2}). Mode 2 is supposed to be more efficient for large problems.
   Mode 1 is strongly recommended if \is{Gpu = Yes}.
-\item[\is{PreferElsi}] Whether to call ELPA using the ELSI interface. This
-  setting is only relevant if \dftbp{} was built and linked with the ELSI
-  library.
 \item[\is{RedistributeFactor}] Call ELPA with a reduced number of MPI ranks. The
   total number of ranks is devided by \is{RedistributeFactor}, that is, only
   every \is{RedistributeFactor}th rank participates in ELPA calls
