@@ -7,6 +7,7 @@ if (NOT WITH_MPI)
 
   set(sources-fypp
     binarysearch.F90
+    interpolation.F90
     lapacksvd.F90
     matrixops.F90
     sorting.F90)
