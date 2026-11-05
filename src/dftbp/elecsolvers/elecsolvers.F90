@@ -117,21 +117,13 @@ contains
     !> Number of Cholesky-decompositions which will be buffered.
     integer, intent(in) :: nCholesky
 
-    logical :: preferElsi
-
     this%iSolver = solverInp%iSolver
 
     this%isElsiSolver = any(this%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
 
-    preferElsi = .false.
-    if (allocated(solverInp%elpa)) then
-      preferElsi = solverInp%elpa%preferElsi
-    end if
-
-    if (this%iSolver == electronicSolverTypes%elpa .and. withElpa .and.&
-        & .not. (withElsi .and. preferElsi)) then
+    if (this%iSolver == electronicSolverTypes%elpa .and. withElpa) then
       ! If ELPA should be used and we have the ELPA library included directly (with or without
       ! ELSI also present), and do not call ELPA via ELSI.
       this%isElsiSolver = .false.

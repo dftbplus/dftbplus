@@ -2798,20 +2798,17 @@ contains
       call getChildValue(value1, "Mode", ctrl%solver%elpa%solver, 2)
 
       if (ctrl%solver%isolver == electronicSolverTypes%elpa) then
-      #:if WITH_ELPA and WITH_ELSI
-        call getChildValue(value1, "PreferElsi", ctrl%solver%elpa%preferElsi, .false.)
+        call getChildValue(value1, "Autotune", ctrl%solver%elpa%autotune, .false.)
+        call getChildValue(value1, "Gpu", ctrl%solver%elpa%gpu, .false., child=child)
+      #:if not WITH_GPU
+        if (ctrl%solver%elpa%gpu) then
+          call detailedError(child, "DFTB+ must be compiled with GPU support in order to enable&
+              & the GPU acceleration for the ELPA solver")
+        end if
       #:endif
-        if (.not.ctrl%solver%elpa%preferElsi) then
-          call getChildValue(value1, "Autotune", ctrl%solver%elpa%autotune, .false.)
+        if (withElpa) then
           call getChildValue(value1, "AutotuneFile", buffer, "elpa_autotune_state.out")
           ctrl%solver%elpa%autotuneFile = trim(unquote(char(buffer)))
-          call getChildValue(value1, "Gpu", ctrl%solver%elpa%gpu, .false., child=child)
-        #:if not WITH_GPU
-          if (ctrl%solver%elpa%gpu) then
-            call detailedError(child, "DFTB+ must be compiled with GPU support in order to enable&
-                & the GPU acceleration for the ELPA solver")
-          end if
-        #:endif
           call getChildValue(value1, "RedistributeFactor", ctrl%solver%elpa%redistributeFactor, 1,&
               & child=child)
           call getChild(value1, "RedistributeRanks", child=child, requested=.false.)
@@ -2827,7 +2824,7 @@ contains
             call destruct(elpaRedistributeRanks)
           end if
         end if
-        if (ctrl%solver%elpa%preferElsi .or. .not. withElpa) then
+        if (withElsi) then
           call getChildValue(value1, "EmptyStates", ctrl%solver%elpa%nEmptyStates, -1, child=child)
           if (ctrl%solver%elpa%nEmptyStates == 0) then
             call detailedError(child, "A partial diagonalisation needs at least one empty state, as&

@@ -217,6 +217,10 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ELPA requires MPI-parallel build enabled")
   endif()
 
+  if(WITH_ELPA AND WITH_ELSI)
+    message(FATAL_ERROR "Building with both ELPA and ELSI libraries simultaneously is not supported")
+  endif()
+
   if(WITH_GPU AND WITH_MPI AND (NOT WITH_ELSI) AND (NOT WITH_ELPA))
     message(FATAL_ERROR "GPU support in MPI-parallelized applications requires ELSI or ELPA (built with GPU support)")
   endif()

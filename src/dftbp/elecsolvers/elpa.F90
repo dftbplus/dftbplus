@@ -49,9 +49,6 @@ module dftbp_elecsolvers_elpa
     !> Enable GPU usage in ELPA
     logical :: gpu = .false.
 
-    !> Whether to use the ELSI library for calling ELPA
-    logical :: preferElsi = .false.
-
     !> Number of empty states to start a partial diagonalisation from, negative for a full
     !! diagonalisation
     integer :: nEmptyStates = -1
@@ -237,6 +234,7 @@ contains
     end if
 
     if (inp%gpu) then
+    #:if WITH_GPU
       call this%setConfig("nvidia-gpu", 1)
 
     #:if ELPA_HAS_SETUP_GPU
@@ -246,6 +244,9 @@ contains
       end if
     #:endif
       this%gpu = .true.
+    #:else
+      call error("DFTB+ must be compiled with GPU-support to call the GPU version of ELPA")
+    #:endif
     end if
 
     if (inp%autotune) then
