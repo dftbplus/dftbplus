@@ -46,6 +46,8 @@ Added
 
 - Ehrenfest dynamics for hybrid functionals (molecules and gamma-point only)
 
+- Tamm-Dancoff approximation for TD-DFTB
+
 
 Changed
 -------
