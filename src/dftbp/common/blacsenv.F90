@@ -12,7 +12,7 @@
 module dftbp_common_blacsenv
   use dftbp_common_mpienv, only : TMpiEnv
   use dftbp_common_status, only : TStatus
-  use dftbp_extlibs_scalapackfx, only : blacsgrid
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, sys2blacs_handle
   implicit none
 
   private
@@ -23,15 +23,15 @@ module dftbp_common_blacsenv
   type :: TBlacsEnv
 
     !> Group grid for (nOrb, nOrb) shaped square matrices
-    !> Note: the grid always contains all processes in the group
+    !! Note: the grid always contains all processes in the group
     type(blacsgrid) :: orbitalGrid
 
     !> Group grid for (nAtom, nAtom) shaped square matrices (nAtom) shaped vectors
-    !> Note: Some processes in the group may be outside of this grid!
+    !! Note: Some processes in the group may be outside of this grid!
     type(blacsgrid) :: atomGrid
 
     !> Group grid for (nOrb, nOrb) shaped square matrices ordered with entire rows on same processor
-    !> Note: the grid always contains all processes in the group
+    !! Note: the grid always contains all processes in the group
     type(blacsgrid) :: rowOrbitalGrid
 
     !> Row block size for square matrices
@@ -41,7 +41,7 @@ module dftbp_common_blacsenv
     integer :: columnBlockSize
 
     !> Number of functions (needed for rowOrbitalGrids). In the case of Pauli this is twice nOrb,
-    !> but equal otherwise.
+    !! but equal otherwise.
     integer :: nn
 
   end type TBlacsEnv
@@ -51,7 +51,8 @@ contains
 
 
   !> Initializes BLACS grids
-  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom, errStatus)
+  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom, isSubComWorld,&
+      & errStatus)
 
     !> Initialized instance at exit.
     type(TBlacsEnv), intent(out) :: this
@@ -71,12 +72,22 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
+    !> Should the top level available MPI world be used, instead of MPI_COMM_WORLD
+    logical, intent(in) :: isSubComWorld
+
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
 
-    integer, allocatable :: gridMap(:,:)
-    integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax
+    integer, allocatable :: gridMap(:,:), localRanks(:)
+    integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax, ii
     character(200) :: buffer
+
+    if (isSubComWorld) then
+      allocate(localRanks(myMpiEnv%groupSize))
+      do ii = 1, myMpiEnv%groupSize
+        localRanks(ii) = ii - 1
+      end do
+    end if
 
     ! Create orbital grid for each processor group
     call getSquareGridParams(myMpiEnv%groupSize, nProcRow, nProcCol)
@@ -89,12 +100,24 @@ contains
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
       @:RAISE_ERROR(errStatus, -1, trim(buffer))
     end if
-    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
-    call this%orbitalGrid%initmappedgrids(gridMap)
+    if (isSubComWorld) then
+      call getGridMap(localRanks, nProcRow, nProcCol, gridMap)
+      call this%orbitalGrid%initmappedgrids(gridMap,&
+          & context=sys2blacs_handle(myMpiEnv%groupComm%comm%MPI_VAL))
+    else
+      call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
+      call this%orbitalGrid%initmappedgrids(gridMap)
+    end if
 
     ! rectangular grid for the rowBlock
-    call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
-    call this%rowOrbitalGrid%initmappedgrids(gridMap)
+    if (isSubComWorld) then
+      call getGridMap(localRanks, 1, nProcRow * nProcCol, gridMap)
+      call this%rowOrbitalGrid%initmappedgrids(gridMap,&
+          & context=sys2blacs_handle(myMpiEnv%groupComm%comm%MPI_VAL))
+    else
+      call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
+      call this%rowOrbitalGrid%initmappedgrids(gridMap)
+    end if
 
     ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
@@ -102,8 +125,14 @@ contains
     nProcRow = min(nProcRow, maxProcRow)
     nProcCol = min(nProcCol, maxProcColMax)
 
-    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
-    call this%atomGrid%initmappedgrids(gridMap)
+    if (isSubComWorld) then
+      call getGridMap(localRanks, nProcRow, nProcCol, gridMap)
+      call this%atomGrid%initmappedgrids(gridMap,&
+          & context=sys2blacs_handle(myMpiEnv%groupComm%comm%MPI_VAL))
+    else
+      call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
+      call this%atomGrid%initmappedgrids(gridMap)
+    end if
 
     this%rowBlockSize = rowBlock
     this%columnBlockSize = colBlock
@@ -129,6 +158,7 @@ contains
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
   !> Returns rows and columns for a 2D processor grid closest possible to a square one.
   subroutine getSquareGridParams(nProc, nRow, nCol)
 
@@ -152,11 +182,10 @@ contains
 
 
   !> Returns the gridmap which can be used to initialise a 2D BLACS grid.
-  !>
   subroutine getGridMap(groupMembers, nProcRow, nProcCol, gridMap)
 
-    !> All members of the current group (must be >= nProcRow * nProcCol) which should
-    !> be mapped on a 2D BLACS-grid.
+    !> All members of the current group (must be >= nProcRow * nProcCol) which should be mapped onto
+    !! a 2D BLACS-grid.
     integer, intent(in) :: groupMembers(:)
 
     !> Number of process rows in the BLACS-grid
@@ -166,8 +195,8 @@ contains
     integer, intent(in) :: nProcCol
 
     !> Grid map, where gridMap(i,j) contains the id of the process which in the ith row and jth
-    !> column in the 2D BLACS-grid. This can be used as argument to the initmappedgrids()
-    !> method of blacsgrid.
+    !! column in the 2D BLACS-grid. This can be used as argument to the initmappedgrids() method of
+    !! blacsgrid.
     integer, allocatable, intent(out) :: gridMap(:,:)
 
     integer :: iProcRow, iProcCol, ind
@@ -184,5 +213,6 @@ contains
     end do
 
   end subroutine getGridMap
+
 
 end module dftbp_common_blacsenv
