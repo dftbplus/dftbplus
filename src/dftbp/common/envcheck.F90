@@ -61,11 +61,11 @@ contains
       else
         write(output, "(A,':',T30,I0,A)") "Current stacksize",&
             & nint(real(cStack, dp) / 1024.0_dp**2), " [Mb] (recommended: unlimited)"
-        call warning(output, "Current stacksize not set to unlimited or hard limit, which might cause"&
-            & // new_line("A") // "   random crashes (e.g. segmentation faults). It is advised to&
-            & unlimit the" // new_line("A") // "   stacksize by issuing 'ulimit -s unlimited'&
-            & (Linux) or setting it to the " // new_line("A") // "   hard limit by 'ulimit -s hard'&
-            & (Mac) in advance.")
+        call warning(output, "Current stacksize not set to unlimited or hard limit, which might&
+            & cause" // new_line("A") // "   random crashes (e.g. segmentation faults). It is&
+            & advised to unlimit the" // new_line("A") // "   stacksize by issuing 'ulimit -s&
+            & unlimited' (Linux) or setting it to the " // new_line("A") // "   hard limit by&
+            & 'ulimit -s hard' (Mac) in advance.")
       end if
     end if
 

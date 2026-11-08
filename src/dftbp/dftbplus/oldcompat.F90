@@ -175,7 +175,8 @@ contains
         call detailedError(ch1, "Sorry, non-variational energy calculation &
             &is not supported any more!")
       else
-        call detailedWarning(output, ch1, "Energy calculation is made only variational, option removed.")
+        call detailedWarning(output, ch1, "Energy calculation is made only variational, option&
+            & removed.")
         call destroyNode(ch1)
       end if
     end if
@@ -520,8 +521,8 @@ contains
       call getChildValue(ch1, "", tVal)
       call setUnprocessed(ch1)
       if (tVal) then
-        call detailedWarning(output, ch1, "Sorry, XML export of the dftb_in.hsd is not supported any more&
-            & so is removed")
+        call detailedWarning(output, ch1, "Sorry, XML export of the dftb_in.hsd is not supported&
+            & any more so is removed")
       else
         call detailedWarning(output, ch1, "XML export option is removed.")
       end if
@@ -566,7 +567,8 @@ contains
         end if
         call getDescendant(root, "Analysis", ch1)
         if (associated(ch1)) then
-          call detailedWarning(output, ch1, "Restarted electronDynamics does not use the Analysis{} block")
+          call detailedWarning(output, ch1, "Restarted electronDynamics does not use the Analysis{}&
+              & block")
           call destroyNode(ch1)
         end if
       end if
@@ -819,7 +821,8 @@ contains
         call getDescendant(root, "Hamiltonian/${LABEL}$/Charge", ch1)
         if (associated(ch1)) then
           call setUnprocessed(ch1)
-          call detailedWarning(output, ch1, "Device region charge cannot be set if contacts are present.")
+          call detailedWarning(output, ch1, "Device region charge cannot be set if contacts are&
+              & present.")
           call destroyNode(ch1)
         end if
       #:endfor
@@ -951,7 +954,8 @@ contains
         iOrder = iOrder - 1
         call setChildValue(ch1, "Order", iOrder, child=ch2)
       else
-        call detailedWarning(output, ch1, "The default (i.e. unspecified) Methfessel-Paxton order in old&
+        call detailedWarning(output, ch1, "The default (i.e. unspecified) Methfessel-Paxton order&
+            & in old&
             & code versions was equivalent to Order=1." // newline //&
             & "   This order is now the current default order from parser version 14.")
       end if
@@ -1098,7 +1102,8 @@ contains
     call getChild(root, option, pChild, requested=.false.)
     if (.not. associated(pChild)) then
       call setChildValue(root, option, default, child=pChild)
-      call detailedWarning(output, pChild, "Using DFTB3 optimised default value for parameter " // option)
+      call detailedWarning(output, pChild, "Using DFTB3 optimised default value for parameter " //&
+          & option)
     end if
     call setUnprocessed(pChild)
 

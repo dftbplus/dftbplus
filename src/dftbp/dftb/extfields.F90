@@ -150,8 +150,8 @@ contains
             end do
           end do lpAtom
           if (isBoundaryCrossed) then
-            call warning(output, "Interactions between atoms cross the saw-tooth discontinuity in the&
-                & electric field")
+            call warning(output, "Interactions between atoms cross the saw-tooth discontinuity in&
+                & the electric field")
           end if
           do iAt1 = 1, nAtom
             potential%extAtom(iAt1,1) = potential%extAtom(iAt1,1)&

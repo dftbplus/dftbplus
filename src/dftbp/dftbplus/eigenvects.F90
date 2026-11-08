@@ -194,8 +194,8 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseRealMtxBlacs(env, electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
-      & eigenVecs, errStatus)
+  subroutine diagDenseRealMtxBlacs(env, electronicSolver, iCholesky, jobz, desc, HSqr, SSqr,&
+      & eigenVals, eigenVecs, errStatus)
 
     !> Environment
     type(TEnvironment), intent(in) :: env

@@ -219,7 +219,8 @@ contains
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(env, hamNode, input%ctrl, input%geom, input%slako, input%poisson, errStatus)
+    call readHamiltonian(env, hamNode, input%ctrl, input%geom, input%slako, input%poisson,&
+        & errStatus)
 
   #:endif
 
@@ -251,7 +252,7 @@ contains
           & allowEmptyValue=.true., dontMarkProcessed=.true.)
 
     #:if WITH_TRANSPORT
-      call readAnalysis(env, analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
+      call readAnalysis(env, analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar,&
           & input%ginfo%tundos)
 
       call finalizeNegf(input)
@@ -376,9 +377,9 @@ contains
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
     if (.not. flags%tWriteHSD) then
-      call detailedWarning(env%stdOut, node, "WriteHSDInput turned off. You are not guaranteed" // newline // &
-          &" to able to obtain the same results with a later version of the code!" // newline // &
-          & "(the dftb_pin.hsd file DOES guarantee this)")
+      call detailedWarning(env%stdOut, node, "WriteHSDInput turned off. You are not guaranteed"&
+          & // newline // " to able to obtain the same results with a later version of the code!"&
+          & // newline // "(the dftb_pin.hsd file DOES guarantee this)")
     end if
     call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
 
@@ -509,8 +510,8 @@ contains
     case ("steepestdescent")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
-          & versions."//new_line('a')//&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in&
+          & future versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
       ! Steepest downhill optimisation
@@ -521,8 +522,9 @@ contains
     case ("conjugategradient")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
-          & versions."//new_line('a')// "Please use the GeometryOptimisation driver instead.")
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in&
+          & future versions."//new_line('a')//&
+          & "Please use the GeometryOptimisation driver instead.")
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
@@ -531,8 +533,8 @@ contains
     case("gdiis")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
-          & versions."//new_line('a')//&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in&
+          & future versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
       ! Gradient DIIS optimisation, only stable in the quadratic region
@@ -544,8 +546,8 @@ contains
     case ("lbfgs")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
-          & versions."//new_line('a')//&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in&
+          & future versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
@@ -570,8 +572,8 @@ contains
     case ("fire")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
-          & versions."//new_line('a')//&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in&
+          & future versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%fire
@@ -601,8 +603,8 @@ contains
             & "Atoms for calculation of partial Hessian must be a contiguous range.")
         end if
         call getChildValue(child, "", buffer2, child=child2, multiple=.true.)
-        call getSelectedAtomIndices(env%stdOut, child2, char(buffer2), geom%speciesNames, geom%species, &
-           & ctrl%indMovedAtom)
+        call getSelectedAtomIndices(env%stdOut, child2, char(buffer2), geom%speciesNames,&
+            & geom%species, ctrl%indMovedAtom)
         if (.not. isContiguousRange(ctrl%indMovedAtom)) then
           call detailedError(child2, "MovedAtoms for calculation of partial Hessian must be a &
               & contiguous range.")
@@ -630,8 +632,8 @@ contains
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
       call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
-      call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geom%speciesNames, geom%species, &
-          & ctrl%indMovedAtom)
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geom%speciesNames,&
+          & geom%species, ctrl%indMovedAtom)
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       if (ctrl%nrMoved == 0) then
         call error("No atoms specified for molecular dynamics.")
@@ -1133,8 +1135,8 @@ contains
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then
-          call detailedWarning(env%stdOut, child3, "Previous setting for the mass  of atom" // i2c(iAt) //&
-              & " overwritten")
+          call detailedWarning(env%stdOut, child3, "Previous setting for the mass  of atom" //&
+              & i2c(iAt) // " overwritten")
         end if
         masses(iAt) = rTmp
       end do
@@ -1428,7 +1430,8 @@ contains
     if (.not. allocated(ctrl%hybridXcInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
       if (associated(child)) then
-        call warning(env%stdOut, "Artificially truncating the SK table, this is normally a bad idea!")
+        call warning(env%stdOut, "Artificially truncating the SK table, this is normally a bad&
+            & idea!")
         call SKTruncations(child, rSKCutOff, skInterMeth)
         call readSKFiles(env, skFiles, geom%nSpecies, slako, slako%orb, angShells,&
             & ctrl%tShellResolved, skInterMeth, repPoly, rSKCutOff)
@@ -3626,8 +3629,8 @@ contains
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
           if (any(initSpins(:,iAt) /= 0.0_dp)) then
-            call detailedWarning(env%stdOut, child3, "Previous setting for the spin of atom" // i2c(iAt) //&
-                & " overwritten")
+            call detailedWarning(env%stdOut, child3, "Previous setting for the spin of atom" //&
+                & i2c(iAt) // " overwritten")
           end if
           initSpins(:,iAt) = rTmp
         end do
@@ -3744,8 +3747,8 @@ contains
   !> Reads Slater-Koster files.
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established.
-  subroutine readSKFiles(env, skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff, hybridXcSK)
+  subroutine readSKFiles(env, skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth,&
+      & repPoly, truncationCutOff, hybridXcSK)
 
     !> Environment
     type(TEnvironment), intent(in) :: env
@@ -4276,8 +4279,8 @@ contains
     call localiseName(node, "MinimizeMemoryUsage", "MinimiseMemoryUsage")
     call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false., child=child)
     if (ctrl%tMinMemory) then
-      call detailedWarning(env%stdOut, child, "Memory minimisation is not working currently, normal calculation&
-          & will be used instead")
+      call detailedWarning(env%stdOut, child, "Memory minimisation is not working currently, normal&
+          & calculation will be used instead")
     end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
   #:if DEBUG > 0
@@ -5647,7 +5650,8 @@ contains
       end if
 
       if (allocated(ctrl%perturbInp)) then
-        call maxSelfConsIterations(env%stdOut, node, ctrl, "MaxPerturbIter", ctrl%perturbInp%maxPerturbIter)
+        call maxSelfConsIterations(env%stdOut, node, ctrl, "MaxPerturbIter",&
+            & ctrl%perturbInp%maxPerturbIter)
         if (ctrl%tScc) then
           call getChildValue(node, "PerturbSccTol", ctrl%perturbInp%perturbSccTol, 1.0e-5_dp)
           ! self consistency required, or not, to proceed with perturbation
@@ -6566,7 +6570,8 @@ contains
     call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
     allocate(transpar%contacts(transpar%ncont))
-    call readContacts(env, pNodeList, transpar%contacts, geom, char(buffer), transpar%contactLayerTol)
+    call readContacts(env, pNodeList, transpar%contacts, geom, char(buffer),&
+        & transpar%contactLayerTol)
 
     ! check for atoms in multiple contact ranges/device or atoms missing from any of these regions
     allocate(atomInRegion(geom%nAtom), source=.false.)
@@ -7223,8 +7228,8 @@ contains
 
 #:if WITH_TRANSPORT
   !> Correctness checking of atom ranges and returning contact vector and direction.
-  subroutine getContactVector(env, atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
-      & contactDir)
+  subroutine getContactVector(env, atomrange, geom, id, name, pContact, contactLayerTol,&
+      & contactVec, contactDir)
 
     !> Environment
     type(TEnvironment), intent(in) :: env
@@ -7281,7 +7286,8 @@ contains
     if (any(sum( (geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
         & - spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1) > contactLayerTol**2))&
         & then
-      write(env%stdOut,"(1X,A,I0,A,I0)")'Contact vector defined from atoms ', iStart, ' and ',iStart2
+      write(env%stdOut,"(1X,A,I0,A,I0)")'Contact vector defined from atoms ', iStart, ' and ',&
+          & iStart2
       write(env%stdOut,"(1X,A,I0,'-',I0)")'Contact layer 1 atoms: ',iStart, iStart2-1
       write(env%stdOut,"(1X,A,I0,'-',I0)")'Contact layer 2 atoms: ',iStart2, iEnd
       do ii = 0, iStart2 -1 -iStart
@@ -7305,7 +7311,8 @@ contains
     ! Determine to which axis the contact vector is parallel.
     mask(:) = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
-      call warning(env%stdOut, "Contact vector " // i2c(id) // " not parallel to any coordinate axis.")
+      call warning(env%stdOut, "Contact vector " // i2c(id) // " not parallel to any coordinate&
+          & axis.")
       contactDir = 0
     else
       contactDir = findloc(mask, .true., 1)
@@ -7567,8 +7574,8 @@ contains
         call getNodeName2(child1, buffer)
         if (char(buffer) == "") then
           contacts(ii)%tFermiSet = .false.
-          call detailedWarning(env%stdOut, pNode, "Missing Fermi level - required to be set in solver block or&
-              & read from a contact shift file")
+          call detailedWarning(env%stdOut, pNode, "Missing Fermi level - required to be set in&
+              & solver block or read from a contact shift file")
         else
           call init(fermiBuffer)
           call getChildValue(child2, "", fermiBuffer, modifier=modifier)
@@ -7965,8 +7972,8 @@ contains
     call getChild(root, "Parallel", child=node, requested=.false., emptyIfMissing=withMpi)
     if (associated(node)) then
       if (.not. withMpi) then
-        call detailedWarning(env%stdOut, node, "Settings will be read but ignored (compiled without MPI&
-            & support)")
+        call detailedWarning(env%stdOut, node, "Settings will be read but ignored (compiled without&
+            & MPI support)")
       end if
       allocate(input%ctrl%parallelOpts)
       call getChildValue(node, "Groups", input%ctrl%parallelOpts%nGroup, 1, child=pTmp)
@@ -7994,8 +8001,8 @@ contains
     call getChild(root, "Blacs", child=node, requested=.false., emptyIfMissing=withScalapack)
     if (associated(node)) then
       if (.not. withScalapack) then
-        call detailedWarning(env%stdOut, node, "Settings will be read but ignored (compiled without SCALAPACK&
-            & support)")
+        call detailedWarning(env%stdOut, node, "Settings will be read but ignored (compiled without&
+            & SCALAPACK support)")
       end if
       call getChildValue(node, "BlockSize", blacsOpts%blockSize, 32)
     end if

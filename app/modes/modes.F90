@@ -90,7 +90,8 @@ program modes
   end do
 
   ! remove translations or rotations if necessary
-  call project(env%stdOut, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo, atomicMasses)
+  call project(env%stdOut, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
+      & atomicMasses)
 
   ! solve the eigenproblem
   if (tEigenVectors) then

@@ -81,7 +81,8 @@ contains
 
     !Allocation control: if array is already allocated STOP and write error statement
     if (allocated(array)) then
-      @:ERROR_HANDLING(output, err,-1,"ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is already allocated")
+      @:ERROR_HANDLING(output, err,-1,"ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is already&
+          & allocated")
     endif
 
     if(.not. allocated(array)) then
@@ -136,7 +137,8 @@ contains
       call writePoissMemInfo(output)
      #:endif
     else
-      @:ERROR_HANDLING(output, err, -1, 'ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is not allocated')
+      @:ERROR_HANDLING(output, err, -1, 'ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is not&
+          & allocated')
     endif
 
   end subroutine deallocate_${LABEL}$

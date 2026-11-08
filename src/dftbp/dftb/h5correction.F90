@@ -88,7 +88,8 @@ contains
     nSpecies = size(input%speciesNames)
     allocate(this%sumVdw_(nSpecies, nSpecies))
     allocate(this%h5Scaling_(nSpecies, nSpecies))
-    call getParams_(env%stdOut, input%speciesNames, input%elementParams, this%h5Scaling_, this%sumVdw_)
+    call getParams_(env%stdOut, input%speciesNames, input%elementParams, this%h5Scaling_,&
+        & this%sumVdw_)
 
   end subroutine TH5Correction_init
 

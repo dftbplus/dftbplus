@@ -84,8 +84,8 @@ contains
 
     if (tRemoveRotate) then
       if (geo%tPeriodic) then
-        call warning(output, "Rotational modes were requested to be removed for a periodic geometry -&
-            & results probably unphysical!")
+        call warning(output, "Rotational modes were requested to be removed for a periodic&
+            & geometry - results probably unphysical!")
       end if
 
       centreOfMass(:) = getCentreOfMass(geo%coords, atomicMasses, movedAtoms)

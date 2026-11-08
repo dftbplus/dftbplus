@@ -34,7 +34,8 @@ module dftbp_timedep_dynamicsrestart
 contains
 
   !> Write to a restart file.
-  subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, isAsciiFile, errStatus)
+  subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, isAsciiFile,&
+      & errStatus)
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -78,11 +79,11 @@ contains
 
     if (iErr /= 0) then
       if (isAsciiFile) then
-        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileNamePrefix),&
-            & ".dat for writing"
+        write(error_string, "(A,A,A)") "Failure to open external restart file ",&
+            & trim(fileNamePrefix), ".dat for writing"
       else
-        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileNamePrefix),&
-            & ".bin for writing"
+        write(error_string, "(A,A,A)") "Failure to open external restart file ",&
+            & trim(fileNamePrefix), ".bin for writing"
       end if
       @:RAISE_ERROR(errStatus, -1, error_string)
     end if
@@ -126,7 +127,8 @@ contains
 
 
   !> Read a restart file containing density matrix, overlap, coordinates and time step
-  subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, isAsciiFile, errStatus)
+  subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, isAsciiFile,&
+      & errStatus)
 
     !> Density Matrix
     complex(dp), intent(out) :: rho(:,:,:)
@@ -434,7 +436,8 @@ contains
       do icol = 1, nOrb
         if (env%mpi%tGlobalLead) then
           read(fd%unit) localRhoCol
-          call distributor%setline_lead(env%blacs%orbitalGrid, icol, localRhoCol(:), rhoOld(:,:,iKS))
+          call distributor%setline_lead(env%blacs%orbitalGrid, icol, localRhoCol(:),&
+              & rhoOld(:,:,iKS))
         else
           call distributor%setline_follow(env%blacs%orbitalGrid, icol, rhoOld(:,:,iKS))
         end if

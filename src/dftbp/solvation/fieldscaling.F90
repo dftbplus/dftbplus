@@ -66,8 +66,8 @@ contains
     if (allocated(solvent)) then
       this%isRescaled = this%isRescaled
       if (this%isRescaled .and. .not.solvent%isEFieldModified()) then
-        call warning(output, "Field rescaling requested for solvent model with no electrostatic effects,&
-            & turning scaling off")
+        call warning(output, "Field rescaling requested for solvent model with no electrostatic&
+            & effects, turning scaling off")
         this%isRescaled= .false.
       end if
     else

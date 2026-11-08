@@ -1466,8 +1466,8 @@ contains
         call symm(evecR, 'L', mMsqrt, mH, uplo='U')
         call symm(evecL, 'L', mMsqrtinv, mH, uplo='U')
 
-        ! need |x-y>=sqrt(w)(a-b)^(-1/2)t, |x+y>=(a-b)^(1/2)t/sqrt(w) for proper solution to original
-        ! ev problem, only use first nexc vectors
+        ! need |x-y>=sqrt(w)(a-b)^(-1/2)t, |x+y>=(a-b)^(1/2)t/sqrt(w) for proper solution to
+        ! original ev problem, only use first nexc vectors
         do ii = 1, nExc
           placeholderReal = sqrt(sqrt(evalInt(ii)))
           evecR(:,ii) = evecR(:,ii) / placeholderReal

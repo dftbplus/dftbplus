@@ -314,10 +314,10 @@ contains
       if (this%isHybridXc .and. this%tRealHS) tWriteCharges = .false.
     #:endif
       if (tWriteCharges .and. .not. (this%isHybridXc .and. this%nSpin==4)) then
-        call writeCharges(env%stdOut, fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-            & this%qiBlockIn, this%densityMatrix, this%tRealHS, size(this%iAtInCentralRegion),&
-            & this%hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix,&
-            & multipoles=this%multipoleInp)
+        call writeCharges(env%stdOut, fCharges, this%tWriteChrgAscii, this%orb, this%qInput,&
+            & this%qBlockIn, this%qiBlockIn, this%densityMatrix, this%tRealHS,&
+            & size(this%iAtInCentralRegion), this%hybridXcAlg,&
+            & coeffsAndShifts=this%supercellFoldingMatrix, multipoles=this%multipoleInp)
       end if
 
       if ((this%writeBondPopul .or. this%writeBondEnergy .or. this%writeBondOrder) .and.&
@@ -461,8 +461,8 @@ contains
 
     if (env%tGlobalLead .and. this%isAContactCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
-      call writeContactShifts(env%stdOut, this%transpar%contacts(this%transpar%taskContInd)%name, this%orb,&
-          & this%potential%coulombShell, this%qOutput, this%Ef, this%qBlockOut,&
+      call writeContactShifts(env%stdOut, this%transpar%contacts(this%transpar%taskContInd)%name,&
+          & this%orb, this%potential%coulombShell, this%qOutput, this%Ef, this%qBlockOut,&
           & .not.this%transpar%tWriteBinShift)
     end if
 
@@ -537,7 +537,7 @@ contains
           & this%dipoleMoment, this%multipoleOut, this%eFieldScaling, this%reks)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
-      call writeCosmoFile(env%stdOut, this%solvation, this%species0, this%speciesName, this%coord0, &
+      call writeCosmoFile(env%stdOut, this%solvation, this%species0, this%speciesName, this%coord0,&
           & this%dftbEnergy(this%deltaDftb%iFinal)%EMermin)
     end if
     if (this%tWriteDetailedXML) then
@@ -1014,10 +1014,10 @@ contains
       end if
     #:endif
       if (tWriteSccRestart .and. .not. (this%isHybridXc .and. this%nSpin==4)) then
-        call writeCharges(env%stdOut, fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-            & this%qiBlockIn, this%densityMatrix, this%tRealHS, size(this%iAtInCentralRegion),&
-            & this%hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix,&
-            & multipoles=this%multipoleInp)
+        call writeCharges(env%stdOut, fCharges, this%tWriteChrgAscii, this%orb, this%qInput,&
+            & this%qBlockIn, this%qiBlockIn, this%densityMatrix, this%tRealHS,&
+            & size(this%iAtInCentralRegion), this%hybridXcAlg,&
+            & coeffsAndShifts=this%supercellFoldingMatrix, multipoles=this%multipoleInp)
       end if
 
     end if
@@ -1271,9 +1271,9 @@ contains
         call readShifts(fShifts, this%orb, this%nAtom, this%nSpin, this%potential%extShell)
       end if
 
-      call addUpExternalField(env%stdOut, this%eField, this%tPeriodic, this%neighbourList, this%nNeighbourSk,&
-          & this%iCellVec, this%cellVec, this%deltaT, iGeoStep, this%coord0Fold, this%coord,&
-          & this%potential)
+      call addUpExternalField(env%stdOut, this%eField, this%tPeriodic, this%neighbourList,&
+          & this%nNeighbourSk, this%iCellVec, this%cellVec, this%deltaT, iGeoStep, this%coord0Fold,&
+          & this%coord, this%potential)
 
       call mergeExternalPotentials(this%orb, this%species, this%potential)
 
@@ -1343,7 +1343,8 @@ contains
             & this%species0, this%referenceN0, this%qNetAtom, this%multipoleOut, this%mdftb,&
             & this%reks, errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call optimizeFONsAndWeights(env, this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
+        call optimizeFONsAndWeights(env, this%eigvecsReal, this%filling, this%dftbEnergy(1),&
+            & this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%electronicSolver,&
@@ -2156,9 +2157,9 @@ contains
     else if (this%geometryChanges%isgeoopt) then
       this%tCoordsChanged = .true.
       if (tCoordStep) then
-        call getNextCoordinateOptStep(env, this%pGeoCoordOpt, this%dftbEnergy(this%deltaDftb%iFinal),&
-            & this%derivs, this%indMovedAtom, this%coord0, diffGeo, tCoordEnd,&
-            & .not. this%tCasidaForces)
+        call getNextCoordinateOptStep(env, this%pGeoCoordOpt,&
+            & this%dftbEnergy(this%deltaDftb%iFinal), this%derivs, this%indMovedAtom, this%coord0,&
+            & diffGeo, tCoordEnd, .not. this%tCasidaForces)
         if (.not. this%geometryChanges%tLatOpt) then
           tGeomEnd = tCoordEnd
         end if
@@ -2707,8 +2708,8 @@ contains
     call negfInt%setup_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
         & img2CentCell, orb)
 
-    call negfInt%setup_str(env%stdOut, denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour,&
-        & nNeighbourSK, img2CentCell)
+    call negfInt%setup_str(env%stdOut, denseDescr, transpar, ginfo%greendens,&
+        & neighbourList%iNeighbour, nNeighbourSK, img2CentCell)
 
     call negfInt%setup_dephasing(env%stdOut, ginfo%tundos)  !? why tundos
 
@@ -2858,8 +2859,8 @@ contains
 
 
   !> Initialise basic variables before the scc loop.
-  subroutine initSccLoop(env, tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
-      & tNegf, reks)
+  subroutine initSccLoop(env, tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol,&
+      & tConverged, tNegf, reks)
 
     !> Environment
     type(TEnvironment), intent(in) :: env
@@ -7713,8 +7714,8 @@ contains
     end if
 
     if (allocated(halogenXCorrection)) then
-      call halogenXCorrection%getStress(env, tmpStress, coord, neighbourList, species, img2CentCell,&
-          & cellVol)
+      call halogenXCorrection%getStress(env, tmpStress, coord, neighbourList, species,&
+          & img2CentCell, cellVol)
       totalStress(:,:) = totalStress + tmpStress
     end if
 
@@ -7985,8 +7986,8 @@ contains
     if (tRemoveExcitation) then
       call next(pGeoCoordOpt, env, energy%EForceRelated, derivssMoved, newCoordsMoved, tCoordEnd)
     else
-      call next(pGeoCoordOpt, env, energy%EForceRelated + energy%Eexcited, derivssMoved, newCoordsMoved,&
-          & tCoordEnd)
+      call next(pGeoCoordOpt, env, energy%EForceRelated + energy%Eexcited, derivssMoved,&
+          & newCoordsMoved, tCoordEnd)
     end if
     pNewCoordsMoved(1:3, 1:size(indMovedAtom)) => newCoordsMoved(1 : 3 * size(indMovedAtom))
     diffGeo = maxval(abs(pNewCoordsMoved - coord0(:, indMovedAtom)))
@@ -7996,8 +7997,9 @@ contains
 
 
   !> Returns the coordinates and lattice vectors for the next lattice optimisation step.
-  subroutine getNextLatticeOptStep(env, pGeoLatOpt, energy, constrLatDerivs, origLatVec, tLatOptFixAng,&
-      & tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0, diffGeo, tGeomEnd)
+  subroutine getNextLatticeOptStep(env, pGeoLatOpt, energy, constrLatDerivs, origLatVec,&
+      & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0, diffGeo,&
+      & tGeomEnd)
 
     !> Environment
     type(TEnvironment), intent(in) :: env
@@ -8289,9 +8291,9 @@ contains
         iK = parallelKS%localKS(1, iKS)
         iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = nint(nEl(iSpin) / real( 3 - nSpin, dp))
-        call pipekMezey%calcCoeffs(env%stdOut, eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, ints%overlap,&
-            & kpoint(:,iK), neighbourList, nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart,&
-            & iSparseStart, img2CentCell)
+        call pipekMezey%calcCoeffs(env%stdOut, eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx,&
+            & ints%overlap, kpoint(:,iK), neighbourList, nNeighbourSK, iCellVec, cellVec,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end do
 
       localisation = 0.0_dp

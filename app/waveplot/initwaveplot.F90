@@ -587,7 +587,8 @@ contains
     call getChildValue(node, "ImagComponent", this%opt%tPlotImag, .false., child=field)
 
     if (this%opt%tPlotImag .and. this%input%tRealHam) then
-      call detailedWarning(env%stdOut, field, "Wave functions are real, no imaginary part will be plotted")
+      call detailedWarning(env%stdOut, field, "Wave functions are real, no imaginary part will be&
+          & plotted")
       this%opt%tPlotImag = .false.
     end if
 

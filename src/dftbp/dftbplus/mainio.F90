@@ -2670,7 +2670,8 @@ contains
 
 
   !> Write the dipole derivative wrt.coordinates matrix/Born charges
-  subroutine writeBornChargesOut(output, fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+  subroutine writeBornChargesOut(output, fileName, pBornMatrix, indMovedAtoms, nDerivAtoms,&
+      & errStatus)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output
@@ -4329,8 +4330,8 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(output, fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, densityMatrix,&
-      & tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts, multipoles)
+  subroutine writeCharges(output, fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn,&
+      & densityMatrix, tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts, multipoles)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output

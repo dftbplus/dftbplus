@@ -352,7 +352,8 @@ module dftbp_poisson_poisson
           cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
-          @:ERROR_HANDLING(env%stdOut, iErr, -7, 'Gate transversal section is bigger than Poisson box!')
+          @:ERROR_HANDLING(env%stdOut, iErr, -7, 'Gate transversal section is bigger than Poisson&
+              & box!')
         end if
       end do
   end if
@@ -812,7 +813,8 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
 
         if (err.ne.0.and.err.ne.9) then
           if(err.gt.0) then
-            @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, err, "(A,I0)", 'Fatal Error in poisson solver:', err)
+            @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, err, "(A,I0)", 'Fatal Error in poisson&
+                & solver:', err)
           end if
         end if
         if (err.eq.9) then

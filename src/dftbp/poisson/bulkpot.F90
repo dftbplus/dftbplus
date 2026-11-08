@@ -650,8 +650,8 @@ Subroutine compbulk_pot_mud(env, phi_bulk,iparm,fparm, iErr)
     call log_gdeallocate(env%stdOut, work)
 
     if (phi_bulk(m)%iparm(22).eq.phi_bulk(m)%iparm(18)) then
-      @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, -2, '(A,E12.4)', 'Bulk potential not converged! Error:',&
-          & phi_bulk(m)%fparm(8))
+      @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, -2, '(A,E12.4)', 'Bulk potential not converged!&
+          & Error:', phi_bulk(m)%fparm(8))
     endif
 
     if (id0) call save_bulkpot(phi_bulk,cont)

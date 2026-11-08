@@ -1531,8 +1531,8 @@ contains
     ! Brillouin zone sampling
     if (this%tPeriodic .or. this%tHelical) then
       if (input%ctrl%poorKSampling) then
-        call warning(env%stdOut, "The suplied k-points are probably not accurate for properties requiring&
-            & integration over the Brillouin zone")
+        call warning(env%stdOut, "The suplied k-points are probably not accurate for properties&
+            & requiring integration over the Brillouin zone")
       end if
       this%nKPoint = input%ctrl%nKPoint
       allocate(this%kPoint(size(input%ctrl%KPoint,dim=1), this%nKPoint))
@@ -1546,7 +1546,8 @@ contains
       if (this%tHelical) then
         if (any(abs(this%kPoint(2,:) * nint(this%latVec(3,1)) - nint(this%kPoint(2,:) *&
             & nint(this%latVec(3,1)))) > input%ctrl%helicalSymTol)) then
-          call warning(env%stdOut, "Specified k-value(s) incommensurate with C_n symmetry operation.")
+          call warning(env%stdOut, "Specified k-value(s) incommensurate with C_n symmetry&
+              & operation.")
         end if
       end if
     else
@@ -1569,8 +1570,8 @@ contains
   #:if WITH_MPI
     if (input%ctrl%parallelOpts%nGroup > this%nIndepSpin * this%nKPoint&
         & .and. (.not. (this%isHybridXc .and. (.not. this%tRealHS)))) then
-      write(env%stdOut, *) "Parallel groups only relevant for tasks split over sufficient spins and/or&
-          & k-points"
+      write(env%stdOut, *) "Parallel groups only relevant for tasks split over sufficient spins&
+          & and/or k-points"
       write(tmpStr,"('Nr. groups:',I4,', Nr. indepdendent spins times k-points:',I4)")&
           & input%ctrl%parallelOpts%nGroup, this%nIndepSpin * this%nKPoint
       call error(trim(tmpStr))
@@ -2405,8 +2406,8 @@ contains
         call mbd%checkError(env)
         call move_alloc(mbd, this%dispersion)
         if (input%ctrl%dispInp%mbd%method == 'ts' .and. this%tForces) then
-          call warning(env%stdOut, "Forces for the TS-dispersion model are calculated by finite differences&
-              & which may result in long gradient calculation times for large systems")
+          call warning(env%stdOut, "Forces for the TS-dispersion model are calculated by finite&
+              & differences which may result in long gradient calculation times for large systems")
         end if
     #:endif
 
@@ -2492,11 +2493,13 @@ contains
         logical :: isDipoleDefined
         isDipoleDefined = .true.
         if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
-          call warning(env%stdOut, "Dipole printed for a charged system : origin dependent quantity")
+          call warning(env%stdOut, "Dipole printed for a charged system : origin dependent&
+              & quantity")
           isDipoleDefined = .false.
         end if
         if (this%tPeriodic .or. this%tHelical) then
-          call warning(env%stdOut, "Dipole printed for extended system : value printed is not well defined")
+          call warning(env%stdOut, "Dipole printed for extended system : value printed is not well&
+              & defined")
           isDipoleDefined = .false.
         end if
         if (.not. isDipoleDefined) then
@@ -2700,9 +2703,9 @@ contains
       end if
       isOnsiteCorrected = allocated(this%onSiteElements)
 
-      call ensureLinRespConditions(env%stdOut, this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
-          & this%tPeriodic, this%tCasidaForces, this%solvation, this%isHybLinResp, this%nSpin,&
-          & this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
+      call ensureLinRespConditions(env%stdOut, this%tSccCalc, this%t3rd .or. this%t3rdFull,&
+          & this%tRealHS, this%tPeriodic, this%tCasidaForces, this%solvation, this%isHybLinResp,&
+          & this%nSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
           & isOnsiteCorrected, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
@@ -2754,7 +2757,8 @@ contains
     if (allocated(input%ctrl%ppRPA)) then
 
       if (abs(input%ctrl%nrChrg - 2.0_dp) > elecTolMax) then
-        call warning(env%stdOut, "Particle-particle RPA should be for a reference system with a charge of +2.")
+        call warning(env%stdOut, "Particle-particle RPA should be for a reference system with a&
+            & charge of +2.")
       end if
 
     #:for VAR, ERR in [("this%tSpinOrbit","spin orbit coupling"), &
@@ -3416,8 +3420,8 @@ contains
 
   #:if WITH_SCALAPACK
     if (.not. (this%isHybridXc .and. this%tRealHS .and. this%tPeriodic)) then
-      write(env%stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)")env%blacs%orbitalGrid%nRow,&
-          & env%blacs%orbitalGrid%nCol
+      write(env%stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)")&
+          & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
       write(env%stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)")env%blacs%atomGrid%nRow,&
           & env%blacs%atomGrid%nCol
     end if
@@ -3509,8 +3513,8 @@ contains
         call error("Unknown optimisation mode")
       end select
       if (tGeoOptRequiresEgy .neqv. this%electronicSolver%providesFreeEnergy) then
-        call warning(env%stdOut, "This geometry optimisation method requires force related energies for&
-            & accurate minimisation.")
+        call warning(env%stdOut, "This geometry optimisation method requires force related energies&
+            & for accurate minimisation.")
       end if
     elseif (this%geometryChanges%tDerivs) then
       write(env%stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
@@ -3638,16 +3642,19 @@ contains
               write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%simpleMixerInp%mixParam
             else if (allocated(inp%andersonMixerInp)) then
               write(env%stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Anderson", "mixer"
-              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%andersonMixerInp%mixParam
+              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter",&
+                  & inp%andersonMixerInp%mixParam
               write(env%stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix",&
                   & inp%andersonMixerInp%iGenerations
             else if (allocated(inp%broydenMixerInp)) then
               write(env%stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Broyden", "mixer"
-              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%broydenMixerInp%mixParam
+              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter",&
+                  & inp%broydenMixerInp%mixParam
               write(env%stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
             else if (allocated(inp%diisMixerInp)) then
               write(env%stdOut, "(A,':',T30,A,' ',A)") "Mixer", "DIIS", "mixer"
-              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%diisMixerInp%initMixParam
+              write(env%stdOut, "(A,':',T30,F14.6)") "Mixing parameter",&
+                  & inp%diisMixerInp%initMixParam
               write(env%stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix",&
                   & inp%diisMixerInp%iGenerations
           end if
@@ -3705,7 +3712,8 @@ contains
       write(env%stdOut, "(A,':',T30,E14.6)") "Time step", this%deltaT
       if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%none&
           & .and. .not.input%ctrl%tReadMDVelocities) then
-        write(env%stdOut, "(A,':',T30,E14.6)") "Temperature", input%ctrl%tempProfileInp%tempValues(1)
+        write(env%stdOut, "(A,':',T30,E14.6)") "Temperature",&
+            & input%ctrl%tempProfileInp%tempValues(1)
       end if
       if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%andersen) then
         write(env%stdOut, "(A,':',T30,E14.6)") "Rescaling probability",&
@@ -3736,7 +3744,8 @@ contains
           strTmp2 = trim(strTmp2) // ", " // trim(shellNamesTmp(jj))
         end if
       end do
-      write(env%stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(this%speciesName(iSp)), trim(strTmp2)
+      write(env%stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(this%speciesName(iSp)),&
+          & trim(strTmp2)
       deallocate(shellNamesTmp)
     end do
 
@@ -3875,8 +3884,9 @@ contains
           else
             write(strTmp, "(A)") ""
           end if
-          write(env%stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)")trim(strTmp), this%speciesName(iSp),&
-                & jj, shellNames(this%orb%angShell(jj, iSp)+1), this%xi(jj, iSp)
+          write(env%stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)")trim(strTmp),&
+              & this%speciesName(iSp), jj, shellNames(this%orb%angShell(jj, iSp)+1),&
+              & this%xi(jj, iSp)
           if (this%xi(jj, iSp) /= 0.0_dp .and. this%orb%angShell(jj, iSp) == 0) then
             call error("Program halt due to non-zero s-orbital spin-orbit coupling constant!")
           end if
@@ -4012,8 +4022,8 @@ contains
         write(env%stdOut, "(A,':',T30,E14.6)") "Field strength", this%eField%EFieldStrength
         write(env%stdOut, "(A,':',T30,3F9.6)") "Direction", this%eField%EfieldVector
         if (this%tPeriodic) then
-          call warning(env%stdOut, "Saw tooth potential used for periodic geometry - make sure there is a&
-              & vacuum region!")
+          call warning(env%stdOut, "Saw tooth potential used for periodic geometry - make sure&
+              & there is a vacuum region!")
         end if
       end if
 
@@ -4268,7 +4278,8 @@ contains
       end if
 
       if ((allocated(this%dftbU) .or. allocated(this%onSiteElements)) .and. withMpi) then
-        call error("Electron dynamics with DFTB+U or onsite corrections not implemented with MPI yet")
+        call error("Electron dynamics with DFTB+U or onsite corrections not implemented with MPI&
+            & yet")
       end if
 
       if (this%tSpinSharedEf) then
@@ -4634,25 +4645,26 @@ contains
 
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
-        call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
+        call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb,&
+            & this%qBlockIn, this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
             & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
             & coeffsAndShifts=this%supercellFoldingMatrix)
         @:PROPAGATE_ERROR(errStatus)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
-          call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
-              & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
+          call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb,&
+              & this%qBlockIn, this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
+              & nEl=sum(this%nEl), multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
               & coeffsAndShifts=this%supercellFoldingMatrix)
           @:PROPAGATE_ERROR(errStatus)
         else
           ! check magnetisation in addition
-          call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
-              & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp,&
-              & hybridXcAlg=hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix)
+          call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb,&
+              & this%qBlockIn, this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
+              & nEl=sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2),&
+              & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
+              & coeffsAndShifts=this%supercellFoldingMatrix)
           @:PROPAGATE_ERROR(errStatus)
         end if
       end if
@@ -5951,8 +5963,8 @@ contains
 
     ! Temporary error test for PEXSI bug (July 2019)
     if (iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)) then
-      call warning(env%stdOut, "A temporary PEXSI bug may prevent correct evaluation at general k-points.&
-          & This should be fixed soon.")
+      call warning(env%stdOut, "A temporary PEXSI bug may prevent correct evaluation at general&
+          & k-points. This should be fixed soon.")
     end if
 
     if (iSolver == electronicSolverTypes%elpa .and. .not. withElpa .and. .not. withELSI) then
@@ -6039,7 +6051,8 @@ contains
 
 
   !> Print out the reference occupations for atoms
-  subroutine printCustomReferenceOccupations(output, orb, species, customOccAtoms, customOccFillings)
+  subroutine printCustomReferenceOccupations(output, orb, species, customOccAtoms,&
+      & customOccFillings)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output
@@ -6257,8 +6270,9 @@ contains
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !! features.
-  subroutine ensureLinRespConditions(output, tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
-      & isHybLinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected, input)
+  subroutine ensureLinRespConditions(output, tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces,&
+      & solvation, isHybLinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected,&
+      & input)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output
@@ -6395,10 +6409,12 @@ contains
         call error("hybrid functional excited states not available for window options.")
       end if
       if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
-        call warning(output, "hybrid functional excited states not well tested for triplet excited states!")
+        call warning(output, "hybrid functional excited states not well tested for triplet excited&
+            & states!")
       end if
       if (input%ctrl%tSpin) then
-        call warning(output, "hybrid functional excited states not well tested for spin-polarized systems!")
+        call warning(output, "hybrid functional excited states not well tested for spin-polarized&
+            & systems!")
       end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then

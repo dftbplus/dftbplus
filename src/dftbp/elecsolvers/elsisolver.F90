@@ -586,8 +586,8 @@ contains
     if (.not. isPartSupported) then
       call error("Unsuported ELSI version for DFTB+ (requires release >= 2.5.0)")
     else if (.not. isSupported) then
-      call warning(output, "ELSI version 2.5 is only partially supported due to changes in default solver&
-          & behaviour for PEXSI at 2.6.0")
+      call warning(output, "ELSI version 2.5 is only partially supported due to changes in default&
+          & solver behaviour for PEXSI at 2.6.0")
     end if
 
     write(output,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers

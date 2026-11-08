@@ -357,8 +357,8 @@ contains
           selectionRange(:) = [1, size(geom%species)]
           ishift = 0
         end if
-        call getSelectedAtomIndices(env%stdOut, pTmp, char(buffer), geom%speciesNames, geom%species, &
-            & iAtInRegion(ii)%data, selectionRange=selectionRange)
+        call getSelectedAtomIndices(env%stdOut, pTmp, char(buffer), geom%speciesNames,&
+            & geom%species,  iAtInRegion(ii)%data, selectionRange=selectionRange)
         iAtInRegion(ii)%data = iAtInRegion(ii)%data + ishift
         call init(vecBuffer)
         call getChildValue(pNode, "ContactVector", vecBuffer, modifier=modif)

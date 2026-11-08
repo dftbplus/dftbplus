@@ -536,8 +536,8 @@ contains
     isParallel = .false.
   #:if WITH_MPI
     if (present(env)) then
-      call distributeAtoms(env%stdOut, env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, startAtom, endAtom,&
-          & isParallelSetupError)
+      call distributeAtoms(env%stdOut, env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom,&
+          & startAtom, endAtom, isParallelSetupError)
       isParallel = .not. isParallelSetupError
     end if
 

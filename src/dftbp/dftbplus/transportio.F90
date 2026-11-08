@@ -116,7 +116,8 @@ contains
 
 
   !> Writes the contact potential shifts per shell (for transport)
-  subroutine writeContactShifts(output, filename, orb, shiftPerL, charges, Ef, blockCharges, tWriteAscii)
+  subroutine writeContactShifts(output, filename, orb, shiftPerL, charges, Ef, blockCharges,&
+      & tWriteAscii)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output

@@ -279,7 +279,8 @@ contains
         write(env%stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
         write(env%stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
         if (transpar%contacts(i)%tFermiSet) then
-          write(env%stdOut,format2U)'Potential (with built-in)', pot(i), 'H', Hartree__eV*pot(i), 'eV'
+          write(env%stdOut,format2U)'Potential (with built-in)', pot(i), 'H', Hartree__eV*pot(i),&
+              & 'eV'
           write(env%stdOut,format2U)'eFermi', eFermi(i), 'H', Hartree__eV*eFermi(i), 'eV'
         end if
         write(env%stdOut,*)

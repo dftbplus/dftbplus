@@ -96,9 +96,9 @@ module dftbp_dftb_sparse2dense
 
 contains
 
-  !> Unpacks complex sparse matrix to square form (complex version), useful if a complex phase is added
-  !! to the sparse matrix (e.g. Peierls phase). Note the non on-site blocks are only
-  !! filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
+  !> Unpacks complex sparse matrix to square form (complex version), useful if a complex phase is
+  !! added to the sparse matrix (e.g. Peierls phase). Note the non on-site blocks are only filled in
+  !! the lower triangle part of the matrix. To fill the matrix completely, apply the
   !! adjointLowerTriangle subroutine.
   subroutine unpackHS_cmplx_kpts_peierls(square, orig, kPoint, tdVecPot, coordAll, iNeighbour, &
     & nNeighbourSK, iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
@@ -919,8 +919,8 @@ contains
 
 
   !> Pack squared matrix in the sparse form (complex version).
-  subroutine packHS_cmplx2cmplx_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
-      & iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
+  subroutine packHS_cmplx2cmplx_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
+      & mOrb, iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
     complex(dp), intent(inout) :: primitive(:)

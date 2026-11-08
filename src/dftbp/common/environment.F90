@@ -266,7 +266,8 @@ contains
     integer, intent(in) :: unit
 
     allocate(this%globalTimer)
-    call TTimerArray_init(this%globalTimer, globalTimerItems, unit, maxLevel=timingLevel, header=header)
+    call TTimerArray_init(this%globalTimer, globalTimerItems, unit, maxLevel=timingLevel,&
+        & header=header)
 
   end subroutine TEnvironment_initGlobalTimer
 

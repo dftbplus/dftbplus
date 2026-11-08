@@ -166,7 +166,8 @@ program waveplot
 9989    format('Calc-Id:',I11,', atomdens')
         fileName = "wp-atomdens.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
+            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox,&
+            & ioStat=ioStat)
         if (ioStat /= 0) then
           call error("Error while writing file '" // trim(fileName) // "'.")
         else
@@ -287,7 +288,8 @@ program waveplot
 9990    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', abs2')
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-abs2.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
+            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox,&
+            & ioStat=ioStat)
         hasIoError = hasIoError .or. ioStat /= 0
         if (ioStat == 0) write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
@@ -299,7 +301,8 @@ program waveplot
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) //&
             & "-abs2diff.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
+            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox,&
+            & ioStat=ioStat)
         hasIoError = hasIoError .or. ioStat /= 0
         if (ioStat == 0) write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
@@ -314,7 +317,8 @@ program waveplot
 9991    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', real')
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-real.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
+            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox,&
+            & ioStat=ioStat)
         hasIoError = hasIoError .or. ioStat /= 0
         if (ioStat == 0) write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
@@ -325,7 +329,8 @@ program waveplot
 9992    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', imag')
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-imag.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
+            & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox,&
+            & ioStat=ioStat)
         hasIoError = hasIoError .or. ioStat /= 0
         if (ioStat == 0) write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
@@ -352,7 +357,8 @@ program waveplot
 9993 format('Calc-Id:',I11,', abs2')
     fileName = "wp-abs2.cube"
     call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-        & totChrg, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
+        & totChrg, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox,&
+        & ioStat=ioStat)
     if (ioStat /= 0) then
       call error("Error while writing file '" // trim(fileName) // "'.")
     else
@@ -370,7 +376,8 @@ program waveplot
 9994 format('Calc-Id:',I11,', abs2diff')
     fileName = 'wp-abs2diff.cube'
     call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-        & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
+        & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox,&
+        & ioStat=ioStat)
     if (ioStat /= 0) then
       call error("Error while writing file '" // trim(fileName) // "'.")
     else
@@ -391,7 +398,8 @@ program waveplot
 9996 format('Calc-Id:',I11,', spinpol')
     fileName = 'wp-spinpol.cube'
     call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-        & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
+        & buffer, fileName, env%stdOut, comments=comments, repeatBox=wp%opt%repeatBox,&
+        & ioStat=ioStat)
     if (ioStat /= 0) then
       call error("Error while writing file '" // trim(fileName) // "'.")
     else
@@ -408,8 +416,8 @@ program waveplot
 contains
 
   !> Writes a 3D function as cube file.
-  subroutine writeCubeFile(geo, atomicNumbers, gridVecs, origin, gridVal, fileName, output, comments,&
-      & repeatBox, ioStat)
+  subroutine writeCubeFile(geo, atomicNumbers, gridVecs, origin, gridVal, fileName, output,&
+      & comments, repeatBox, ioStat)
 
     !> Geometry information about the structure
     type(TGeometry), intent(in) :: geo
