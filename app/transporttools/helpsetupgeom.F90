@@ -289,7 +289,8 @@ contains
         else
           write(env%stdOut, *) "Adding",nAddPLs,"PLs"
           if (nAddPLs>=3) then
-            call warning(env%stdOut, "More than 1 copy of the supplied PL will be added to this contact")
+            call warning(env%stdOut, "More than 1 copy of the supplied PL will be added to this&
+                & contact")
           end if
         end if
         call reallocateInt(iAtInRegion(icont)%data, nAddPLs*PLsize)

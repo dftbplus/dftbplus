@@ -1841,8 +1841,8 @@ contains
 
 
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
-  subroutine getSelectedAtomIndices(output, node, selectionExpr, speciesNames, species, selectedIndices,&
-        & selectionRange, indexRange)
+  subroutine getSelectedAtomIndices(output, node, selectionExpr, speciesNames, species,&
+      & selectedIndices, selectionRange, indexRange)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output
@@ -1896,7 +1896,8 @@ contains
 
 
   !> Converts a string containing indices and ranges to a list of indices.
-  subroutine getSelectedIndices(output, node, selectionExpr, selectionRange, selectedIndices, indexRange)
+  subroutine getSelectedIndices(output, node, selectionExpr, selectionRange, selectedIndices,&
+      & indexRange)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output

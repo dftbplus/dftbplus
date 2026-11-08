@@ -418,8 +418,8 @@ contains
      enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-     @:ERROR_HANDLING(output, iErr, -2, 'The number of atoms in the scattering region is higher than&
-         & the total number of atoms')
+     @:ERROR_HANDLING(output, iErr, -2, 'The number of atoms in the scattering region is higher&
+         & than the total number of atoms')
    endif
    if (DoGate) then
 !     if (gatedir.ne.2) then

@@ -194,7 +194,8 @@ contains
     !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    call updateNrOfNeighbours_(env%stdOut, this%shortCutoffs_, species, this%hubbU_, neighList, this%nNeigh_)
+    call updateNrOfNeighbours_(env%stdOut, this%shortCutoffs_, species, this%hubbU_, neighList,&
+        & this%nNeigh_)
     call updateShortGammaValues_(coords, species, neighList, this%nNeigh_, this%hubbU_,&
         & this%damping_, this%h5Correction_, this%shortGamma_)
 
@@ -801,7 +802,8 @@ contains
         do iU1 = 1, hubb%nHubbU(species(iAt))
           do iU2 = 1, hubb%nHubbU(iSp)
             nNeigh(iU2, iU1, iSp, iAt) =&
-                & getNrOfNeighbours(output, neighList, shortCutoffs(iU2, iU1, iSp, species(iAt)), iAt)
+                & getNrOfNeighbours(output, neighList, shortCutoffs(iU2, iU1, iSp, species(iAt)),&
+                & iAt)
           end do
         end do
       end do

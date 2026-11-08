@@ -193,7 +193,8 @@ contains
     call getChildValue(root, "RemoveRotation", tRemoveRotate, .false.)
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
-    call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
+    call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geo%speciesNames, geo%species,&
+        & iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
@@ -478,14 +479,15 @@ contains
     do ii = 1, getLength(children)
       call getItem1(children, ii, child2)
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+      call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species,&
+          & pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then
-          call detailedWarning(env%stdOut, child3, "Previous setting for the mass  of atom" // i2c(iAt)&
-              & // " overwritten")
+          call detailedWarning(env%stdOut, child3, "Previous setting for the mass  of atom" //&
+              & i2c(iAt) // " overwritten")
         end if
         masses(iAt) = rTmp
       end do

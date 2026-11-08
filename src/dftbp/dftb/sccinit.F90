@@ -181,8 +181,8 @@ contains
   !! Checks that the total charge matches the expected value for the calculation.
   !! Should test the input, if the number of orbital charges per atom matches the number from the
   !! angular momentum.
-  subroutine initQFromFile(output, qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
-      & errStatus, magnetisation, nEl, hybridXcAlg, coeffsAndShifts, multipoles)
+  subroutine initQFromFile(output, qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix,&
+      & tRealHS, errStatus, magnetisation, nEl, hybridXcAlg, coeffsAndShifts, multipoles)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output

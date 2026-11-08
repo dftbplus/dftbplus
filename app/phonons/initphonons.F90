@@ -239,7 +239,8 @@ contains
     end if
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child)
-    call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
+    call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geo%speciesNames, geo%species,&
+        & iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
 
     tCompModes = .false.
@@ -615,17 +616,31 @@ contains
 
 
   !> Verification checking of atom ranges and returning contact vector and direction.
-  subroutine getContactVectorII(output, atomrange, geom, id, pContact, plShiftTol, contactVec, contactDir)
+  subroutine getContactVectorII(output, atomrange, geom, id, pContact, plShiftTol, contactVec,&
+      & contactDir)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output
 
+    !> Atom range to check
     integer, intent(in) :: atomrange(2)
+
+    !> Geometry data
     type(TGeometry), intent(in) :: geom
+
+    !> Contact ID
     integer, intent(in) :: id
+
+    !> Input tree node
     type(fnode), pointer :: pContact
+
+    !> Tolerance for principal layer alignment
     real(dp), intent(in) :: plShiftTol
+
+    !> Vector between contact principle layers
     real(dp), intent(out) :: contactVec(3)
+
+    !> Cartesian direcion of contact direction
     integer, intent(out) :: contactDir
 
     integer :: iStart, iStart2, iEnd
@@ -1186,7 +1201,8 @@ contains
       call getItem1(children, iReg, child)
       call getChildValue(child, "Atoms", buffer, child=child2, &
           & multiple=.true.)
-      call getSelectedAtomIndices(env%stdOut, child2, char(buffer), geo%speciesNames, geo%species, tmpI1)
+      call getSelectedAtomIndices(env%stdOut, child2, char(buffer), geo%speciesNames, geo%species,&
+          & tmpI1)
       iAtInRegion(iReg)%data = tmpI1
       write(strTmp, "('region',I0)") iReg
       call getChildValue(child, "Label", buffer, trim(strTmp))

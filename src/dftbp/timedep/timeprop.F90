@@ -894,8 +894,8 @@ contains
             & please make sure to use the velocity gauge coupling (check the UseVectorPotential&
             & variable).')
         if (any(inp%imFieldPolVec > epsilon(1.0_dp))) then
-          call warning(env%stdOut, 'Using circular or elliptical polarization with periodic structures might&
-              & not work.')
+          call warning(env%stdOut, 'Using circular or elliptical polarization with periodic&
+              & structures might not work.')
         end if
       end if
       this%omega = inp%omega
@@ -4320,7 +4320,8 @@ contains
       energy%Erep = 0.0_dp
     end if
     if (allocated(this%dispersion)) then
-      call calcDispersionEnergy(env, this%dispersion, energy%atomDisp, energy%eDisp, iAtInCentralRegion)
+      call calcDispersionEnergy(env, this%dispersion, energy%atomDisp, energy%eDisp,&
+          & iAtInCentralRegion)
     else
       energy%atomDisp(:) = 0.0_dp
       energy%eDisp = 0.0_dp

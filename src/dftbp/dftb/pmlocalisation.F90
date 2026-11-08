@@ -130,8 +130,8 @@ contains
 
     if (allocated(this%sparseTols)) then
       do ii = 1, size(this%sparseTols)
-        call PipekMezeySuprtRegion_real(output, ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter,&
-            & this%sparseTols(ii))
+        call PipekMezeySuprtRegion_real(output, ci, SSqrReal, iAtomStart, this%tolerance,&
+            & this%maxIter, this%sparseTols(ii))
       end do
     else
       call pipekMezeyOld_real(output, ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter)
@@ -141,8 +141,8 @@ contains
 
 
   !> Performs Pipek-Mezey localisation for a periodic system at a specified k-point.
-  subroutine calcCoeffsKPoint(this, output, ci, SSqrCplx, over, kPoint, neighbourList, nNeighbourSK,&
-      & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+  subroutine calcCoeffsKPoint(this, output, ci, SSqrCplx, over, kPoint, neighbourList,&
+      & nNeighbourSK, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Instance.
     class(TPipekMezey), intent(in) :: this
@@ -183,8 +183,9 @@ contains
     !> Index array back to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    call PipekMezeyOld_kpoint(output, ci, SSqrCplx, over, kPoint, neighbourList%iNeighbour, nNeighbourSK,&
-        & iCellVec, cellVec, iAtomStart, iPair, img2CentCell, this%tolerance, this%maxIter)
+    call PipekMezeyOld_kpoint(output, ci, SSqrCplx, over, kPoint, neighbourList%iNeighbour,&
+        & nNeighbourSK, iCellVec, cellVec, iAtomStart, iPair, img2CentCell, this%tolerance,&
+        & this%maxIter)
 
   end subroutine calcCoeffsKPoint
 
@@ -828,8 +829,8 @@ contains
 
   !> Performs conventional Pipek-Mezey localisation for a supercell using iterative sweeps over each
   !> pair of orbitals for a particular k and spin sub-matrix
-  subroutine PipekMezeyOld_kpoint(output, ci, S, over, kpoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iAtomStart, iPair, img2CentCell, convergence, mIter)
+  subroutine PipekMezeyOld_kpoint(output, ci, S, over, kpoint, iNeighbour, nNeighbourSK, iCellVec,&
+      & cellVec, iAtomStart, iPair, img2CentCell, convergence, mIter)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output

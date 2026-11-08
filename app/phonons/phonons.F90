@@ -75,10 +75,11 @@ program phonons
       call error("libnegf not initialized")
     end if
 
-    call negf_init_str(env%stdOut, geo%nAtom, transpar, neighbourList%iNeighbour, nNeighbour, img2CentCell)
+    call negf_init_str(env%stdOut, geo%nAtom, transpar, neighbourList%iNeighbour, nNeighbour,&
+        & img2CentCell)
 
     call calc_phonon_current(env, dynMatrix, tunnTot, ldosTot, currLead, conductance, &
-                        & twriteTunn, twriteLDOS)
+        & twriteTunn, twriteLDOS)
 
     if (tWriteTagged) then
       call writeTaggedOut(taggedWriter, tunnTot, ldosTot, conductance)

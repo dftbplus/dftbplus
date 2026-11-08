@@ -2673,7 +2673,8 @@ contains
 
     if (abs(omega) > epsilon(0.0_dp)) then
       write(env%stdOut, "(1X,A)")"Frequency dependant response calculation"
-      write(env%stdOut, format2U)"  omega driving frequency", omega, ' H ', omega * Hartree__eV, ' eV'
+      write(env%stdOut, format2U)"  omega driving frequency", omega, ' H ', omega * Hartree__eV,&
+          & ' eV'
     else
       write(env%stdOut, "(1X,A)")"Static response calculation"
     end if
@@ -3043,7 +3044,8 @@ contains
         if (allocated(dRhoIn)) then
           dRhoInBackup(:) = dRhoIn
         end if
-        call warning(env%stdOut, "SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
+        call warning(env%stdOut, "SCC in perturbation is NOT converged, maximal SCC iterations&
+            & exceeded")
       end if
     end if
 

@@ -26,11 +26,11 @@ module dftbp_extlibs_poisson
   use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
   use dftbp_poisson_poisson, only : active_id, angShells, bufferBox, check_biasdir, check_contacts,&
       & cntr_gate, cntr_gate_set, check_localbc, check_parameters, check_poisson_box, deltaR_max,&
-      & DoCilGate, DoGate, DoInsulator, dQmat, dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox, Gate, GateDir,&
-      & GateLength_l, GateLength_t, id0, init_charges, init_defaults, init_poissbox, init_skdata,&
-      & init_structure, InitPot, insLength_t, insLength_l, izp, lmax, localBC, MaxPoissIter,&
-      & mudpack_drv, natoms, nshells, numprocs, overrBulkBC, overrideBC, OxLength, OxLength_t,&
-      & OxLength_l, period, poiss_freepoisson, poiss_getlatvecs, poiss_savepotential,&
+      & DoCilGate, DoGate, DoInsulator, dQmat, dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox,&
+      & Gate, GateDir, GateLength_l, GateLength_t, id0, init_charges, init_defaults, init_poissbox,&
+      & init_skdata, init_structure, InitPot, insLength_t, insLength_l, izp, lmax, localBC,&
+      & MaxPoissIter, mudpack_drv, natoms, nshells, numprocs, overrBulkBC, overrideBC, OxLength,&
+      & OxLength_t, OxLength_l, period, poiss_freepoisson, poiss_getlatvecs, poiss_savepotential,&
       & poiss_updcoords, ReadBulk, Rmin_Gate, Rmin_Ins, SavePot, insSharpBC, scratchfolder,&
       & set_accuracy, set_cluster, set_dopoisson, set_mol_indeces, set_ncont, set_poissonbox,&
       & set_poissongrid, set_scratch, set_temperature, set_verbose, uhubb, verbose, write_parameters
@@ -559,8 +559,8 @@ contains
       ! processors over which the right hand side of the Poisson equation is parallelised
 
       iErr = 0
-      call init_structure(env%stdOut, structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
-          & structure%latVecs, structure%isperiodic)
+      call init_structure(env%stdOut, structure%nAtom, structure%nSpecies, structure%specie0,&
+          & structure%x0, structure%latVecs, structure%isperiodic)
 
       call init_skdata(env%stdOut, orb%nShell, orb%angShell, hubbU)
 
@@ -947,8 +947,8 @@ contains
     ! have a factor 2 in front of pllens
     do ii = 1, size(pllens)
       if (rr > 2.0_dp * pllens(ii) + 1e-12_dp) then
-        write(env%stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the principle&
-            & layer width in contact ", ii, "."
+        write(env%stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the&
+            & principle layer width in contact ", ii, "."
         write(env%stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
         call error("Either enlarge PL width in the contact or increase AtomDensityCutoff or&
             & AtomDensityTolerance.")

@@ -169,7 +169,8 @@ contains
         symmetries(:) = [ "S", "T" ]
       end select
     else
-      @:ERROR_HANDLING(env%stdOut, err, -1, "spin-unrestricted calculations currently not possible with pp-RPA")
+      @:ERROR_HANDLING(env%stdOut, err, -1, "spin-unrestricted calculations currently not possible&
+          & with pp-RPA")
     end if
 
     ! Allocation for general arrays
