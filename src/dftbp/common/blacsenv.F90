@@ -77,6 +77,12 @@ contains
     integer, allocatable :: gridMap(:,:)
     integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax
     character(200) :: buffer
+    integer :: sysCtx
+
+    ! The BLACS system context corresponds to the global MPI communicator (which might be a
+    ! sub-communicator passed by an external driver). All BLACS grids should use this system
+    ! context to ensure that no communication happens outside of the global MPI communicator.
+    sysCtx = myMpiEnv%globalComm%id
 
     ! Create orbital grid for each processor group
     call getSquareGridParams(myMpiEnv%groupSize, nProcRow, nProcCol)
@@ -89,12 +95,12 @@ contains
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
       @:RAISE_ERROR(errStatus, -1, trim(buffer))
     end if
-    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
-    call this%orbitalGrid%initmappedgrids(gridMap)
+    call getGridMap(myMpiEnv%groupMembersGlobal, nProcRow, nProcCol, gridMap)
+    call this%orbitalGrid%initmappedgrids(gridMap, context=sysCtx)
 
     ! rectangular grid for the rowBlock
-    call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
-    call this%rowOrbitalGrid%initmappedgrids(gridMap)
+    call getGridMap(myMpiEnv%groupMembersGlobal, 1, nProcRow * nProcCol, gridMap)
+    call this%rowOrbitalGrid%initmappedgrids(gridMap, context=sysCtx)
 
     ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
@@ -102,8 +108,8 @@ contains
     nProcRow = min(nProcRow, maxProcRow)
     nProcCol = min(nProcCol, maxProcColMax)
 
-    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
-    call this%atomGrid%initmappedgrids(gridMap)
+    call getGridMap(myMpiEnv%groupMembersGlobal, nProcRow, nProcCol, gridMap)
+    call this%atomGrid%initmappedgrids(gridMap, context=sysCtx)
 
     this%rowBlockSize = rowBlock
     this%columnBlockSize = colBlock

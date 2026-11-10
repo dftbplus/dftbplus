@@ -293,14 +293,13 @@ contains
   #:block DEBUG_CODE
   #:if WITH_MPI
     block
-      use dftbp_extlibs_mpifx, only : mpifx_comm
-      type(mpifx_comm) :: comm
+      use dftbp_common_globalenv, only : globalMpiComm, tIoProc
       character(1000) :: msg
+      ! Note: tIoProc is only false, if the global communicator has been already initialized
       if (.not. parallelWriting_) then
-        call comm%init()
-        if (.not. comm%lead .and. (opts%action == "write" .or. opts%action == "readwrite")) then
-          write(msg, "(a, i0, 3a)") "Follower process (rank ", comm%rank, ") tried to open file '",&
-              & file, "' for writing (only leader can do this)"
+        if (.not. tIoProc .and. (opts%action == "write" .or. opts%action == "readwrite")) then
+          write(msg, "(a, i0, 3a)") "Follower process (rank ", globalMpiComm%rank,&
+              & ") tried to open file '", file, "' for writing (only leader can do this)"
           error stop msg
         end if
       end if

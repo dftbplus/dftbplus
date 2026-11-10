@@ -10,7 +10,8 @@
 !> Exports scalapackfx functionality if compiled with scalapack support, otherwise empty.
 module dftbp_extlibs_scalapackfx
 #:if WITH_SCALAPACK
-  use libscalapackfx_module, only : blacsfx_gemr2d, blacsfx_gsum, blacsgrid, blocklist, CSRC_,&
+  use libscalapackfx_module, only : blacsfx_gemr2d, blacsfx_gsum, blacsgrid,&
+      & blocklist, CSRC_,&
       & CTXT_, DLEN_, linecomm, M_, MB_, N_, NB_, pblasfx_pgemm, pblasfx_phemm, pblasfx_pher,&
       & pblasfx_pherk, pblasfx_psymm, pblasfx_psymv, pblasfx_psyr, pblasfx_psyrk, pblasfx_ptran,&
       & pblasfx_ptranc, pblasfx_ptranu,&

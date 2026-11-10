@@ -6,7 +6,8 @@
 	url = https://github.com/libnegf/libnegf.git
 [submodule "external/scalapackfx/origin"]
 	path = external/scalapackfx/origin
-	url = https://github.com/dftbplus/scalapackfx.git
+	# url = https://github.com/dftbplus/scalapackfx.git
+	url = https://github.com/aradi/scalapackfx.git
 [submodule "external/mbd/origin"]
 	path = external/mbd/origin
 	url = https://github.com/libmbd/libmbd.git
