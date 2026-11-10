@@ -28,15 +28,18 @@ contains
     !> Compensator for underflow
     real(dp), intent(inout) :: compensator
 
-    real(dp), volatile :: tmp
+    real(dp), volatile :: tmp, err
 
     tmp = summation + input
     ! Neumaier improvement
     if (abs(summation) >= abs(input)) then
-      compensator = compensator + (summation - tmp) + input
+      err = summation - tmp
+      err = err + input
     else
-      compensator = compensator + (input - tmp) + summation
+      err = input - tmp
+      err = err + summation
     end if
+    compensator = compensator + err
     summation = tmp
 
   end subroutine kahan
