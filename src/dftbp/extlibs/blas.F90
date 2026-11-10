@@ -1373,6 +1373,50 @@ module dftbp_extlibs_blas
 
 #:endfor
 
+
+#:for VPREC, NAME in [('rsp', 'cscal'), ('rdp', 'zscal')]
+
+    !> Scales a complex vector by a complex constant
+    subroutine ${NAME}$(n, alpha, x, incx)
+      import :: ${VPREC}$
+      integer, intent(in) :: n
+      complex(${VPREC}$), intent(in) :: alpha
+      complex(${VPREC}$), intent(inout) :: x(*)
+      integer, intent(in) :: incx
+    end subroutine ${NAME}$
+
+#:endfor
+
+
+#:for VPREC, NAME in [('rsp', 'cswap'), ('rdp', 'zswap')]
+
+    !> Interchanges two complex vectors
+    subroutine ${NAME}$(n, x, incx, y, incy)
+      import :: ${VPREC}$
+      integer, intent(in) :: n
+      complex(${VPREC}$), intent(inout) :: x(*)
+      integer, intent(in) :: incx
+      complex(${VPREC}$), intent(inout) :: y(*)
+      integer, intent(in) :: incy
+    end subroutine ${NAME}$
+
+#:endfor
+
+
+#:for VPREC, NAME in [('rsp', 'ccopy'), ('rdp', 'zcopy')]
+
+    !> Copies a complex vector x to a complex vector y
+    subroutine ${NAME}$(n, x, incx, y, incy)
+      import :: ${VPREC}$
+      integer, intent(in) :: n
+      complex(${VPREC}$), intent(in) :: x(*)
+      integer, intent(in) :: incx
+      complex(${VPREC}$), intent(inout) :: y(*)
+      integer, intent(in) :: incy
+    end subroutine ${NAME}$
+
+#:endfor
+
   end interface
 
 end module dftbp_extlibs_blas

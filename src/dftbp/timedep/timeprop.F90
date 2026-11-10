@@ -49,6 +49,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftbplus_eigenvects, only : diagDenseMtx
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
+  use dftbp_extlibs_blas, only : zcopy
   use dftbp_extlibs_tblite, only : TTBLite
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
