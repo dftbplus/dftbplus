@@ -21,7 +21,7 @@ transport {
 }
 
 Masses = SlaterKosterFiles{
-  C-C = "./C-C.skf"
+  C-C = "slakos/origin/mio-1-1/C-C.skf"
 }
 
 Hessian = {
