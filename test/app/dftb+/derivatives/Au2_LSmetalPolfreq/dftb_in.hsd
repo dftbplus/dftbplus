@@ -16,7 +16,7 @@ Hamiltonian = Dftb {
         Temperature [K] = 300
     }
     SlaterKosterFiles = {
-        Au-Au = "Au-Au.skf"
+        Au-Au = "slakos/origin/auorg-1-1/Au-Au.skf"
     }
     SpinOrbit = {
         Au [eV] = {0.0 0.5 1.5}

@@ -35,7 +35,7 @@ Hamiltonian = DFTB {
   }
   Filling = Fermi {}
   SlaterKosterFiles = {
-    Si-Si = "./Si-Si.skf"
+    Si-Si = "slakos/origin/pbc-0-3/Si-Si.skf"
   }
   KPointsAndWeights = SupercellFolding {
    2 0 0

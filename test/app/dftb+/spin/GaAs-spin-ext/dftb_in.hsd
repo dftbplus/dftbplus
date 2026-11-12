@@ -23,10 +23,21 @@ Hamiltonian = DFTB {
     As = "p"
   }
   SlaterKosterFiles = {
-    Ga-Ga = "./Ga1-Ga1.skf" "./Ga1-Ga2.skf" "./Ga2-Ga1.skf" "./Ga2-Ga2.skf"
-    Ga-As = "./Ga1-As.skf"  "./Ga2-As.skf"
-    As-Ga = "./As-Ga1.skf" "./As-Ga2.skf"
-    As-As = "./As-As.skf"
+    Ga-Ga {
+      "slakos/origin/hyb-0-2/Ga-Ga.skf"
+      "slakos/origin/hyb-0-2/Ga-Ga.skf"
+      "slakos/origin/hyb-0-2/Ga-Ga.skf"
+      "slakos/origin/hyb-0-2/Ga-Ga.skf"
+    }
+    Ga-As {
+      "slakos/origin/hyb-0-2/Ga-As.skf"
+      "slakos/origin/hyb-0-2/Ga-As.skf"
+    }
+    As-Ga {
+      "slakos/origin/hyb-0-2/As-Ga.skf"
+      "slakos/origin/hyb-0-2/As-Ga.skf"
+    }
+    As-As = "slakos/origin/hyb-0-2/As-As.skf"
   }
   Charge = 0.000000000000000E+000
   SpinPolarisation = Colinear {

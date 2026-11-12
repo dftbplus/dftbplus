@@ -40,7 +40,7 @@ Hamiltonian = DFTB {
   Charge = 0.000000000000000E+000
   Filling = Fermi {}
   SlaterKosterFiles = {
-    Si-Si = "./Si-Si.skf"
+    Si-Si = "slakos/origin/pbc-0-3/Si-Si.skf"
   }
   KPointsAndWeights = {
  0.250000000000000 0.250000000000000 0.250000000000000 1.00000000000000

@@ -19,10 +19,21 @@ Hamiltonian = DFTB {
     }
     ShellResolvedSCC = Yes
     SlaterKosterFiles = {
-        C-C = "./C-C.skf" "./C-C.skf" "./C-C.skf" "./C-C.skf"
-        C-H = "./C-H.skf"  "./C-H.skf"
-        H-C = "./H-C.skf" "./H-C.skf"
-        H-H = "./H-H.skf"
+        C-C {
+          "slakos/origin/mio-1-1/C-C.skf"
+          "slakos/origin/mio-1-1/C-C.skf"
+          "slakos/origin/mio-1-1/C-C.skf"
+          "slakos/origin/mio-1-1/C-C.skf"
+        }
+        C-H {
+          "slakos/origin/mio-1-1/C-H.skf"
+          "slakos/origin/mio-1-1/C-H.skf"
+        }
+        H-C {
+          "slakos/origin/mio-1-1/H-C.skf"
+          "slakos/origin/mio-1-1/H-C.skf"
+        }
+        H-H = "slakos/origin/mio-1-1/H-H.skf"
     }
     Electrostatics = Poisson {
         PoissonBox [Angstrom] = 10.0 10.0 10.0

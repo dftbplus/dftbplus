@@ -48,7 +48,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 273.15
   }
   SlaterKosterFiles = {
-    Si-Si = "./Si-Si.skf"
+    Si-Si = "slakos/origin/pbc-0-3/Si-Si.skf"
   }
   KPointsAndWeights = SupercellFolding { # not converged
    2 0 0

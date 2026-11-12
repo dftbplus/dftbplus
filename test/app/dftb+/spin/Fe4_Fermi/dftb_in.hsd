@@ -33,7 +33,7 @@ Hamiltonian = DFTB {
         FixedFermiLevel [eV] = -4.71737 -4.71737
     }
     SlaterKosterFiles = {
-        Fe-Fe = "./Fe-Fe.skf"
+        Fe-Fe = "slakos/origin/pbc-0-3/Fe-Fe.skf"
     }
 }
 

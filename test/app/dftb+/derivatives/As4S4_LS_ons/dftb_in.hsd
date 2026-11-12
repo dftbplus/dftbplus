@@ -31,10 +31,10 @@ Hamiltonian = DFTB {
         Temperature [Kelvin] = 100
     }
     SlaterKosterFiles = {
-        S-S = "./S-S.skf"
-        S-As = "./S-As.skf"
-        As-S = "./As-S.skf"
-        As-As = "./As-As.skf"
+        S-S = "slakos/origin/mio-1-1/S-S.skf"
+        S-As = "slakos/origin/hyb-0-2/S-As.skf"
+        As-S = "slakos/origin/hyb-0-2/As-S.skf"
+        As-As = "slakos/origin/hyb-0-2/As-As.skf"
     }
     SpinOrbit = { # values from Handbook of Photochemistry, Third
         # Edition, Ed.Marco Montalti, Alberto Credi, Luca

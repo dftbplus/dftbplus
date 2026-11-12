@@ -33,9 +33,23 @@ Hamiltonian = DFTB {
     O = "p"
     N = "p"
   }
-  SlaterKosterFiles = Type2FileNames {
-    Separator = "-"
-    Suffix = ".skf"
+  SlaterKosterFiles = {
+    C-C = "slakos/origin/mio-1-1/C-C.skf"
+    C-D = "slakos/origin/mio-1-1/C-H.skf"
+    C-N = "slakos/origin/mio-1-1/C-N.skf"
+    C-O = "slakos/origin/mio-1-1/C-O.skf"
+    D-C = "slakos/origin/mio-1-1/H-C.skf"
+    D-D = "slakos/origin/mio-1-1/H-H.skf"
+    D-N = "slakos/origin/mio-1-1/H-N.skf"
+    D-O = "slakos/origin/mio-1-1/H-O.skf"
+    N-C = "slakos/origin/mio-1-1/N-C.skf"
+    N-D = "slakos/origin/mio-1-1/N-H.skf"
+    N-N = "slakos/origin/mio-1-1/N-N.skf"
+    N-O = "slakos/origin/mio-1-1/N-O.skf"
+    O-C = "slakos/origin/mio-1-1/O-C.skf"
+    O-D = "slakos/origin/mio-1-1/O-H.skf"
+    O-N = "slakos/origin/mio-1-1/O-N.skf"
+    O-O = "slakos/origin/mio-1-1/O-O.skf"
   }
 }
 

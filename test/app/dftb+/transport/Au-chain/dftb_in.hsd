@@ -61,7 +61,7 @@ hamiltonian = dftb {
  
  
   slaterkosterfiles = {
-    Au-Au = "Au-Au.skf"
+    Au-Au = "slakos/origin/auorg-1-1/Au-Au.skf"
   }
 
   Eigensolver = GreensFunction{

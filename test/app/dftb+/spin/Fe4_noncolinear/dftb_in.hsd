@@ -49,7 +49,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 5.0e+2
   }
   SlaterKosterFiles = {
-    Fe-Fe = "./Fe-Fe.skf"
+    Fe-Fe = "slakos/origin/pbc-0-3/Fe-Fe.skf"
   }
 }
 
