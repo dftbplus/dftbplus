@@ -10,9 +10,9 @@
 ! (creating and destroying the DFTB+ instance in each cycle), while the processes of the second
 ! group wait on their own communicator meanwhile.
 !
-! This tests whether DFTB+ restricts all its MPI and BLACS communication to the communicator passed
-! via the API. Any collective operation involving processes outside of that communicator (e.g.
-! one on MPI_COMM_WORLD or on a BLACS grid derived from the default system context) would hang.
+! Test whether DFTB+ restricts all its MPI and BLACS communication to the MPI communicator passed
+! via the API. Any collective operation involving processes outside of that communicator (e.g. one
+! on MPI_COMM_WORLD or on a BLACS grid derived from the default system context) would hang.
 
 program test_mpisubgrids_idle
   ! Omitting explicit import list, as some mpi modules simply miss symbols (as in MPICH 3.3)

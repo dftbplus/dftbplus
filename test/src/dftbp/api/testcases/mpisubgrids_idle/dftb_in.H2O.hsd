@@ -18,7 +18,7 @@ Hamiltonian = DFTB {
     O = "p"
   }
   SlaterKosterFiles = Type2FileNames {
-    Prefix = "./"
+    Prefix = "slakos/origin/mio-1-1/"
     Suffix = ".skf"
     Separator = "-"
   }
@@ -37,11 +37,11 @@ Hamiltonian = DFTB {
 }
 
 Analysis {
-  CalculateForces = Yes
+  PrintForces = Yes
 }
 
 ParserOptions = {
-  ParserVersion = 9
+  ParserVersion = 14
 }
 
 Parallel {
