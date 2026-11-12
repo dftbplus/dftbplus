@@ -11,11 +11,13 @@ module testhelpers
   use, intrinsic :: iso_c_binding, only : c_associated, c_double, c_f_pointer, c_int, c_ptr
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_filesystem, only : findFile, getParamSearchPaths
+  use dftbp_extlibs_xmlf90, only : string, char
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter, TTaggedWriter_init
   implicit none
   private
 
-  public :: writeAutotestTag, c_writeAutotestTag
+  public :: writeAutotestTag, c_writeAutotestTag, searchFile
 
 contains
 
@@ -239,5 +241,21 @@ contains
 
   end subroutine c_writeAutotestTag
 
+
+  !> Searches a file int he standard paths where DFTB+ would look for them
+  subroutine searchFile(fname, fpath)
+
+    !> File to look for
+    character(*), intent(in) :: fname
+
+    !> Full path when found or unallocated otherwise
+    character(:), allocatable, intent(out) :: fpath
+
+    type(string), allocatable :: searchPaths(:)
+
+    call getParamSearchPaths(searchPaths)
+    call findFile(searchPaths, fname, fpath)
+
+  end subroutine searchFile
 
 end module testhelpers

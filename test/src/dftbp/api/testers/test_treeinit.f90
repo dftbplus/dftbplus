@@ -69,7 +69,7 @@ contains
     !call TDftbPlus_init(dftbp, outputUnit=devNull)
     call TDftbPlus_init(dftbp)
 
-    ! You should provide the skfiles found in the external/slakos/origin/pbc-0-3/ folder.
+    ! SK-files are looked up relative to the external/ folder (via DFTBPLUS_PARAM_DIR)
 
     ! initialise a DFTB input tree and populate entries which do not have relevant or appropriate
     ! default values
@@ -87,7 +87,7 @@ contains
     call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
     call setChildValue(pMaxAng, "Si", "p")
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-    call setChildValue(pSlakos, "Si-Si", "./Si-Si.skf")
+    call setChildValue(pSlakos, "Si-Si", "slakos/origin/pbc-0-3/Si-Si.skf")
     call setChildValue(pDftb, "KPointsAndWeights", reshape([&
         &  0.25_dp,  0.25_dp, 0.25_dp, 1.00_dp,&
         & -0.25_dp,  0.25_dp, 0.25_dp, 1.00_dp,&
