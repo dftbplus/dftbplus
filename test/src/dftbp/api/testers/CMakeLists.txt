@@ -115,9 +115,15 @@ if(WITH_MPI)
   target_include_directories(test_mpisubgrids PRIVATE ${MPI_Fortran_MODULE_DIR})
   target_link_libraries(test_mpisubgrids PRIVATE ${MPI_Fortran_LIBRARIES})
 
+  add_executable(test_mpisubgrids_idle test_mpisubgrids_idle.f90 $<TARGET_OBJECTS:test_api_utils>)
+  target_link_libraries(test_mpisubgrids_idle PRIVATE dftbplus)
+  target_include_directories(test_mpisubgrids_idle PRIVATE ${MPI_Fortran_MODULE_DIR})
+  target_link_libraries(test_mpisubgrids_idle PRIVATE ${MPI_Fortran_LIBRARIES})
+
   set(mpi_sources
     test_setspeciesanddependents.f90
-    test_mpisubgrids.f90)
+    test_mpisubgrids.f90
+    test_mpisubgrids_idle.f90)
 
   # Lift strict actual argument type checking to enable mpi-calls to compile
   foreach(mpisource IN LISTS mpi_sources)

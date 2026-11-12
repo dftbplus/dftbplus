@@ -135,6 +135,9 @@ module dftbp_dftbplus_initprogram
   use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbd, TDispMbd_init, TDispMbdInp
+#:if WITH_MPI
+  use dftbp_extlibs_mbd, only : setMbdCommunicator
+#:endif
 #:endif
 #:if WITH_OMP
   use omp_lib, only : omp_get_max_threads
@@ -2401,6 +2404,9 @@ contains
           if (this%tPeriodic) then
             inp%lattice_vectors = this%latVec
           end if
+        #:if WITH_MPI
+          call setMbdCommunicator(inp, env%mpi%globalComm%id)
+        #:endif
           call TDispMbd_init(mbd, inp, input%geom, isPostHoc=.true.)
         end associate
         call mbd%checkError(env)

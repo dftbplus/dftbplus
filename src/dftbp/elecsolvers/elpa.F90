@@ -23,8 +23,8 @@ module dftbp_elecsolvers_elpa
   use dftbp_extlibs_mpifx, only : mpifx_bcast, mpifx_comm
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d, blacsgrid, scalafx_getdescriptor,&
-      & scalafx_numroc, CTXT_, DLEN_
+  use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d, blacsgrid,&
+      & scalafx_getdescriptor, scalafx_numroc, CTXT_, DLEN_
 #:endif
   use dftbp_io_message, only : error
   implicit none
@@ -368,7 +368,8 @@ contains
       end do
     end do
 
-    call this%redistributeGrid%initmappedgrids(gridmap)
+    ! Ranks in the grid map are relative to the group communicator
+    call this%redistributeGrid%initmappedgrids(gridmap, context=groupComm%id)
 
     if (splitkey == 1) then
       rankkey = this%redistributeGrid%iproc
