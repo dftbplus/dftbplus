@@ -181,11 +181,8 @@ contains
   !! Checks that the total charge matches the expected value for the calculation.
   !! Should test the input, if the number of orbital charges per atom matches the number from the
   !! angular momentum.
-  subroutine initQFromFile(output, qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix,&
-      & tRealHS, errStatus, magnetisation, nEl, hybridXcAlg, coeffsAndShifts, multipoles)
-
-    !> Output unit for human readable messages
-    integer, intent(in) :: output
+  subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
+      & errStatus, magnetisation, nEl, hybridXcAlg, coeffsAndShifts, multipoles)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
@@ -370,8 +367,9 @@ contains
     end if
 
     if (iSpin /= nSpin) then
-      write(output, *) iSpin
-      call error("Incorrect number of spins in restart file")
+      write(error_string, "(A,I0,A,I0)") "Incorrect number of spins in restart file, expecting ",&
+          & nSpin, "found ", iSpin
+      call error(error_string)
     end if
 
     qq(:,:,:) = 0.0_dp
@@ -592,18 +590,33 @@ contains
             end if
           end if
         else
-          ! cluster/Gamma-only case
-          do ii = 1, size(densityMatrix%deltaRhoIn, dim=3)
-            do jj = 1, size(densityMatrix%deltaRhoIn, dim=2)
-              do kk = 1, size(densityMatrix%deltaRhoIn, dim=1)
-                if (tReadAscii) then
-                  read(file%unit, *, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
-                else
-                  read(file%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
-                end if
+          if (nSpin < 4) then
+            ! cluster/Gamma-only case
+            do ii = 1, size(densityMatrix%deltaRhoIn, dim=3)
+              do jj = 1, size(densityMatrix%deltaRhoIn, dim=2)
+                do kk = 1, size(densityMatrix%deltaRhoIn, dim=1)
+                  if (tReadAscii) then
+                    read(file%unit, *, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
+                  else
+                    read(file%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
+                  end if
+                end do
               end do
             end do
-          end do
+          else
+            ! cluster/Gamma-only non-collinear/spin-orbit case
+            do ii = 1, size(densityMatrix%deltaRhoInCplx, dim=3)
+              do jj = 1, size(densityMatrix%deltaRhoInCplx, dim=2)
+                do kk = 1, size(densityMatrix%deltaRhoInCplx, dim=1)
+                  if (tReadAscii) then
+                    read(file%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplx(kk, jj, ii)
+                  else
+                    read(file%unit, iostat=iErr) densityMatrix%deltaRhoInCplx(kk, jj, ii)
+                  end if
+                end do
+              end do
+            end do
+          end if
         end if
         if (iErr /= 0) then
           write(error_string, *) 'Failure to read file for delta density matrix.'
@@ -685,8 +698,8 @@ contains
     tRho = allocated(densityMatrix%deltaRhoIn) .or. allocated(densityMatrix%deltaRhoInCplx)&
         & .or. allocated(densityMatrix%deltaRhoInCplxHS)
 
-    if (tRho .and. (.not. allocated(densityMatrix%deltaRhoIn))&
-        & .and. (.not. present(coeffsAndShifts))) then
+    if (tRho .and. nSpin < 4 .and. .not. allocated(densityMatrix%deltaRhoIn) .and.&
+        & .not. present(coeffsAndShifts)) then
       call error("Failure while writing restart file: This appears to be a cluster/Gamma-only&
           & calculations, but the associated density matrix is missing.")
     end if
@@ -866,18 +879,33 @@ contains
       end if
 
       if (tRealHS) then
-        ! cluster/Gamma-only case
-        do ii = 1, size(densityMatrix%deltaRhoIn, dim=3)
-          do jj = 1, size(densityMatrix%deltaRhoIn, dim=2)
-            do kk = 1, size(densityMatrix%deltaRhoIn, dim=1)
-              if (tWriteAscii) then
-                write(fd%unit, *, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
-              else
-                write(fd%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
-              end if
+        if (nSpin < 4) then
+          ! cluster/Gamma-only case
+          do ii = 1, size(densityMatrix%deltaRhoIn, dim=3)
+            do jj = 1, size(densityMatrix%deltaRhoIn, dim=2)
+              do kk = 1, size(densityMatrix%deltaRhoIn, dim=1)
+                if (tWriteAscii) then
+                  write(fd%unit, *, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
+                else
+                  write(fd%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
+                end if
+              end do
             end do
           end do
-        end do
+        else
+          ! cluster/Gamma-only non-collinear/spin-orbit case
+          do ii = 1, size(densityMatrix%deltaRhoInCplx, dim=3)
+            do jj = 1, size(densityMatrix%deltaRhoInCplx, dim=2)
+              do kk = 1, size(densityMatrix%deltaRhoInCplx, dim=1)
+                if (tWriteAscii) then
+                  write(fd%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplx(kk, jj, ii)
+                else
+                  write(fd%unit, iostat=iErr) densityMatrix%deltaRhoInCplx(kk, jj, ii)
+                end if
+              end do
+            end do
+          end do
+        end if
       else
         ! general k-point case
         if (hybridXcAlg == hybridXcAlgo%matrixBased) then

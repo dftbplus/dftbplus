@@ -4651,26 +4651,25 @@ contains
 
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
-        call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb,&
-            & this%qBlockIn, this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
+        call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+            & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
             & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
             & coeffsAndShifts=this%supercellFoldingMatrix)
         @:PROPAGATE_ERROR(errStatus)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
-          call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb,&
-              & this%qBlockIn, this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
-              & nEl=sum(this%nEl), multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
+          call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+              & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
+              & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
               & coeffsAndShifts=this%supercellFoldingMatrix)
           @:PROPAGATE_ERROR(errStatus)
         else
           ! check magnetisation in addition
-          call initQFromFile(env%stdOut, this%qInput, fCharges, this%tReadChrgAscii, this%orb,&
-              & this%qBlockIn, this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
-              & nEl=sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2),&
-              & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
-              & coeffsAndShifts=this%supercellFoldingMatrix)
+          call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+              & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
+              & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp,&
+              & hybridXcAlg=hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix)
           @:PROPAGATE_ERROR(errStatus)
         end if
       end if
@@ -6248,10 +6247,6 @@ contains
     if ((.not. this%tRealHS) .and. this%nSpin > 1 .and. this%tForces) then
       call error("Hybrid functionality currently does not yet support spin-polarized gradient&
           & evaluation for periodic systems beyond the Gamma-point.")
-    end if
-
-    if (this%tSpinOrbit) then
-      call error("Hybrid calculations not currently implemented for spin orbit coupling.")
     end if
 
     if (this%isXlbomd) then
