@@ -453,7 +453,7 @@ contains
       if (allocated(exc)) call error("Failed to initialize gfn2 calculator: "//exc%message)
     case(tbliteMethod%ipea1xtb)
       call new_ipea1_calculator(calc, mol, exc)
-      if (allocated(exc)) call error("Failed to initialize gfn2 calculator")
+      if (allocated(exc)) call error("Failed to initialize gfn2 calculator: "//exc%message)
     end select
     
   end subroutine getCalculator
