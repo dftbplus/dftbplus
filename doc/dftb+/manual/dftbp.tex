@@ -1868,6 +1868,14 @@ The extended tight binding~(xTB) Hamiltonian\cite{bannwarth2020} is available if
 \dftbp{} is built with support for a communication bridge to the \texttt{tblite}
 library.
 
+\textbf{Note:} The \texttt{tblite} library is not developed by the \dftbp{}
+team. Any backward-incompatible changes in \texttt{tblite} that do not have an
+option to fall back to the previous behaviour cannot be reverted by \dftbp{}.
+Known examples are documented in the change log of
+\dftbp{}, but no compatibility settings to reproduce older xTB results will be
+provided by \dftbp{}. To reproduce earlier results, you would have to build an older version
+of \dftbp{} together with the corresponding version of \texttt{tblite}.
+
 \begin{ptable}
   \kw{Method} & s & & & \\
   \kw{ParameterFile} & s & & & \\

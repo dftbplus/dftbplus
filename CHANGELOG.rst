@@ -52,6 +52,20 @@ Added
 Changed
 -------
 
+- **Backward incompatible** changes to xTB calculations due to changes
+  in the TBLite library (version 0.8.0), with no fallback to the old
+  implementations:
+
+  * Periodic GFN1/GFN2-xTB: Klopman-Ohno electrostatics is evaluated
+    with an exact generalized Ewald summation.
+
+  * GFN1-xTB and IPEA1-xTB: the original (xtb 6.2) STO-6G expansion with
+    shared s/p exponents is used for 4sp and 5sp shells, slightly
+    changing results for systems containing elements of the 4th and 5th
+    rows.
+
+  Calculations using the DFTB Hamiltonian remain unaffected.
+
 - Binary X+Y data export from time dependent calculations
 
 - Improve control for single-shot transport calculations in cases
@@ -88,6 +102,14 @@ Fixed
   cases.
 
 - Corrected f_xyz orbital label
+
+- Orbital ordering for d-orbitals in xTB calculations follows now the usual
+  (m=-l,...,l) convention (fix in the upstream tblite library).
+
+- Forces from the three-body term of the DFT-D3 dispersion were slightly
+  incorrect for periodic systems, as triples involving periodic images of the
+  same atom were weighted wrongly (energies and stress were not affected). Fixed
+  in the upstream simple-dftd3 library.
 
 
 25.1 (2025-12-18)
