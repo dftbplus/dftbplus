@@ -322,18 +322,20 @@ module dftbp_extlibs_lapack
 
 
   interface
-  #:for LAPACK_ROUTINE, KIND in [("sgesv", "rsp"), ("dgesv", "rdp")]
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("sgesv", "real", "rsp"), ("dgesv", "real", "rdp"),&
+      &  ("cgesv", "complex", "rsp"), ("zgesv", "complex", "rdp")]
 
-    !> Solve overdetermined or underdetermined real linear systems
+    !> Solves a general system of linear equations A * X = B using LU decomposition
     subroutine ${LAPACK_ROUTINE}$(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
       import :: ${KIND}$
       integer, intent(in) :: nn
       integer, intent(in) :: nrhs
       integer, intent(in) :: lda
-      real(${KIND}$), intent(inout) :: aa(lda, *)
+      ${TYPE}$(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(out) :: ipiv(*)
       integer, intent(in) :: ldb
-      real(${KIND}$), intent(inout) :: bb(ldb, *)
+      ${TYPE}$(${KIND}$), intent(inout) :: bb(ldb, *)
       integer, intent(out) :: info
     end subroutine ${LAPACK_ROUTINE}$
   #:endfor
@@ -341,17 +343,20 @@ module dftbp_extlibs_lapack
 
 
     interface
-  #:for LAPACK_ROUTINE, KIND in [("sposv", "rsp"), ("dposv", "rdp")]
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("sposv", "real", "rsp"), ("dposv", "real", "rdp"),&
+      &  ("cposv", "complex", "rsp"), ("zposv", "complex", "rdp")]
 
-    !> Solve overdetermined or underdetermined real linear systems
-    subroutine ${LAPACK_ROUTINE}$(nn, nrhs, aa, lda, bb, ldb, info)
+    !> Solves a symmetric / hermitian positive definite system of linear equations A * X = B
+    subroutine ${LAPACK_ROUTINE}$(uplo, nn, nrhs, aa, lda, bb, ldb, info)
       import :: ${KIND}$
+      character, intent(in) :: uplo
       integer, intent(in) :: nn
       integer, intent(in) :: nrhs
       integer, intent(in) :: lda
-      real(${KIND}$), intent(inout) :: aa(lda, *)
+      ${TYPE}$(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(in) :: ldb
-      real(${KIND}$), intent(inout) :: bb(ldb, *)
+      ${TYPE}$(${KIND}$), intent(inout) :: bb(ldb, *)
       integer, intent(out) :: info
     end subroutine ${LAPACK_ROUTINE}$
   #:endfor
@@ -397,18 +402,64 @@ module dftbp_extlibs_lapack
 
 
   interface
-  #:for LAPACK_ROUTINE, TYPE_KIND in [("ssytrf", "rsp"), ("dsytrf", "rdp")]
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("sgetrs", "real", "rsp"), ("dgetrs", "real", "rdp"),&
+      &  ("cgetrs", "complex", "rsp"), ("zgetrs", "complex", "rdp")]
 
-    !> Factorise a real symmetric matrix as A = U*D*U**T or A = L*D*L**T
+    !> Solves A * X = B, A**T * X = B or A**H * X = B using the LU factorization from getrf
+    subroutine ${LAPACK_ROUTINE}$(trans, nn, nrhs, aa, lda, ipiv, bb, ldb, info)
+      import :: ${KIND}$
+      character, intent(in) :: trans
+      integer, intent(in) :: nn
+      integer, intent(in) :: nrhs
+      integer, intent(in) :: lda
+      ${TYPE}$(${KIND}$), intent(in) :: aa(lda, *)
+      integer, intent(in) :: ipiv(*)
+      integer, intent(in) :: ldb
+      ${TYPE}$(${KIND}$), intent(inout) :: bb(ldb, *)
+      integer, intent(out) :: info
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
+
+
+  interface
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("ssytrf", "real", "rsp"), ("dsytrf", "real", "rdp"),&
+      &  ("chetrf", "complex", "rsp"), ("zhetrf", "complex", "rdp")]
+
+    !> Factorise a symmetric / hermitian matrix as A = U*D*U**T or A = L*D*L**T (Bunch-Kaufman)
     subroutine ${LAPACK_ROUTINE}$(uplo, nn, aa, lda, ipiv, work, lwork, info)
       import :: ${KIND}$
       character, intent(in) :: uplo
       integer, intent(in) :: nn
       integer, intent(in) :: lda
-      real(${KIND}$), intent(inout) :: aa(lda, *)
+      ${TYPE}$(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(out) :: ipiv(*)
-      real(${KIND}$), intent(inout) :: work(*)
+      ${TYPE}$(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
+      integer, intent(out) :: info
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
+
+
+  interface
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("ssytri", "real", "rsp"), ("dsytri", "real", "rdp"),&
+      &  ("chetri", "complex", "rsp"), ("zhetri", "complex", "rdp")]
+
+    !> Inverts a symmetric / hermitian matrix using the factorization computed by sytrf / hetrf
+    subroutine ${LAPACK_ROUTINE}$(uplo, nn, aa, lda, ipiv, work, info)
+      import :: ${KIND}$
+      character, intent(in) :: uplo
+      integer, intent(in) :: nn
+      integer, intent(in) :: lda
+      ${TYPE}$(${KIND}$), intent(inout) :: aa(lda, *)
+      integer, intent(in) :: ipiv(*)
+      ${TYPE}$(${KIND}$), intent(inout) :: work(*)
       integer, intent(out) :: info
     end subroutine ${LAPACK_ROUTINE}$
 
@@ -438,8 +489,8 @@ module dftbp_extlibs_lapack
     !> Provides problem-dependent LAPACK routine parameters for the local environment
     function ilaenv(ispec, name, opts, n1, n2, n3, n4)
       integer, intent(in) :: ispec
-      character, intent(in) :: name
-      character, intent(in) :: opts
+      character(len=*), intent(in) :: name
+      character(len=*), intent(in) :: opts
       integer, intent(in) :: n1
       integer, intent(in) :: n2
       integer, intent(in) :: n3
@@ -466,14 +517,14 @@ module dftbp_extlibs_lapack
   interface
     !> Error handler for the LAPACK routines
     subroutine xerbla(srname, info)
-      character(6), intent(in) :: srname
+      character(len=*), intent(in) :: srname
       integer, intent(in) :: info
     end subroutine xerbla
   end interface
 
 
   interface
-  #:for LAPACK_ROUTINE, KIND in [("rgesvd", "rsp"), ("dgesvd", "rdp")]
+  #:for LAPACK_ROUTINE, KIND in [("sgesvd", "rsp"), ("dgesvd", "rdp")]
 
   !> Real singular value decomposition
     subroutine ${LAPACK_ROUTINE}$(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, info)
@@ -491,7 +542,7 @@ module dftbp_extlibs_lapack
       real(${KIND}$), intent(out) :: vt(ldvt,*)
       real(${KIND}$), intent(out) :: work(*)
       integer, intent(in) :: lwork
-      integer, intent(in) :: info
+      integer, intent(out) :: info
     end subroutine ${LAPACK_ROUTINE}$
 
   #:endfor
@@ -519,7 +570,7 @@ module dftbp_extlibs_lapack
       complex(${KIND}$), intent(out) :: vt(ldvt,*)
       complex(${KIND}$), intent(out) :: work(*)
       integer, intent(in) :: lwork
-      integer, intent(in) :: info
+      integer, intent(out) :: info
     end subroutine ${LAPACK_ROUTINE}$
 
   #:endfor
@@ -536,17 +587,17 @@ module dftbp_extlibs_lapack
       character, intent(in) :: jobvl
       character, intent(in) :: jobvr
       integer, intent(in) :: n
-      real(${KIND}$), intent(inout) :: a(lda,*)
       integer, intent(in) :: lda
+      real(${KIND}$), intent(inout) :: a(lda,*)
       real(${KIND}$), intent(out) :: wr(*)
       real(${KIND}$), intent(out) :: wi(*)
-      real(${KIND}$), intent(out) :: vl(ldvl, *)
       integer, intent(in) :: ldvl
-      real(${KIND}$), intent(out) :: vr(ldvr, *)
+      real(${KIND}$), intent(out) :: vl(ldvl, *)
       integer, intent(in) :: ldvr
+      real(${KIND}$), intent(out) :: vr(ldvr, *)
       real(${KIND}$), intent(out) :: work(*)
       integer, intent(in) :: lwork
-      integer, intent(in) :: info
+      integer, intent(out) :: info
     end subroutine ${LAPACK_ROUTINE}$
 
   #:endfor

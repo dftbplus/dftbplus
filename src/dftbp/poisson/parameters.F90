@@ -14,6 +14,7 @@
 !**************************************************************************
 module dftbp_poisson_parameters
   use dftbp_common_accuracy, only : dp, mc
+  use dftbp_extlibs_lapack, only : dlamch
   use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
 
   implicit none
@@ -24,13 +25,6 @@ module dftbp_poisson_parameters
   public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indices
   public :: set_dopoisson, set_poissonbox, set_poissongrid, set_accuracy
   public :: set_cluster, set_builtin
-
-  interface
-    real(dp) function DLAMCH(C)
-      import :: dp
-      character C
-    end function DLAMCH
-  end interface
 
   integer, public, parameter :: MAXNCONT=10
 

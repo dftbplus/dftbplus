@@ -16,8 +16,12 @@
 module dftbp_math_lapackroutines
   use dftbp_common_accuracy, only : rdp, rsp
   use dftbp_common_status, only : TStatus
+  use dftbp_extlibs_lapack, only : cgesv, cgesvd, cgetrf, chetrf, chetri, clarnv, cposv, dgesv,&
+      & dgesvd, dgetrf, dgetri, dgetrs, dlarnv, dposv, dpotrf, dsytrf, dsytri, dtrsm, sgesv,&
+      & sgesvd, sgetrf, sgetri, sgetrs, slarnv, sposv, spotrf, ssytrf, ssytri, strsm, zgesv,&
+      & zgesvd, zgetrf, zhetrf, zhetri, zlarnv, zposv
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: gesv, getri, getrf, sytri, sytrf, larnv, hetri, hetrf, gesvd, potrf, trsm, getrs, posv
@@ -697,8 +701,8 @@ contains
   !> Computes the inverse of a ${NAME}$ matrix.
   subroutine ${SYM}$tri_${LABEL}$(aa, ipiv, status, uplo)
 
-    !> ${NAME}$ matrix to be inverted.
-    ${TYPE}$(${KIND}$), intent(in) :: aa(:,:)
+    !> Factorized ${NAME}$ matrix (as returned by ${SYM}$trf) on entry, its inverse on exit.
+    ${TYPE}$(${KIND}$), intent(inout) :: aa(:,:)
 
     !> Block interchanges as created by the sytrf() routine.
     integer, intent(in) :: ipiv(:)
@@ -852,7 +856,7 @@ contains
     ${TYPE}$(${KIND}$), intent(out) :: u(:,:)
 
     !> Holds the singular values on return
-    ${TYPE}$(${KIND}$), intent(out) :: sigma(:)
+    real(${KIND}$), intent(out) :: sigma(:)
 
     !> Warning this matrix is returned transpose(conjugated())
     ${TYPE}$(${KIND}$), intent(out) :: vt(:,:)
@@ -873,6 +877,9 @@ contains
 
     integer :: n0, m0, mn, lda, lwork, ldu, ldvt, info
     ${TYPE}$(${KIND}$), allocatable :: work(:)
+  #:if TYPE == 'complex'
+    real(${KIND}$), allocatable :: rwork(:)
+  #:endif
     character :: jobu0, jobvt0
     character(len=100) :: error_string
 
@@ -916,7 +923,12 @@ contains
     @:ASSERT(size(sigma) >= mn)
 
     allocate(work(1))
+  #:if TYPE == 'complex'
+    allocate(rwork(max(1, 5 * mn)))
+    call ${PRF}$(jobu0, jobvt0, m0, n0, A, lda, sigma, u, ldu, vt, ldvt, work, -1, rwork, info)
+  #:else
     call ${PRF}$(jobu0, jobvt0, m0, n0, A, lda, sigma, u, ldu, vt, ldvt, work, -1, info)
+  #:endif
     if (info /= 0) then
       write(error_string, "(A,I10)") "SVD (${PRF}$) memory size request failed. Info: ", info
       call error(error_string)
@@ -930,7 +942,11 @@ contains
     deallocate(work)
     allocate(work(lwork))
 
+  #:if TYPE == 'complex'
+    call ${PRF}$(jobu0, jobvt0, m0, n0, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
+  #:else
     call ${PRF}$(jobu0, jobvt0, m0, n0, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
+  #:endif
 
     if (info /= 0) then
       write(error_string, "(A,I10)") "SVD (${PRF}$) failed. Info: ", info
@@ -1028,7 +1044,7 @@ contains
   @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
       & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
 
-    call ${kind}$trsm ( side, uplo, iTransa, diag, m, n, alpha, a, lda, b, ldb )
+    call ${kind}$trsm(side, uplo0, iTransa, diag, m, n, alpha, a, lda, b, ldb)
 
   end subroutine ${kind}$trsm_${suffix}$
 
