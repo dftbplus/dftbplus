@@ -201,7 +201,7 @@ if(WITH_SOCKETS)
 endif()
 
 # If INCLUDE_INDIRECT_DEPS is non-empty, indirect dependencies must also be explicitely treated
-string(REGEX MATCH "(^|;)[Ss]ubmodule(^|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONFIG_METHODS}")
+string(REGEX MATCH "(^|;)[Ss]ubmodule($|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONFIG_METHODS}")
 
 
 #
