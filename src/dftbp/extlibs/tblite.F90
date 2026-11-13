@@ -447,7 +447,7 @@ contains
       call error("Unknown method selector")
     case(tbliteMethod%gfn2xtb)
       call new_gfn2_calculator(calc, mol, exc)
-      if (allocated(exc)) call error("Failed to initialize gfn2 calculator")
+      if (allocated(exc)) call error("Failed to initialize gfn2 calculator: "//exc%message)
     case(tbliteMethod%gfn1xtb)
       call new_gfn1_calculator(calc, mol, exc)
       if (allocated(exc)) call error("Failed to initialize gfn2 calculator")
