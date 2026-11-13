@@ -58,7 +58,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 0.000000000000000E+000
   }
   SlaterKosterFiles = {
-    C-C = "./C-C.skf"
+    C-C = "slakos/origin/mio-1-1/C-C.skf"
   }
   KPointsAndWeights = {
     0.0  0.0   0.0    1.0

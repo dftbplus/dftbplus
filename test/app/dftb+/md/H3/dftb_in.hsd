@@ -31,7 +31,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 1.16045050000000
   }
   SlaterKosterFiles = {
-    H-H = "H-H.skf"
+    H-H = "slakos/origin/mio-1-1/H-H.skf"
   }
   ReadInitialCharges = No
 }

@@ -63,7 +63,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 300
   }
   SlaterKosterFiles = {
-    C-C = "./C-C.skf"
+    C-C = "slakos/origin/pbc-0-3/C-C.skf"
   }
   KPointsAndWeights = {
     0 0 0 1

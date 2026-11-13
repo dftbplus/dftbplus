@@ -13,7 +13,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 0
   }
   SlaterKosterFiles = {
-    C-C = "./C-C.skf"
+    C-C = "slakos/origin/mio-1-1/C-C.skf"
   }
   Eigensolver = GreensFunction {
     FermiLevel = -0.2046032882

@@ -17,7 +17,7 @@ program test_extpot2
       & getMaxAngFromSlakoFile, setChild, setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use extchargepot, only : getPointChargePotential
   ! Only needed for the internal test system
-  use testhelpers, only : writeAutotestTag
+  use testhelpers, only : searchFile, writeAutotestTag
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
@@ -41,13 +41,18 @@ program test_extpot2
       & 0.43463718188810203E+01_dp,-0.58581533211004997E+01_dp, 0.26456176288841000E+01_dp, -1.9_dp&
       &], [4, nExtChrg])
 
-  ! where to find the SK data.
-  ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder.
+  ! Where to find the SK data.
+  ! (here relative to ${PROJECT_DIR}/external/ which is defined as search path via the
+  ! DFTBPLUS_PARAM_DIR environment variable when calling this test)
   character(100), parameter :: slakoFiles(2, 2) = reshape([character(100) :: &
-      & "./O-O.skf", "./H-O.skf", "./O-H.skf", "./H-H.skf"], [2, 2])
+      & "slakos/origin/mio-1-1/O-O.skf", "slakos/origin/mio-1-1/H-O.skf",&
+      & "slakos/origin/mio-1-1/O-H.skf", "slakos/origin/mio-1-1/H-H.skf"], [2, 2])
 
   ! labels for l shells
   character(1), parameter :: maxAngNames(4) = ["s", "p", "d", "f"]
+
+  ! Names of the types used in calculation
+  character(1), parameter :: typeNames(2) = ["O", "H"]
 
   call main_()
 
@@ -76,6 +81,9 @@ contains
     character(:), allocatable :: DftbVersion
     integer :: major, minor, patch
 
+    character(:), allocatable :: fname, fpath
+    integer :: ii, jj
+
     call getDftbPlusBuild(DftbVersion)
     write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
     call getDftbPlusApiVersion(major, minor, patch)
@@ -95,7 +103,7 @@ contains
     ! from the root fill the geometry block
     call setChild(pRoot, "Geometry", pGeo)
     call setChildValue(pGeo, "Periodic", .false.)
-    call setChildValue(pGeo, "TypeNames", ["O", "H"])
+    call setChildValue(pGeo, "TypeNames", typeNames)
     coords(:,:) = 0.0_dp
     call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords)
 
@@ -106,14 +114,22 @@ contains
     call setChildValue(pDftb, "SccTolerance", 1e-12_dp)
     call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
     ! read angular momenta from SK data
-    call setChildValue(pMaxAng, "O", maxAngNames(getMaxAngFromSlakoFile(slakoFiles(1, 1)) + 1))
-    call setChildValue(pMaxAng, "H", maxAngNames(getMaxAngFromSlakoFile(slakoFiles(2, 2)) + 1))
+    do ii = 1, 2
+      ! Note, that DFTB+ might use a search path to find its SK-files (depending on the environment
+      ! variable DFTBPLUS_PARAM_DIR), so we must search for it before passing the file name to
+      ! getMaxAngFromSlakoFile()
+      fname = trim(slakoFiles(ii, ii))
+      call searchFile(fname, fpath)
+      if (.not. allocated(fpath)) error stop "Could not find file '" // fname // "'"
+      call setChildValue(pMaxAng, typeNames(ii), maxAngNames(getMaxAngFromSlakoFile(fpath) + 1))
+    end do
     ! read the actual SK files in
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-    call setChildValue(pSlakos, "O-O", trim(slakoFiles(1, 1)))
-    call setChildValue(pSlakos, "H-O", trim(slakoFiles(2, 1)))
-    call setChildValue(pSlakos, "O-H", trim(slakoFiles(1, 2)))
-    call setChildValue(pSlakos, "H-H", trim(slakoFiles(2, 2)))
+    do ii = 1, 2
+      do jj = 1, 2
+        call setChildValue(pSlakos, typeNames(jj) // "-" // typeNames(ii), trim(slakoFiles(jj, ii)))
+      end do
+    end do
 
     ! Analysis block for input
     call setChild(pRoot, "Analysis", pAnalysis)

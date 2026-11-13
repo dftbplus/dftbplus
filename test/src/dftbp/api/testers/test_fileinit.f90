@@ -72,8 +72,8 @@ contains
       !call TDftbPlus_init(dftbp, outputUnit=devNull)
       call TDftbPlus_init(dftbp)
 
-      ! You should provide the dftb_in.hsd and skfile found in the test/app/dftb+/non-scc/Si_2/
-      ! folder
+      ! You should provide the dftb_in.hsd found in the test/app/dftb+/non-scc/Si_2/ folder, the
+      ! SK-files are looked up relative to the external/ folder (via DFTBPLUS_PARAM_DIR)
       call dftbp%getInputFromFile("dftb_in.hsd", input)
       call dftbp%setupCalculator(input)
 

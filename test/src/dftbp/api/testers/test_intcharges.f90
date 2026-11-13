@@ -12,7 +12,7 @@ program test_intcharges
       & getDftbPlusBuild, getMaxAngFromSlakoFile, setChild, setChildValue, TDftbPlus,&
       & TDftbPlus_init, TDftbPlusInput
   ! Only needed for the internal test system
-  use testhelpers, only : writeAutotestTag
+  use testhelpers, only : searchFile, writeAutotestTag
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
@@ -32,8 +32,12 @@ program test_intcharges
   character(2), parameter :: atomTypeNames(10) = [character(2) ::&
       & "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"]
 
+  ! Where to find the SK data.
+  ! (here relative to ${PROJECT_DIR}/external/ which is defined as search path via the
+  ! DFTBPLUS_PARAM_DIR environment variable when calling this test)
   character(100), parameter :: slakoFiles(2, 2) = reshape([character(100) :: &
-      & "./O-O.skf", "./H-O.skf", "./O-H.skf", "./H-H.skf"], [2, 2])
+      & "slakos/origin/mio-1-1/O-O.skf", "slakos/origin/mio-1-1/H-O.skf",&
+      & "slakos/origin/mio-1-1/O-H.skf", "slakos/origin/mio-1-1/H-H.skf"], [2, 2])
 
   character(1), parameter :: maxAngNames(4) = ["s", "p", "d", "f"]
 
@@ -64,6 +68,8 @@ contains
 
     character(:), allocatable :: DftbVersion
     integer :: major, minor, patch
+
+    character(:), allocatable :: fname, fpath
     integer :: ii
 
     call getDftbPlusBuild(DftbVersion)
@@ -95,10 +101,16 @@ contains
     call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
 
     ! read angular momenta from SK data
-    call setChildValue(pMaxAng, speciesNames(1),&
-        & maxAngNames(getMaxAngFromSlakoFile(slakoFiles(1, 1)) + 1))
-    call setChildValue(pMaxAng, speciesNames(2),&
-        & maxAngNames(getMaxAngFromSlakoFile(slakoFiles(2, 2)) + 1))
+    do ii = 1, 2
+      ! Note, that DFTB+ might use a search path to find its SK-files (depending on the environment
+      ! variable DFTBPLUS_PARAM_DIR), so we must search for it before passing the file name to
+      ! getMaxAngFromSlakoFile()
+      fname = trim(slakoFiles(ii, ii))
+      call searchFile(fname, fpath)
+      if (.not. allocated(fpath)) error stop "Could not find file '" // fname // "'"
+      call setChildValue(pMaxAng, speciesNames(ii),&
+          & maxAngNames(getMaxAngFromSlakoFile(fpath) + 1))
+    end do
 
     ! set up locations for SK file data
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)

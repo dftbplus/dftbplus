@@ -88,7 +88,7 @@ contains
 
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)
     call setChild(pSlakos, "Type2FileNames", pType2Files)
-    call setChildValue(pType2Files, "Prefix", "./")
+    call setChildValue(pType2Files, "Prefix", "slakos/origin/mio-1-1/")
     call setChildValue(pType2Files, "Separator", "-")
     call setChildValue(pType2Files, "Suffix", ".skf")
 

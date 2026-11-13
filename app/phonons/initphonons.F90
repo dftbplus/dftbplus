@@ -13,6 +13,7 @@ module phonons_initphonons
   use dftbp_common_constants, only : amu__au
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_filesystem, only : findFile, getParamSearchPaths, joinPathsPrettyErr
   use dftbp_common_globalenv, only : tIoProc
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : energyUnits, lengthUnits
@@ -20,7 +21,7 @@ module phonons_initphonons
       & TNeighbourList, TNeighbourlist_init, updateNeighbourList
   use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNodeList, fnode, fnodelist,&
       & getItem1, getLength, getNodeName, string, textNodeName
-  use dftbp_io_charmanip, only : i2c, tolower, unquote
+  use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_hsdparser, only : dumpHSD, parseHSD
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&
       & getFirstTextChild, getSelectedAtomIndices, getSelectedIndices, setChild, setChildValue
@@ -703,9 +704,13 @@ contains
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     type(TListString) :: lStr
     integer :: ii, iSp1
-    logical :: tLower, tExist
+    logical :: tLower
+    type(string), allocatable :: searchPath(:)
+    character(len=:), allocatable :: strOut, strJoin
 
     write(output, "(/, A)") "read atomic masses from sk files..."
+    call getParamSearchPaths(searchPath)
+    strJoin = joinPathsPrettyErr(searchPath)
     !! Slater-Koster files
     allocate(skFiles(geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
@@ -732,12 +737,13 @@ contains
         end if
         strTmp = trim(prefix) // trim(elem1) // trim(separator) &
             &// trim(elem1) // trim(suffix)
-        call append(skFiles(iSp1), strTmp)
-        inquire(file=strTmp, exist=tExist)
-        if (.not. tExist) then
-          call detailedError(value, "SK file with generated name '" &
-              &// trim(strTmp) // "' does not exist.")
+        call findFile(searchPath, strTmp, strOut)
+        if (.not. allocated(strOut)) then
+          call detailedError(value, "SK file with generated name '" // trim(strTmp)&
+              & // "' not found." // newline // "   (search path(s): " // strJoin // ").")
         end if
+        strTmp = strOut
+        call append(skFiles(iSp1), strTmp)
       end do
     case default
       call setUnprocessed(value)
@@ -753,11 +759,12 @@ contains
         end if
         do ii = 1, len(lStr)
           call get(lStr, strTmp, ii)
-          inquire(file=strTmp, exist=tExist)
-          if (.not. tExist) then
-            call detailedError(child2, "SK file '" // trim(strTmp) &
-                &// "' does not exist'")
+          call findFile(searchPath, strTmp, strOut)
+          if (.not. allocated(strOut)) then
+            call detailedError(child2, "SK file '" // trim(strTmp) // "' not found." // newline&
+                & // "   (search path(s): " // strJoin // ").")
           end if
+          strTmp = strOut
           call append(skFiles(iSp1), strTmp)
         end do
         call destruct(lStr)

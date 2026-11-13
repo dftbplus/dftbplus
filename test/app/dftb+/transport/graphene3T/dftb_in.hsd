@@ -225,7 +225,7 @@ Hamiltonian = DFTB {
     Temperature = 1.000000000000000E-008
   }
   SlaterKosterFiles = {
-    C-C = "./C-C.skf"
+    C-C = "slakos/origin/mio-1-1/C-C.skf"
   }
   Mixer = Broyden {
     MixingParameter = 0.2

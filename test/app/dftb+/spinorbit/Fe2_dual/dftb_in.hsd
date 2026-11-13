@@ -31,7 +31,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 50
   }
   SlaterKosterFiles = {
-    Fe-Fe = "./Fe-Fe.skf"
+    Fe-Fe = "slakos/origin/pbc-0-3/Fe-Fe.skf"
   }
   SpinOrbit = {
     Dual = Yes

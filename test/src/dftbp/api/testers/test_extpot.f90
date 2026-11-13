@@ -95,10 +95,10 @@ contains
     call setChildValue(pMaxAng, "H", "s")
 
     ! get the SK data
-    ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder.
+    ! SK-files are looked up relative to the external/ folder (via DFTBPLUS_PARAM_DIR)
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)
     call setChild(pSlakos, "Type2FileNames", pType2Files)
-    call setChildValue(pType2Files, "Prefix", "./")
+    call setChildValue(pType2Files, "Prefix", "slakos/origin/mio-1-1/")
     call setChildValue(pType2Files, "Separator", "-")
     call setChildValue(pType2Files, "Suffix", ".skf")
 
