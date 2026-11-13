@@ -410,9 +410,6 @@ program waveplot
   call env%destruct()
   call destructGlobalEnv()
 
-  call env%destruct()
-  call destructGlobalEnv()
-
 contains
 
   !> Writes a 3D function as cube file.
