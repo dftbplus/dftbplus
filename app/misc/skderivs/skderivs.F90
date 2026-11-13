@@ -13,7 +13,7 @@ program skderivs
   use dftbp_common_constants, only : maxL, shellNames
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
+  use dftbp_common_globalenv, only : destructGlobalEnv, ensureSerialRun, initGlobalEnv
   use dftbp_dftb_slakoeqgrid, only : getNIntegrals, getSKIntegrals, init, skEqGridNew, skEqGridOld,&
       & TSlakoEqGrid
   use dftbp_io_charmanip, only : i2c, unquote
@@ -22,9 +22,6 @@ program skderivs
   use dftbp_io_hsdutils2, only : warnUnprocessedNodes
   use dftbp_type_linkedlist, only : append, asArray, init, intoArray, len, TListInt, TListIntR1
   use dftbp_type_oldskdata, only : readFromFile, TOldSKData
-#:if WITH_MPI
-  use dftbp_common_mpienv
-#:endif
   use dftbp_extlibs_xmlf90, only : append_to_string, assignment(=), char, fNode, resize_string,&
       & string
 implicit none (type, external)
@@ -46,16 +43,8 @@ implicit none (type, external)
   type(TInputData) :: inp
 
   call initGlobalEnv()
+  call ensureSerialRun()
   call TEnvironment_init(env)
-
-#:if WITH_MPI
-  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
-  ! build
-  call TMpiEnv_init(env%mpi)
-  if (.not. env%mpi%isSerialEnv()) then
-    call error('This is serial code, but invoked on multiple processors')
-  end if
-#:endif
 
   call parseHSDInput(env, inp, "skderivs_in.hsd", "skderivs_in")
   call main(env, inp)

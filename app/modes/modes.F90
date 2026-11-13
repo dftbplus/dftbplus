@@ -13,7 +13,7 @@ program modes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__cm, pi
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
+  use dftbp_common_globalenv, only : destructGlobalEnv, ensureSerialRun, initGlobalEnv
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
@@ -29,11 +29,6 @@ program modes
   use modes_initmodes, only : gpu
 #:endif
   use modes_modeprojection, only : project
-#:if WITH_MPI
-  use dftbp_io_message, only : error
-  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_extlibs_mpifx, only : mpifx_finalize
-#:endif
   implicit none (type, external)
 
   type(TEnvironment) :: env
@@ -51,16 +46,8 @@ program modes
   logical :: isAppend
 
   call initGlobalEnv()
+  call ensureSerialRun()
   call TEnvironment_init(env)
-
-#:if WITH_MPI
-  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
-  ! build
-  call TMpiEnv_init(env%mpi)
-  if (.not. env%mpi%isSerialEnv()) then
-    call error('This is serial code, but invoked on multiple processors')
-  end if
-#:endif
 
   ! Allocate resources
   call initProgramVariables(env)
@@ -286,10 +273,6 @@ program modes
   end if
 
   call closeFile(fd)
-
-#:if WITH_MPI
-  call mpifx_finalize()
-#:endif
 
   call env%destruct()
   call destructGlobalEnv()
