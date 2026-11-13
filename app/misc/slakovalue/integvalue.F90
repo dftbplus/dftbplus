@@ -14,7 +14,7 @@ program integvalue
   use dftbp_dftb_slakoeqgrid, only : getCutoff, getSKIntegrals, init, skEqGridNew, TSlakoEqGrid
   use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readFromFile, TOldSKData
-  implicit none
+  implicit none (type, external)
 
   type(TEnvironment) :: env
   integer, parameter :: nSKInter = 20

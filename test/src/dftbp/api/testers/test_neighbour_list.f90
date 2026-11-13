@@ -11,7 +11,7 @@ program test_neighbour_list
       & TDftbPlusInput
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
-  implicit none
+  implicit none (type, external)
 
   ! double precision real
   integer, parameter :: dp = kind(1.0d0)

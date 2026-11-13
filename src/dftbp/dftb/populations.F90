@@ -26,7 +26,7 @@ module dftbp_dftb_populations
       & scalafx_getdescriptor, scalafx_indxl2g
   use dftbp_math_binarysearch, only : search_int
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: mulliken, skewMulliken, denseMullikenReal, denseMullikenPauli

@@ -11,7 +11,7 @@
 !> Implements interface for the repulsive (force-field like) potential
 module dftbp_dftb_repulsive_repulsivelist
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
-  implicit none
+  implicit none (type, external)
 
   @:declare_allocatable_list(NAME=TRepulsiveList, TYPE=class(TRepulsive))
 

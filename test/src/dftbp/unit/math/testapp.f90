@@ -4,7 +4,7 @@ program testapp
   use test_math_lapackroutines, only : lapack_svd_tests => tests
   use test_math_matrixops, only : matrixops_tests => tests
   use test_math_sorting, only : sorting_tests => tests
-  implicit none
+  implicit none (type, external)
 
   call execute_serial_cmd_app(test_list([&
       binarysearch_tests(),&

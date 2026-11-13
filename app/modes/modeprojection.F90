@@ -16,7 +16,7 @@ module modes_modeprojection
   use dftbp_math_matrixops, only : adjointLowerTriangle, makeSimilarityTrans
   use dftbp_math_simplealgebra, only : cross3
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   public :: project

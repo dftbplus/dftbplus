@@ -26,7 +26,7 @@ module dftbp_math_matrixops
       & pblasfx_ptranc, RSRC_, scalafx_indxl2g, scalafx_islocal, scalafx_pgetrf
 #:endif
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: adjointLowerTriangle, orthonormalizeVectors, adjugate, makeSimilarityTrans

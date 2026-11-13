@@ -21,7 +21,7 @@ module dftbp_dftb_simpledftd3
   use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSimpleDftD3, TSimpleDftD3Input, init

@@ -8,7 +8,7 @@
 !> Contains types with electronic/hamiltonian interaction cutoff information.
 module dftbp_type_eleccutoffs
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TCutoffs

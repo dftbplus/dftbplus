@@ -7,7 +7,9 @@
 
 !> Trivial MPI program to test compilable environment suports MPI
 program test_mpiplatform
+  ! No explicit import list, as some mpi modules miss symbols
   use mpi
+  ! No explicit import list, as some mpi modules miss symbols
   implicit none
 
   integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED

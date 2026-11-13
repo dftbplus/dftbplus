@@ -17,7 +17,7 @@ module dftbp_common_mpienv
 #:if WITH_TRANSPORT
   use dftbp_extlibs_negf, only : negf_cart_init
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TMpiEnv, TMpiEnv_init, TMpiEnv_final

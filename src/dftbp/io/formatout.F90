@@ -18,7 +18,7 @@ module dftbp_io_formatout
   use dftbp_io_message, only : error
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : invert33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: writeGenFormat, writeXYZFormat

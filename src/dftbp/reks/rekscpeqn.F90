@@ -24,7 +24,7 @@ module dftbp_reks_rekscpeqn
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: CGgrad

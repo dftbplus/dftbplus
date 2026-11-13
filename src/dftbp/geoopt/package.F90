@@ -14,7 +14,7 @@ module dftbp_geoopt_package
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   use dftbp_geoopt_rationalfunc, only : TRationalFunc, TRationalFunc_init, TRationalFuncInput
   use dftbp_geoopt_steepdesc, only : TSteepdesc, TSteepdesc_init, TSteepdescInput
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TOptimizer, TOptimizerInput

@@ -14,7 +14,7 @@ module test_math_matrixops
   use dftbp_math_matrixops, only : adjointLowerTriangle, adjugate, orthonormalizeVectors, pseudoInv
   use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

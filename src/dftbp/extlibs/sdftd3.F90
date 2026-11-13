@@ -24,7 +24,7 @@ module dftbp_extlibs_sdftd3
   use mctc_env, only : error_type
   use mctc_io, only : new, structure_type
 #:endif
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TSDFTD3, TSDFTD3Input, TSDFTD3_init, writeSDFTD3Info, dampingFunction

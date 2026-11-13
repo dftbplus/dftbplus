@@ -24,7 +24,7 @@ module dftbp_type_typegeometryhsd
   use dftbp_type_linkedlist, only : append, asArray, destruct, find, init, len, TListIntR1,&
       & TListRealR1, TListString
   use dftbp_type_typegeometry, only : normalize, reduce, setlattice, TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   !> Types/subroutines from TypeGeometry

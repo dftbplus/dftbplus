@@ -30,7 +30,7 @@ module dftbp_dftb_coulomb
       & scalafx_cpg2l, scalafx_cpl2g, scalafx_getdescriptor, scalafx_getlocalshape,&
       & scalafx_indxl2g, scalafx_infog2l, scalafx_islocal
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TCoulombInput, TCoulomb, TCoulomb_init

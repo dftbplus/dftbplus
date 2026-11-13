@@ -20,7 +20,7 @@ module dftbp_math_erfcalc
 
   !> wp: working precision, sp: real single, dp: real double
   use dftbp_common_accuracy, only : wp => dp, dp => rdp, sp => rsp
-  implicit none
+  implicit none (type, external)
 
   private
 #:if INTERNAL_ERFC

@@ -7,7 +7,7 @@
 
 !> Contains enumeration of force calculation types
 module dftbp_dftbplus_forcetypes
-  implicit none
+  implicit none (type, external)
 
   private
   public :: forceTypes

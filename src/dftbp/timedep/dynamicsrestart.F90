@@ -19,7 +19,7 @@ module dftbp_timedep_dynamicsrestart
   use dftbp_type_densedescr, only: TDenseDescr
   use dftbp_type_commontypes, only : TParallelKS
 #:endif
-  implicit none
+  implicit none (type, external)
 
   !> Version number for restart format, please increment if you change the file format (and consider
   !! adding backward compatibility functionality)

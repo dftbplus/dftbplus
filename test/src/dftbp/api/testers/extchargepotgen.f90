@@ -9,7 +9,7 @@
 module extchargepotgen
   use extchargepot, only : getPointChargePotential
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TExtChargePotGen, TExtChargePotGen_init

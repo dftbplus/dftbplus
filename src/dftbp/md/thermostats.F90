@@ -19,7 +19,7 @@ module dftbp_md_thermostats
   use dftbp_md_langevintherm, only : TLangevinTherm, TLangevinTherm_init, TLangevinThermInput
   use dftbp_md_nhctherm, only : TNhcTherm, TNhcTherm_init, TNhcThermInput
   use dftbp_md_thermostat, only : TThermostat
-  implicit none
+  implicit none (type, external)
 
   private
   public :: thermostatTypes

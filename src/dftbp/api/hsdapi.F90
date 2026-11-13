@@ -12,7 +12,7 @@ module dftbp_hsdapi
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList
   use dftbp_io_hsdparser, only : dumpHsd
   use dftbp_io_hsdutils, only : getChild, getChildren, getChildValue, setChild, setChildValue
-  implicit none
+  implicit none (type, external)
   private
 
   public :: fnode, fnodeList

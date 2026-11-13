@@ -12,7 +12,7 @@
 module dftbp_common_gpuenv
   use, intrinsic :: iso_c_binding, only : c_int
   use dftbp_extlibs_magma, only : getGpusAvailable, getGpusRequested, gpusInit
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TGpuEnv, TGpuEnv_init

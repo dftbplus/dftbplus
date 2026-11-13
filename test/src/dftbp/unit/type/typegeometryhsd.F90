@@ -17,7 +17,7 @@ module test_type_typegeometryhsd
   use dftbp_io_hsdutils, only : setChildValue
   use dftbp_type_typegeometryhsd, only : readTGeometryLammps, TGeometry
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

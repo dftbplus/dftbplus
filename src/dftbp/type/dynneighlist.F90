@@ -15,7 +15,7 @@
 module dftbp_type_dynneighlist
   use dftbp_common_accuracy, only : dp
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDynNeighList, TDynNeighList_init

@@ -9,7 +9,7 @@
 module dftbp_io_logger
   use dftbp_common_accuracy, only : dp
   use dftbp_common_optarg, only : getOptionalArg
-  implicit none
+  implicit none (type, external)
 
   private
   public :: LogWriter, LogWriter_init

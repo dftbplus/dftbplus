@@ -10,7 +10,7 @@
 !> Routines to calculate a Slater type orbital (STO).
 module waveplot_slater
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   save

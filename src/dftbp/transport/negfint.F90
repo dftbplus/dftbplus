@@ -39,7 +39,7 @@ module dftbp_transport_negfint
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_comm, mpifx_reduceip
   use dftbp_extlibs_negf, only : negf_mpi_init
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TNegfInt, TNegfInt_init, TNegfInt_final, transportPeriodicSetup

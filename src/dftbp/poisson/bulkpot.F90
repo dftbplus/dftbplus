@@ -20,6 +20,7 @@ module dftbp_poisson_bulkpot
  use dftbp_common_accuracy, only : dp
  use dftbp_common_constants, only : Bohr__AA
  use dftbp_common_file, only : closeFile, fileExists, openFile, TFileDescr
+ use dftbp_extlibs_mudpack, only : mud3sp
  use dftbp_io_message, only : warning
  use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
  use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate
@@ -29,7 +30,7 @@ module dftbp_poisson_bulkpot
      & overrbulkbc, poissacc, readbulk
  use dftbp_poisson_structure, only : dqmat, izp, nshells, period, period_dir, uhubb, x
 
- implicit none
+ implicit none (type, external)
  private
  public :: super_array, create_super_array,destroy_super_array
  public :: create_phi_bulk,destroy_phi_bulk,readbulk_pot,compbulk_pot

@@ -17,7 +17,7 @@ module dftbp_common_unitconversion
       & Coulomb__au, Debye__au, eV__Hartree, fs__au, Hartree__cm, hbar, J__Hartree,&
       & kcal_mol__Hartree, kg__au, nm__Bohr, pascal__au, pi, V_m__au
   use dftbp_io_charmanip, only : tolower
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TUnit

@@ -13,7 +13,7 @@ module dftbp_dftbplus_input_fileaccess
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildValue, setChildValue
   use dftbp_type_linkedlist, only : asArray, destruct, init, len, TListString
-  implicit none
+  implicit none (type, external)
 
   private
   public :: readBinaryAccessTypes

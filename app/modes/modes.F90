@@ -34,7 +34,7 @@ program modes
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
   use dftbp_extlibs_mpifx, only : mpifx_finalize
 #:endif
-  implicit none
+  implicit none (type, external)
 
   type(TEnvironment) :: env
   type(TTaggedWriter) :: taggedWriter

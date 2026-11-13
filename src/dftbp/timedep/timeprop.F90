@@ -86,7 +86,7 @@ module dftbp_timedep_timeprop
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: runDynamics, TElecDynamics_init

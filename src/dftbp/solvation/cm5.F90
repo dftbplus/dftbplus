@@ -14,7 +14,7 @@ module dftbp_solvation_cm5
   use dftbp_common_constants, only : symbolToNumber
   use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_blasroutines, only : gemv
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TChargeModel5, TCM5Input, TChargeModel5_init

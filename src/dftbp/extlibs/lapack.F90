@@ -9,7 +9,7 @@
 !! project documentation</a> for documentation of the routines.
 module dftbp_extlibs_lapack
   use dftbp_common_accuracy, only : rdp, rsp
-  implicit none
+  implicit none (type, external)
 
   interface
   #:for LAPACK_ROUTINE, KIND in [("ssyev", "rsp"), ("dsyev", "rdp")]
@@ -459,7 +459,7 @@ module dftbp_extlibs_lapack
       integer, intent(in) :: lda
       ${TYPE}$(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(in) :: ipiv(*)
-      ${TYPE}$(${KIND}$), intent(inout) :: work(*)
+      ${TYPE}$(${KIND}$), intent(out) :: work(*)
       integer, intent(out) :: info
     end subroutine ${LAPACK_ROUTINE}$
 

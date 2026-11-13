@@ -11,7 +11,7 @@
 module dftbp_common_filesystem
   use dftbp_extlibs_xmlf90, only : assignment(=), char, string
   use dftbp_io_charmanip, only : endsWith
-  implicit none
+  implicit none (type, external)
   private
 
   public :: getEnvVar, isAbsolutePath, joinPaths, findFile, getParamSearchPaths, joinPathsPrettyErr

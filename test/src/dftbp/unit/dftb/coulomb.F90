@@ -20,7 +20,7 @@ module test_dftb_coulomb
   use dftbp_math_simplealgebra, only : invert33, determinant33
   use dftbp_type_commontypes, only : TOrbitals
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

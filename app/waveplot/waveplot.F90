@@ -26,7 +26,7 @@ program waveplot
   use dftbp_extlibs_mpifx, only : MPI_LOR, MPI_SUM, mpifx_allreduceip, mpifx_bcast
 #:endif
 
-  implicit none
+  implicit none (type, external)
 
   !> Container of program variables
   type(TProgramVariables), target :: wp

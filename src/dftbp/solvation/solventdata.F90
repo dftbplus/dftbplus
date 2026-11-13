@@ -12,7 +12,7 @@ module dftbp_solvation_solventdata
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr, amu__au, kg__au
   use dftbp_io_charmanip, only : tolower
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSolventData

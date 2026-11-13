@@ -15,7 +15,7 @@ module dftbp_dftb_stress
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getKineticStress, getNonSCCStress, getBlockStress, getBlockiStress

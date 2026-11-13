@@ -9,7 +9,7 @@
 module dftbp_extlibs_fsockets
   use fsockets, only : close_socket, connect_inet_socket, connect_unix_socket, readbuffer,&
       & writebuffer
-  implicit none
+  implicit none (type, external)
 
 #:if WITH_SOCKETS
 

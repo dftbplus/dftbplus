@@ -21,7 +21,7 @@ module dftbp_solvation_sasa
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSASACont, TSASAInput, TSASACont_init

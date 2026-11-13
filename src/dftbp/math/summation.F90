@@ -8,7 +8,7 @@
 !> Contains routines to sum values accurately
 module dftbp_math_summation
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: kahan, kahanSum

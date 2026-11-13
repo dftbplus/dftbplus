@@ -20,7 +20,7 @@ program printunits
   use dftbp_common_unitconversion, only : angularUnits, bFieldUnits, chargeUnits, dipoleUnits,&
       & eFieldUnits, energyUnits, forceUnits, freqUnits, inverseLengthUnits, lengthUnits,&
       & massDensityUnits, massUnits, pressureUnits, timeUnits, TUnit, velocityUnits, volumeUnits
-  implicit none
+  implicit none (type, external)
 
   type(TUnit) :: localUnit
   integer :: ii

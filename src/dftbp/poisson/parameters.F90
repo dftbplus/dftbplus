@@ -17,7 +17,7 @@ module dftbp_poisson_parameters
   use dftbp_extlibs_lapack, only : dlamch
   use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: init_defaults

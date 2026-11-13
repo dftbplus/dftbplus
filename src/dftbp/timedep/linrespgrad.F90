@@ -49,7 +49,7 @@ module dftbp_timedep_linrespgrad
   use dftbp_math_scalafxext, only : distrib2replicated
 #:endif
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: LinRespGrad_old, conicalIntersectionOptimizer

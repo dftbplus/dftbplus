@@ -14,7 +14,7 @@ module dftbp_dftb_dipolecorr
   use dftbp_common_constants, only : pi
   use dftbp_common_status, only : TStatus
   use dftbp_math_simplealgebra, only : determinant33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDipoleCorr, TDipoleCorr_init, TDipoleCorrInput, ensureCorrRequirements

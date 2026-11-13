@@ -27,7 +27,7 @@ program skderivs
 #:endif
   use dftbp_extlibs_xmlf90, only : append_to_string, assignment(=), char, fNode, resize_string,&
       & string
-implicit none
+implicit none (type, external)
 
   type(TEnvironment) :: env
 

@@ -16,7 +16,7 @@ module dftbp_io_ipisocket
       & readbuffer, writebuffer
   use dftbp_io_logger, only : LogWriter
   use dftbp_io_message, only : error, warning
-  implicit none
+  implicit none (type, external)
 
   private
   public :: IpiSocketCommInp

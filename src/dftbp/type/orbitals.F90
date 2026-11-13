@@ -10,7 +10,7 @@ module dftbp_type_orbitals
   use dftbp_common_accuracy, only : sc
   use dftbp_common_constants, only : shellNames
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TOrbitals, getShellNames, orbitalNames

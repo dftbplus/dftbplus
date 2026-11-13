@@ -14,7 +14,7 @@ module test_elecsolvers_partialdiag
       & TPartialDiag_init
   use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

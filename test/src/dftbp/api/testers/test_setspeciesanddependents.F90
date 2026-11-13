@@ -32,11 +32,13 @@
 program test_setSpeciesAndDependents
   use, intrinsic :: iso_fortran_env, only : output_unit, REAL64
 #:if WITH_MPI
+  ! No explicit import list, as some mpi modules miss symbols
   use mpi
 #:endif
   use testhelpers, only : writeAutotestTag
   use dftbp_hsdapi, only : fnode, setChild, setChildValue
   use dftbp_api, only : TDftbPlus, TDftbPlus_destruct, TDftbPlus_init, TDftbPlusInput
+  ! No enforcement of explicit externals, as some mpi modules miss symbols
   implicit none
 
   !> Precision and unit conversion

@@ -10,7 +10,7 @@
 !> Simple algebraic stuff for cases where LAPACK would be overkill
 module dftbp_math_simplealgebra
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: cross3, derivDeterminant33, determinant33, diagonal, invert33, removeTrace

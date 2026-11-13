@@ -16,7 +16,7 @@ module dftbp_dftbplus_transportio
 #:if WITH_TRANSPORT
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: writeShifts, readShifts, writeContactShifts

@@ -9,7 +9,7 @@
 
 !> Linked list for single integers
 module dftbp_type_linkedlisti0
-  implicit none
+  implicit none (type, external)
 
   private
 

@@ -21,7 +21,7 @@ module dftbp_poisson_fancybc
       & mixed, ncont, OxLength, OxLength_t, OxLength_l, poissbox, r_cont, rmin_gate, rmin_ins,&
       & tip_atom, tipbias
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: bndyc, coef, coef_period, coef_gate, gate_bound

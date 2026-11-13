@@ -23,7 +23,7 @@ program phonons
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_simplealgebra, only : invert33
-  implicit none
+  implicit none (type, external)
 
   type(TEnvironment) :: env
   logical :: tInitialized

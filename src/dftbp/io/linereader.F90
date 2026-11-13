@@ -7,7 +7,7 @@
 
 !> Contains a line reader implementation
 module dftbp_io_linereader
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TLineReader

@@ -21,7 +21,7 @@ module dftbp_common_globalenv
   use dftbp_extlibs_mpifx, only : MPI_THREAD_FUNNELED, mpifx_abort, mpifx_barrier, mpifx_comm,&
       & mpifx_finalize, mpifx_init_thread
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: initGlobalEnv, destructGlobalEnv

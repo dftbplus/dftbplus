@@ -9,7 +9,7 @@
 module dftbp_math_quaternions
   use dftbp_common_accuracy, only : dp
   use dftbp_math_simplealgebra, only : cross3
-  implicit none
+  implicit none (type, external)
 
   private
   public :: quaternionProduct, quaternionInvert, quaternionRotate, quaternionConstruct, rotate3

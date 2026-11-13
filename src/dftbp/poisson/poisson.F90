@@ -20,6 +20,7 @@ module dftbp_poisson_poisson
   use dftbp_common_constants, only : Bohr__AA, hartree__eV, pi
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_extlibs_mudpack, only : mud3
   use dftbp_io_message, only : warning
   use dftbp_poisson_bulkpot, only : compbulk_pot, create_phi_bulk, destroy_phi_bulk, readbulk_pot,&
       & super_array
@@ -50,7 +51,7 @@ module dftbp_poisson_poisson
   use dftbp_poisson_mpi_poisson, only : global_comm, mpifx_gatherv, poiss_comm, poiss_mpi_init,&
       & poiss_mpi_split
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   ! from parameters

@@ -12,7 +12,7 @@
 module dftbp_xtb_xtbspinw
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
-  implicit none
+  implicit none (type, external)
 
   private
   public :: wvalues, spindx

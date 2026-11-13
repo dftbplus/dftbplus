@@ -20,7 +20,7 @@ module dftbp_dftb_etemp
   use dftbp_math_hermite, only : hx
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_math_summation, only : kahan
-  implicit none
+  implicit none (type, external)
 
   private
   public :: Efilling, electronFill, fillingTypes

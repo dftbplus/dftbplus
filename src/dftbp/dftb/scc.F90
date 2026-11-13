@@ -27,13 +27,12 @@ module dftbp_dftb_scc
   use dftbp_type_commontypes, only : TOrbitals
   
 #:if WITH_SCALAPACK
-  use mpi
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, MPI_SUM
   use dftbp_extlibs_scalapackfx, only : CSRC_, MB_, NB_, RSRC_, scalafx_indxl2g
 
 #:endif
   
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSccInput, TScc, TScc_init

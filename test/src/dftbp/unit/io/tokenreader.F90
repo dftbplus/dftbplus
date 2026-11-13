@@ -13,7 +13,7 @@ module test_io_tokenreader
   use dftbp_common_accuracy, only : dp
   use dftbp_io_tokenreader, only : getNextToken
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

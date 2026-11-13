@@ -18,7 +18,7 @@ module dftbp_reks_reksfon
   use dftbp_io_message, only : error
   use dftbp_reks_reksvar, only : reksTypes, TReksCalc
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: optimizeFons

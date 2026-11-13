@@ -15,7 +15,7 @@ module dftbp_dftb_shift
   use dftbp_common_schedule, only : assembleChunks, distributeRangeWithWorkload
   use dftbp_type_commontypes, only : TOrbitals
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: addShift, totalShift, addOnsiteShift, addAtomicMultipoleShift

@@ -14,7 +14,7 @@ module dftbp_io_xmlutils
       & getNodeValue, getParentNode, getPreviousSibling, item, operator(==), removeChild, string,&
       & TEXT_NODE
   use dftbp_io_charmanip, only : len_trim2
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getFirstChildByName, getLastChildByName, removeSpace

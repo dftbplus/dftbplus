@@ -19,7 +19,7 @@ module dftbp_mixer_factory
   use dftbp_mixer_simplemixer, only : TSimpleMixerCmplx, TSimpleMixerCmplx_init, TSimpleMixerInp,&
       & TSimpleMixerReal, TSimpleMixerReal_init
 
-  implicit none
+  implicit none (type, external)
   private
   public :: TMixerInput, TMixerFactoryReal, TMixerFactoryCmplx
 

@@ -11,7 +11,7 @@
 module dftbp_common_timerarray
   use dftbp_common_accuracy, only : dp
   use dftbp_common_timer, only : TTimer
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TTimerItem

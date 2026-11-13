@@ -26,7 +26,7 @@ module dftbp_timedep_linrespcommon
   use dftbp_math_scalafxext, only : distrib2replicated
 #:endif
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: excitedDipoleOut, excitedQOut, twothird, oscillatorStrength, indxoo, indxov, indxvv,&

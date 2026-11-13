@@ -7,7 +7,7 @@
 
 !> Common format strings
 module dftbp_io_commonformats
-  implicit none
+  implicit none (type, external)
 
   private
   public :: formatHessian, formatBorn, formatdBorn, formatGeoOut, format1U, format2U, format1Ue,&

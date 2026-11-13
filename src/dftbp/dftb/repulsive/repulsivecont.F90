@@ -15,7 +15,7 @@ module dftbp_dftb_repulsive_repulsivecont
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_repulsive_repulsivelist, only : TRepulsiveList
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TRepulsiveCont, TRepulsiveCont_init

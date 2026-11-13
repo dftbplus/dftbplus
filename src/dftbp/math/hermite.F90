@@ -11,7 +11,7 @@
 !> To do: Proper documentation, and trap overflow and underflows
 module dftbp_math_hermite
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
 contains
 

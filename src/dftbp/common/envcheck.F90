@@ -14,7 +14,7 @@ module dftbp_common_envcheck
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_io_message, only : warning
-  implicit none
+  implicit none (type, external)
 
   private
   public :: checkStackSize

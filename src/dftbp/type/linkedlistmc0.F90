@@ -10,7 +10,7 @@
 !> Linked list for single charcter strings
 module dftbp_type_linkedlistmc0
   use dftbp_common_accuracy, only : mc
-  implicit none
+  implicit none (type, external)
 
   private
 

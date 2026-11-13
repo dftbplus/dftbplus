@@ -32,7 +32,7 @@ module dftbp_derivs_linearresponse
   use dftbp_math_blasroutines, only : hemm, symm
 #:endif
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: dRhoReal, dRhoFermiChangeReal

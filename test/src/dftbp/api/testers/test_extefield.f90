@@ -11,7 +11,7 @@ program test_extefield
       & setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
-  implicit none
+  implicit none (type, external)
 
   integer, parameter :: dp = kind(1.0d0)
   integer, parameter :: nAtom = 3

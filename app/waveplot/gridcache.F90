@@ -21,7 +21,7 @@ module waveplot_gridcache
 #:endif
   use waveplot_molorb, only : getValue, TMolecularOrbital
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TGridCache, TGridCache_init, next

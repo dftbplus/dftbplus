@@ -11,7 +11,7 @@
 !> Implements various wrapped data types for use in creating ragged multi-dimensional arrays.
 module dftbp_type_wrappedintr
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
 #:for _, SUFFIX, _ in FLAVOURS

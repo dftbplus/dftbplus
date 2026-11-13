@@ -13,7 +13,7 @@ module dftbp_geometry_projectvectors
   use dftbp_common_accuracy, only : dp
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getCentreOfMass, getPrincipleAxes

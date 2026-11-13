@@ -29,7 +29,7 @@ module dftbp_common_coherence
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : MPI_LAND, mpifx_allreduce, mpifx_bcast
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: exactCoherence, toleranceCoherence, checkExactCoherence, checkToleranceCoherence

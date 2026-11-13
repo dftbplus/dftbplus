@@ -17,7 +17,7 @@ module dftbp_math_randomgenpool
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_bcast
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TRandomGenPool, init

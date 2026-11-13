@@ -11,7 +11,7 @@ module dftbp_dftb_bondpopulations
   use dftbp_math_blasroutines, only : symm
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  implicit none
+  implicit none (type, external)
 
   private
   public :: addPairWiseBondInfo, getPairWiseMayer

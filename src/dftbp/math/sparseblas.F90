@@ -22,7 +22,7 @@ module dftbp_math_sparseblas
   use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d
   use dftbp_type_densedescr, only : TDenseDescr
 #:endif
-  implicit none
+  implicit none (type, external)
   private
 
   public :: symv, symm

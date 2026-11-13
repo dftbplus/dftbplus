@@ -9,7 +9,7 @@
 
 !> Linked list for single real vectors
 module dftbp_type_linkedlisti1
-  implicit none
+  implicit none (type, external)
 
   private
 

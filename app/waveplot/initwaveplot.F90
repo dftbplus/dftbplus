@@ -36,7 +36,7 @@ module waveplot_initwaveplot
   use dftbp_type_linkedlist, only : append, asArray, destruct, init, len, TListIntR1, TListReal
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, readTGeometryVasp,&
       & readTGeometryXyz, TGeometry, writeTGeometryHSD
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TProgramVariables, TProgramVariables_init

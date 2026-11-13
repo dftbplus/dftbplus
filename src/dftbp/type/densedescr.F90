@@ -12,7 +12,7 @@ module dftbp_type_densedescr
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : DLEN_
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDenseDescr

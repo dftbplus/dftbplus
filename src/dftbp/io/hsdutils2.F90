@@ -24,7 +24,7 @@ module dftbp_io_hsdutils2
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : getChildrenByName, getTagsWithoutAttribute, removeNodes,&
       & removeSpace
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getUnprocessedNodes, warnUnprocessedNodes

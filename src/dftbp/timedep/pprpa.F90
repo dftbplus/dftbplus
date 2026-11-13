@@ -26,7 +26,7 @@ module dftbp_timedep_pprpa
   use dftbp_timedep_transcharges, only : transq
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  implicit none
+  implicit none (type, external)
 
   private
   public :: ppRPAenergies, TppRPAcal

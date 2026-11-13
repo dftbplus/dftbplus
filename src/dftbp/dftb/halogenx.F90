@@ -16,7 +16,7 @@ module dftbp_dftb_halogenx
   use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_dftb_vdwdata, only : getVdwData
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: THalogenX, THalogenX_init

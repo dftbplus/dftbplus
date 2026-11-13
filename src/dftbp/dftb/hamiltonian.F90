@@ -28,7 +28,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole
-  implicit none
+  implicit none (type, external)
 
   private
   public :: resetExternalPotentials, getSccHamiltonian, mergeExternalPotentials

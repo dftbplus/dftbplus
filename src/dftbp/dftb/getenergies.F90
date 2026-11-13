@@ -35,7 +35,7 @@ module dftbp_dftb_getenergies
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: calcEnergies, calcDispersionEnergy, sumEnergies

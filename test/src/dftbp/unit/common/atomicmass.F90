@@ -12,7 +12,7 @@ module test_common_atomicmass
   use dftbp_common_accuracy, only : dp
   use dftbp_common_atomicmass, only : getAtomicSymbol
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

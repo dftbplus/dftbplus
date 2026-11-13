@@ -18,7 +18,7 @@
 module dftbp_poisson_gewald
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
-  implicit none
+  implicit none (type, external)
 
   private
   public :: short_pot

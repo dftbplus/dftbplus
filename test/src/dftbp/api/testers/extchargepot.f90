@@ -12,7 +12,7 @@
 !! The tasks implemented here should be provided by the MM-driver in a production code.
 !!
 module extchargepot
-  implicit none
+  implicit none (type, external)
   private
 
   public :: getPointChargePotential

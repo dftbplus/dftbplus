@@ -14,7 +14,7 @@ module dftbp_md_xlbomd
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_md_extlagrangian, only : ExtLagrangian, ExtLagrangian_init, ExtLagrangianInp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TXLBOMDInp, TXLBOMD, Xlbomd_init

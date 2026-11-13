@@ -2,7 +2,7 @@ program testapp
   use fortuno_serial, only : execute_serial_cmd_app, test_list
   use test_include_allocatablelist, only : allocatablelist_tests => tests
   use test_include_pointerlist, only : pointerlist_tests => tests
-  implicit none
+  implicit none (type, external)
 
   call execute_serial_cmd_app(test_list([&
       allocatablelist_tests(),&

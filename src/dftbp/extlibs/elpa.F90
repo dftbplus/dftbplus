@@ -16,7 +16,7 @@ module dftbp_extlibs_elpa
       & elpa_init, elpa_t, elpa_uninit, ELPA_AUTOTUNE_DOMAIN_COMPLEX, ELPA_AUTOTUNE_DOMAIN_REAL,&
       & ELPA_AUTOTUNE_FAST, ELPA_AUTOTUNE_MEDIUM, ELPA_OK, ELPA_SOLVER_1STAGE, ELPA_SOLVER_2STAGE
 #:endif
-  implicit none
+  implicit none (type, external)
   private
 
   public :: elpa_t, withElpa

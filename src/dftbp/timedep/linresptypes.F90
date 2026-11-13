@@ -10,7 +10,7 @@
 !> Data types for linear response routines.
 module dftbp_timedep_linresptypes
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: linrespSolverTypes, TLinResp, TCasidaParameter, TCasidaParameter_init

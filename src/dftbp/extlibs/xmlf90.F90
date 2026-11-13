@@ -16,7 +16,7 @@ module dftbp_extlibs_xmlf90
       & setTagName, string, TEXT_NODE, textNodeName, trim
   use xmlf90_flib_wxml, only : xml_AddPCData, xml_ADDXMLDeclaration, xml_Close, xml_EndElement,&
       & xml_NewElement, xml_OpenFile, xmlf_t
-  implicit none
+  implicit none (type, external)
   public
 
 end module dftbp_extlibs_xmlf90

@@ -12,6 +12,7 @@ set(sources-fpp
   ${curdir}/lebedev.F90
   ${curdir}/magma.F90
   ${curdir}/mpifx.F90
+  ${curdir}/mudpack.F90
   ${curdir}/plumed.F90
   ${curdir}/poisson.F90
   ${curdir}/scalapackfx.F90

@@ -58,7 +58,7 @@ module dftbp_extlibs_tblite
   use tblite_xtb_ipea1, only : new_ipea1_calculator
   use tblite_xtb_singlepoint, only : xtb_singlepoint
 #:endif
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TTBLite, TTBLiteInput, TTBLite_init, writeTBLiteInfo

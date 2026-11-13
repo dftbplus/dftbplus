@@ -17,7 +17,7 @@ module dftbp_dftb_repulsive_twobodyrep
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_math_quaternions, only : rotate3
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TTwoBodyRepInp

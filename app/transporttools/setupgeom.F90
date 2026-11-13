@@ -15,12 +15,12 @@ program setupgeom
   use dftbp_common_release, only : releaseYear
   use dftbp_io_formatout, only : printDftbHeader
 #:if WITH_MPI
-  use mpi, only : MPI_COMM_WORLD, MPI_THREAD_FUNNELED
   use dftbp_io_message, only : error
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_extlibs_mpifx, only : mpifx_finalize, mpifx_init_thread
+  use dftbp_extlibs_mpifx, only : mpifx_finalize, mpifx_init_thread,&
+      & MPI_THREAD_FUNNELED
 #:endif
-  implicit none
+  implicit none (type, external)
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input
@@ -28,7 +28,7 @@ program setupgeom
 
 
 #:if WITH_MPI
-  call initGlobalEnv(mpiComm=MPI_COMM_WORLD)
+  call initGlobalEnv()
   call TEnvironment_init(env)
   ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
   ! build

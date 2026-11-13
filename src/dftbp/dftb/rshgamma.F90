@@ -15,7 +15,7 @@ module dftbp_dftb_rshgamma
   use dftbp_common_status, only : TStatus
   use dftbp_math_simplealgebra, only : cross3
 
-  implicit none
+  implicit none (type, external)
   private
 
   public :: getCoulombTruncationCutoff

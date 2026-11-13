@@ -27,7 +27,7 @@ module dftbp_io_hsdparser
   use dftbp_io_linereader, only : TLineReader
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : getFirstChildByName
-  implicit none
+  implicit none (type, external)
 
 
   private

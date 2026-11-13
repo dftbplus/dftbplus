@@ -17,7 +17,7 @@ module dftbp_poisson_structure
   use dftbp_poisson_gallocation, only : log_gallocate
   use dftbp_poisson_mpi_poisson, only : active_id
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: find_ntypes, buildsupercell

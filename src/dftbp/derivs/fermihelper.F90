@@ -11,7 +11,7 @@
 !! distribution.
 module dftbp_derivs_fermihelper
   use dftbp_common_accuracy, only : dp, mExpArg
-  implicit none
+  implicit none (type, external)
 
   private
   public :: theta, invDiff, deltamn, dEfda, dEida

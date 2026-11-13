@@ -12,7 +12,7 @@ module test_mixer_broyden
   use dftbp_common_accuracy, only : dp
   use dftbp_mixer_broydenmixer, only : TBroydenMixerInp, TBroydenMixerReal, TBroydenMixerReal_init
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

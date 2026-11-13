@@ -19,7 +19,7 @@ module dftbp_poisson_mpi_poisson
 
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_comm, mpifx_gatherv
-  implicit none
+  implicit none (type, external)
 
   private
   public :: mpifx_gatherv

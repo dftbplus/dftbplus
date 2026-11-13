@@ -17,7 +17,7 @@ module transporttools_helpsetupgeom
   use dftbp_type_linkedlist, only : append, asArray, destruct, get, init, len, TListInt, TListIntR1
   use dftbp_type_typegeometry, only : TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1
-  implicit none
+  implicit none (type, external)
 
   private
   public :: setupGeometry

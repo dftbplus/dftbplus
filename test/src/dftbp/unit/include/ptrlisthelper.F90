@@ -8,7 +8,7 @@
 #:include "pointerlist.fypp"
 
 module ptrlisthelper
-  implicit none
+  implicit none (type, external)
 
   type :: TInt
     integer :: value = 0

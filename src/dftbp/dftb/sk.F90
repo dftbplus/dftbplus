@@ -18,7 +18,7 @@
 module dftbp_dftb_sk
   use dftbp_common_accuracy, only : dp
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: rotateH0

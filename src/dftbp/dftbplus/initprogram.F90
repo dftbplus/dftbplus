@@ -155,7 +155,7 @@ module dftbp_dftbplus_initprogram
 #:endif
   use dftbp_transport_negfvars, only : TTransPar
   use dftbp_xtb_xtbspinw, only : xtbw => wvalues, spindx
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDangerousChange, TDftbPlusMain, TNegfInt

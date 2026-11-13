@@ -25,7 +25,7 @@ module dftbp_common_schedule
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allgatherv, mpifx_allreduceip
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: distributeRangeInChunks, distributeRangeInChunks2, distributeRangeWithWorkload

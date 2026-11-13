@@ -11,7 +11,7 @@
 module dftbp_type_typegeometry
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_math_simplealgebra, only : invert33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TGeometry, normalize

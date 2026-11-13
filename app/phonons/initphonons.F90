@@ -35,7 +35,7 @@ module phonons_initphonons
   use dftbp_type_oldskdata, only : readFromFile, TOldSKData
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1
-  implicit none
+  implicit none (type, external)
   private
 
   character(len=*), parameter :: rootTag = "phonons"

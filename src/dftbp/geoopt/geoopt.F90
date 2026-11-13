@@ -14,7 +14,7 @@ module dftbp_geoopt_geoopt
   use dftbp_geoopt_fire, only : TFire
   use dftbp_geoopt_gdiis, only : init, next, reset, TDIIS
   use dftbp_geoopt_lbfgs, only : TLbfgs
-  implicit none
+  implicit none (type, external)
 
   private
   public :: Tgeoopt

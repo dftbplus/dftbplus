@@ -16,7 +16,7 @@ module dftbp_math_scalafxext
   use dftbp_extlibs_scalapackfx, only : blacsfx_gsum, blacsgrid, CSRC_, DLEN_, MB_, NB_, RSRC_,&
       & scalafx_getlocalshape, scalafx_indxl2g, scalafx_ppotrf, scalafx_ppotri
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: psymmatinv, phermatinv

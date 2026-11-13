@@ -17,7 +17,7 @@ module dftbp_common_file
 #:block DEBUG_CODE
   use dftbp_common_globalenv, only : stdOut0
 #:endblock
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TFileDescr, TOpenOptions, openFile, closeFile, clearFile, fileExists

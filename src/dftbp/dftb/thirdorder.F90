@@ -15,7 +15,7 @@ module dftbp_dftb_thirdorder
   use dftbp_dftb_periodic, only : getNrOfNeighbours, TNeighbourList
   use dftbp_dftb_shortgammafuncs, only : expGammaCutoff
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TThirdOrderInp, TThirdOrder, ThirdOrder_init

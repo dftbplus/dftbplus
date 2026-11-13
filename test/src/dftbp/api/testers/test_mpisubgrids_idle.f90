@@ -15,12 +15,13 @@
 ! on MPI_COMM_WORLD or on a BLACS grid derived from the default system context) would hang.
 
 program test_mpisubgrids_idle
-  ! Omitting explicit import list, as some mpi modules simply miss symbols (as in MPICH 3.3)
+  ! No explicit import list, as some mpi modules miss symbols
   use mpi
   use, intrinsic :: iso_fortran_env, only : real64
   use dftbplus, only : TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use testhelpers, only : writeAutotestTag   ! Only needed for the internal test system
   use dftbp_common_constants, only : AA__Bohr   ! Imported to ensure accurate conversion
+  ! No explicit import list, as some mpi modules miss symbols
   implicit none
 
   integer, parameter :: dp = real64

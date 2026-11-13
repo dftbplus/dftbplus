@@ -13,7 +13,7 @@
 module dftbp_md_mdintegrator
   use dftbp_common_accuracy, only : dp
   use dftbp_md_velocityverlet, only : init, next, rescale, reset, state, TVelocityVerlet
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TMDIntegrator

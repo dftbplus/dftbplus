@@ -32,7 +32,7 @@ module dftbp_timedep_linresp
   use dftbp_timedep_linresptypes, only : linrespSolverTypes, TLinResp
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TLinresp, TLinrespini

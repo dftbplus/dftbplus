@@ -17,7 +17,7 @@ module dftbp_dftb_nonscc
   use dftbp_dftb_slakocont, only : getMIntegrals, getSKIntegrals, TSlakoCont
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: buildH0, buildS

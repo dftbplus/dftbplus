@@ -16,7 +16,7 @@ module dftbp_elecsolvers_elecsolvers
   use dftbp_elecsolvers_partialdiag, only : TPartialDiag
   use dftbp_extlibs_elpa, only : withElpa
   use dftbp_extlibs_elsiiface, only: withElsi
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TElectronicSolverInp, TElectronicSolver, TElectronicSolver_init, TElsiSolverInp

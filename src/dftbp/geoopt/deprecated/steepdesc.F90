@@ -10,7 +10,7 @@
 !> Implementation of a steepest descent optimization procedure (deprecated).
 module dftbp_geoopt_deprecated_steepdesc
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
 

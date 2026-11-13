@@ -13,7 +13,7 @@ module dftbp_dftbplus_inputconversion
   use dftbp_dftb_dense, only : buildSquaredAtomIndex
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_wrappedintr, only : TWrappedInt1
-  implicit none
+  implicit none (type, external)
 
   private
   public :: transformPdosRegionInfo

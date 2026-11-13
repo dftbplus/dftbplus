@@ -20,7 +20,7 @@ module dftbp_dftb_dispcommon
   use dftbp_math_errorfunction, only : erfcwrap
   use dftbp_math_simplealgebra, only : cross3
   use dftbp_math_sorting, only : index_heap_sort
-  implicit none
+  implicit none (type, external)
 
   private
   public :: addDispEGr_per_species, addDispEGr_per_atom

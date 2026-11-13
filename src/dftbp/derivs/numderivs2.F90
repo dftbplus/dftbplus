@@ -11,7 +11,7 @@
 !> To Do: Option to restart the calculation
 module dftbp_derivs_numderivs2
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TNumDerivs, create, next, getHessianMatrix, dipoleAdd, polAdd

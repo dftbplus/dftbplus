@@ -9,7 +9,7 @@
 
 !> Contains character manipulation routines
 module dftbp_io_charmanip
-  implicit none
+  implicit none (type, external)
 
   private
 

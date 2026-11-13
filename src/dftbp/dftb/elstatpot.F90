@@ -16,7 +16,7 @@ module dftbp_dftb_elstatpot
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_scc, only : TScc
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TElStatPotentialsInp

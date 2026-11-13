@@ -24,7 +24,7 @@ module dftbp_extlibs_negf
 #:if WITH_MPI
   use libnegf, only : negf_cart_init, negf_mpi_init
 #:endif
-  implicit none
+  implicit none (type, external)
 
   public
 

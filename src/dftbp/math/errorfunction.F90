@@ -21,7 +21,7 @@ module dftbp_math_errorfunction
 #:if INTERNAL_ERFC
   use dftbp_math_erfcalc, only : erf, erfc
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: erfwrap, erfcwrap
