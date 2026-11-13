@@ -12,7 +12,7 @@ module dftbp_dftb_repulsive_splinerep
   use dftbp_common_accuracy, only : dp, minNeighDist
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsive
   use dftbp_math_binarysearch, only : search_asc_real_geq
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSplineRepInp, TSplineRep, TSplineRep_init

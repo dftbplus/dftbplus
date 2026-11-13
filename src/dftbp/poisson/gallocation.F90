@@ -34,7 +34,7 @@ module dftbp_poisson_gallocation
   use, intrinsic :: iso_c_binding, only : c_sizeof
   use, intrinsic :: iso_fortran_env, only : int64
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   public log_gallocate, log_gdeallocate, writePoissMemInfo, writePoissPeakInfo
 

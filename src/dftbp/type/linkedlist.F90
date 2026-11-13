@@ -25,7 +25,7 @@ module dftbp_type_linkedlist
   use dftbp_type_linkedlistr2, only : append, destruct, init, intoArray, len, TListRealR2
   use dftbp_type_linkedlists0, only : append, asArray, destruct, find, get, hasElement, init,&
       & isUnishaped, len, set, TListString
-  implicit none
+  implicit none (type, external)
 
   private
   !> Expose the used linked list content

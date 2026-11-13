@@ -18,7 +18,7 @@ module dftbp_dftbplus_hsdhelpers
   use dftbp_io_hsdutils, only : getChild
   use dftbp_io_hsdutils2, only : warnUnprocessedNodes
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: parseHsdInput, doPostParseJobs

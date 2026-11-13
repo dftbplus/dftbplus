@@ -44,7 +44,7 @@ module phonons_libnegfint
   use dftbp_extlibs_negf, only : negf_mpi_init
 #:endif
   use phonons_initphonons, only : modeEnum, TempMax, TempMin, TempStep
-  implicit none
+  implicit none (type, external)
   private
 
   Type(Tnegf), target, public :: negf

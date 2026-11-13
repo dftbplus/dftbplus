@@ -27,7 +27,7 @@ module dftbp_elecsolvers_elpa
       & scalafx_getdescriptor, scalafx_numroc, CTXT_, DLEN_
 #:endif
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TElpaInp

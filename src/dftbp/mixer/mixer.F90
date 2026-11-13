@@ -12,7 +12,7 @@
 !> desired actual mixer and providing shared methods to flatten 6D and 3D data to 1D.
 module dftbp_mixer_mixer
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TMixerReal, TMixerCmplx

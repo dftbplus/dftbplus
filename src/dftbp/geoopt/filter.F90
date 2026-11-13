@@ -12,7 +12,7 @@
 module dftbp_geoopt_filter
   use dftbp_common_accuracy, only : dp
   use dftbp_math_simplealgebra, only : determinant33, invert33
-  implicit none
+  implicit none (type, external)
   private
   public :: TFilter, TFilterInput, TFilter_init
 

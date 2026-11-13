@@ -11,7 +11,7 @@ module test_common_schedule
   use fortuno_serial, only : suite => serial_suite_item, test_list
   use dftbp_common_schedule, only : getChunkRanges, getIndicesWithWorkload
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

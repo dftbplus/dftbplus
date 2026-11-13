@@ -10,7 +10,7 @@
 !> Implements a two body repulsive potential interface
 module dftbp_dftb_repulsive_pairrepulsive
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TPairRepulsive, TPairRepulsiveItem

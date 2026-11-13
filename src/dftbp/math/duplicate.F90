@@ -9,7 +9,7 @@
 module dftbp_math_duplicate
   use dftbp_math_counting, only : unique
   use dftbp_math_sorting, only : heap_sort
-  implicit none
+  implicit none (type, external)
 
   private
   public :: isRepeated

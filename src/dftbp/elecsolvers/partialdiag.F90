@@ -18,7 +18,7 @@
 module dftbp_elecsolvers_partialdiag
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_etemp, only : fillingTypes
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TPartialDiag, TPartialDiag_init

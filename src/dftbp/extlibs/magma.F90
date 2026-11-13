@@ -14,7 +14,7 @@ module dftbp_extlibs_magma
   use magma, only : magmaf_cheevd_m, magmaf_chegvd_m, magmaf_dsyevd_m, magmaf_dsygvd_m,&
       & magmaf_ssyevd_m, magmaf_ssygvd_m, magmaf_zheevd_m, magmaf_zhegvd_m
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: withGpu

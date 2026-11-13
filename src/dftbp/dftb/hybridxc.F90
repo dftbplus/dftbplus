@@ -43,7 +43,7 @@ module dftbp_dftb_hybridxc
   use dftbp_math_binarysearch, only : search_int
 #:endif
 
-  implicit none
+  implicit none (type, external)
 
 #! Routine NAME label, main variable TYPE
 #:set FLAVOURS = [('real', 'real'), ('cmplx', 'complex'), ('pauli', 'complex')]

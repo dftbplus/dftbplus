@@ -15,7 +15,7 @@ module dftbp_math_wignerseitz
   use dftbp_dftb_periodic, only : frac2cart
   use dftbp_math_sorting, only : index_heap_sort
 
-  implicit none
+  implicit none (type, external)
   private
 
 

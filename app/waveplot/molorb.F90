@@ -17,7 +17,7 @@ module waveplot_molorb
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   save

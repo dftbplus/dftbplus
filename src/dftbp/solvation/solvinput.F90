@@ -18,7 +18,7 @@ module dftbp_solvation_solvinput
   use dftbp_solvation_cosmo, only : TCosmo, TCosmo_init, TCosmoInput, writeCosmoInfo
   use dftbp_solvation_sasa, only : TSASACont, TSASACont_init, TSASAInput, writeSASAContInfo
   use dftbp_solvation_solvation, only : TSolvation
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSolvationInp, createSolvationModel, writeSolvationInfo

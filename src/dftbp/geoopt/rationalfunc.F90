@@ -18,7 +18,7 @@ module dftbp_geoopt_rationalfunc
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   use dftbp_math_blasroutines, only : spmv
   use dftbp_math_eigensolver, only : syev => heev
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TRationalFuncInput, TRationalFunc, TRationalFunc_init

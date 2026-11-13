@@ -11,7 +11,7 @@
 module dftbp_geoopt_steepdesc
   use dftbp_common_accuracy, only : dp
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSteepdescInput, TSteepdesc, TSteepdesc_init

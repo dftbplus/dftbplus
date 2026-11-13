@@ -11,7 +11,7 @@ module dftbp_dftb_extfields
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_io_message, only : warning
-  implicit none
+  implicit none (type, external)
 
   public :: TEField, TElecFieldInput, addUpExternalField
 

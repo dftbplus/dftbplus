@@ -18,7 +18,7 @@ module dftbp_capi
       & TQDepExtPotGenC_init
   use dftbp_api, only : TDftbPlus, TDftbPlus_destruct, TDftbPlus_init, TDftbPlusAtomList,&
       & TDftbPlusInput
-  implicit none
+  implicit none (type, external)
   private
 
 

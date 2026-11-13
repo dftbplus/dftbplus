@@ -27,7 +27,7 @@ module dftbp_dftbplus_eigenvects
       & scalafx_phegv, scalafx_phegvd, scalafx_phegvr, scalafx_psygv, scalafx_psygvd,&
       & scalafx_psygvr
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: diagDenseMtx

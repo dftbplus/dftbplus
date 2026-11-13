@@ -4,7 +4,7 @@ program testapp
   use test_mixer_broyden, only : broyden_tests => tests
   use test_mixer_diis, only : diis_tests => tests
   use test_mixer_simple, only : simple_tests => tests
-  implicit none
+  implicit none (type, external)
 
   call execute_serial_cmd_app(test_list([&
       anderson_tests(),&

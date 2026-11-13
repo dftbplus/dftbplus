@@ -53,7 +53,7 @@ module dftbp_derivs_perturb
   use dftbp_extlibs_scalapackfx, only : DLEN_, blocklist, scalafx_getdescriptor, size
 #:endif
   use dftbp_dftb_sparse2dense, only : unpackHS
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TPerturbInp, TResponse, TResponse_init, responseSolverTypes

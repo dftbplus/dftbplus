@@ -28,7 +28,7 @@ module dftbp_io_hsdutils
   use dftbp_io_xmlutils, only : getChildrenByName, getFirstChildByName
   use dftbp_type_linkedlist, only : append, len, TListComplex, TListComplexR1, TListInt,&
       & TlistIntR1, TListReal, TListRealR1, TListString
-  implicit none
+  implicit none (type, external)
 
   private
   public :: checkError, detailedError, detailedWarning

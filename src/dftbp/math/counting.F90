@@ -11,7 +11,7 @@
 module dftbp_math_counting
   use dftbp_common_accuracy, only : dp, elecTolMax, rsp
   use dftbp_dftb_etemp, only : fillingTypes
-  implicit none
+  implicit none (type, external)
 
   private
   public :: unique, filledStates, emptyStates

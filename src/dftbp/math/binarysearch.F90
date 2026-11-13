@@ -12,7 +12,7 @@ module dftbp_math_binarysearch
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: search_int, search_asc_real_geq, search_asc_real_gt, search_des_real_geq,&

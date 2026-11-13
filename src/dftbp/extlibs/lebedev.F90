@@ -18,7 +18,7 @@
 !> https://people.sc.fsu.edu/~jburkardt/f_src/sphere_lebedev_rule/
 module dftbp_extlibs_lebedev
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
 

@@ -10,7 +10,7 @@
 !> Linked list for real arrays
 module dftbp_type_linkedlistr2
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
 

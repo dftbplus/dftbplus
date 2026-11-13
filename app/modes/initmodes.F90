@@ -34,7 +34,7 @@ module modes_initmodes
   use dftbp_type_oldskdata, only : readFromFile, TOldSkData
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryVasp,&
       & readTGeometryXyz, TGeometry, writeTGeometryHsd
-  implicit none
+  implicit none (type, external)
 
   private
   public :: initProgramVariables

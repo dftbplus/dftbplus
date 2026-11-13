@@ -17,7 +17,7 @@ module dftbp_io_tokenreader
   use dftbp_extlibs_xmlf90, only : assignment(=), string
   use dftbp_io_charmanip, only : complementaryScan, tolower, unquotedScan, whiteSpaces
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getNextToken, TOKEN_OK, TOKEN_EOS, TOKEN_ERROR

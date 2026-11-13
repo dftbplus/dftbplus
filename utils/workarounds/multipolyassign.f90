@@ -18,7 +18,7 @@
 ! Use a separate variable in each polymorphic assignment
 !
 program testprog
-  implicit none
+  implicit none (type, external)
 
   type :: base_t
   end type base_t

@@ -12,7 +12,7 @@ module dftbp_md_mdcommon
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_math_ranlux, only : getRandom, TRanlux
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TMDCommon, init, restFrame, evalKT, rescaleToKT

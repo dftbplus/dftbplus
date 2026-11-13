@@ -8,6 +8,7 @@
 !> Module to print data types
 module dftbp_io_intrinsicpr
   use dftbp_common_accuracy, only : dp, lc
+  implicit none (type, external)
 
   private
   public :: printContent

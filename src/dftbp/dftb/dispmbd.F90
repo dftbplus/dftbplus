@@ -22,7 +22,7 @@ module dftbp_dftb_dispmbd
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDispMbdInp, TDispMbd, TDispMbd_init

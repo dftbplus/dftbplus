@@ -11,7 +11,7 @@
 module transporttools_inputdata
   use dftbp_transport_negfvars, only : TTransPar
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TInputData

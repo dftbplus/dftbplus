@@ -20,7 +20,7 @@ module dftbp_dftb_dispersions
   use dftbp_dftb_dispmbd, only : TDispMbdInp
 #:endif
   use dftbp_extlibs_sdftd3, only : TSDFTD3Input
-  implicit none
+  implicit none (type, external)
 
   public
 

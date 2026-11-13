@@ -20,7 +20,7 @@ module dftbp_solvation_gbsafile
   use dftbp_io_tokenreader, only : getNextToken, TOKEN_OK
   use dftbp_solvation_born, only : TGBInput
   use dftbp_solvation_solventdata, only : TSolventData
-  implicit none
+  implicit none (type, external)
 
   private
   public :: readParamGBSA

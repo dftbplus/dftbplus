@@ -9,7 +9,7 @@
 !> value.
 module dftbp_common_optarg
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getOptionalArg

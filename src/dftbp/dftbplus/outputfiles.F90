@@ -7,7 +7,7 @@
 
 !> Global names for output files for the main program.
 module dftbp_dftbplus_outputfiles
-  implicit none
+  implicit none (type, external)
 
   public
 

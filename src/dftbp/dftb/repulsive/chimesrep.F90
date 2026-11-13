@@ -15,7 +15,7 @@ module dftbp_dftb_repulsive_chimesrep
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_extlibs_chimes, only : TChimesCalc, TChimesCalc_init
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TChimesRepInp, TChimesRep, TChimesRep_init

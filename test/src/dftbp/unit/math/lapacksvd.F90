@@ -12,7 +12,7 @@ module test_math_lapackroutines
   use dftbp_math_lapackroutines, only : gesvd
   use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

@@ -27,7 +27,7 @@ module dftbp_poisson_parcheck
       & Rmin_ins, verbose
   use dftbp_poisson_structure, only : boxsiz, natoms, period, period_dir, x
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: check_poisson_box, check_contacts, check_localbc

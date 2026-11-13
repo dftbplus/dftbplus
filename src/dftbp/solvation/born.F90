@@ -24,7 +24,7 @@ module dftbp_solvation_born
   use dftbp_solvation_sasa, only : TSASACont, TSASACont_init, TSASAInput, writeSASAContInfo
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TGeneralizedBorn, TGBInput, TGeneralizedBorn_init

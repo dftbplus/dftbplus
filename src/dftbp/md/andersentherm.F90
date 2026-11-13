@@ -21,7 +21,7 @@ module dftbp_md_andersentherm
   use dftbp_md_mdcommon, only : MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   use dftbp_md_tempprofile, only : TTempProfile
   use dftbp_md_thermostat, only : TThermostat
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TAndersenThermInput

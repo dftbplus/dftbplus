@@ -19,7 +19,7 @@ module dftbp_extlibs_scalapackfx
       & scalafx_phegv, scalafx_phegvd, scalafx_phegvr, scalafx_pposv, scalafx_ppotrf,&
       & scalafx_ppotri, scalafx_psygv, scalafx_psygvd, scalafx_psygvr, size
 #:endif
-  implicit none
+  implicit none (type, external)
   public
 
 end module dftbp_extlibs_scalapackfx

@@ -12,7 +12,7 @@ module test_mixer_diis
   use dftbp_common_accuracy, only : dp
   use dftbp_mixer_diismixer, only : TDiisMixerInp, TDiisMixerReal, TDiisMixerReal_init
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

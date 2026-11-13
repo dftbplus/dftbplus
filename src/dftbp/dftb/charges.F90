@@ -12,7 +12,7 @@ module dftbp_dftb_charges
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getSummedCharges, getSummedChargesPerOrbital, getSummedChargesPerAtom

@@ -7,7 +7,7 @@
 
 !> Time stages in the code
 module dftbp_common_timer
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TTimer

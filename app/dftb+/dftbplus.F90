@@ -16,7 +16,7 @@ program dftbplus
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_main, only : runDftbPlus
   use dftbp_io_formatout, only : printDftbHeader
-  implicit none
+  implicit none (type, external)
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input

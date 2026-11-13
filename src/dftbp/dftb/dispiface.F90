@@ -12,7 +12,7 @@ module dftbp_dftb_dispiface
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDispersionIface

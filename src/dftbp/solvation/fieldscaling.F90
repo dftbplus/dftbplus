@@ -14,7 +14,7 @@ module dftbp_solvation_fieldscaling
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : warning
   use dftbp_solvation_solvation, only : TSolvation
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TScaleExtEField, init_TScaleExtEField

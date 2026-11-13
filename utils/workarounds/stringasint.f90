@@ -13,7 +13,7 @@
 ! Workaround: Check first character of the string, whether it can be an integer.
 !
 module mymod
-  implicit none
+  implicit none (type, external)
 
 contains
 
@@ -65,7 +65,7 @@ end module mymod
 
 program test
   use mymod
-  implicit none
+  implicit none (type, external)
 
   character(10) :: str
   integer :: iError

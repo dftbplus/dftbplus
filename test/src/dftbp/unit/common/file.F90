@@ -13,7 +13,7 @@ module test_common_file
       & fileExists, openFile, TFileDescr, TOpenOptions
   use dftbp_io_charmanip, only : tolower
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

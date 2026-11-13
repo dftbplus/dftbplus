@@ -16,7 +16,7 @@ program test_responses
   use dftbp_common_constants, only : AA__Bohr
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
-  implicit none
+  implicit none (type, external)
 
   integer, parameter :: dp = kind(1.0d0)
 

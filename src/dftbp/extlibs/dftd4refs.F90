@@ -8,7 +8,7 @@
 !> Interface wrapper for the DFT-D4 parameters
 module dftbp_extlibs_dftd4refs
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
   private
 
   public :: sscale, clsq, secaiw, alphaiw, clsh, refn, refsys, refcn, refcovcn

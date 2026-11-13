@@ -11,7 +11,7 @@ module test_math_sorting
   use dftbp_math_sorting, only : merge_sort, merge_multikey
   use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

@@ -13,7 +13,7 @@ program test_fileinit
   use dftbp_common_constants, only : AA__Bohr
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
-  implicit none
+  implicit none (type, external)
 
   ! How often should the test repeated
   integer, parameter :: nIter = 2

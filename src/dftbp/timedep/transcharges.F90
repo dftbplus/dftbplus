@@ -19,7 +19,7 @@ module dftbp_timedep_transcharges
   use dftbp_io_message, only : error
   use dftbp_type_densedescr, only : TDenseDescr
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TTransCharges, TTransCharges_init

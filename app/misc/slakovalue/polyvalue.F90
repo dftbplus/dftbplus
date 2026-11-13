@@ -14,7 +14,7 @@ program polyvalue
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep, TPolyRep_init
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   type(TEnvironment) :: env
   character(lc) :: arg, fname

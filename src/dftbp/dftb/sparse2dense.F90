@@ -25,7 +25,7 @@ module dftbp_dftb_sparse2dense
   use dftbp_common_blacsenv, only : TBlacsEnv
   use dftbp_extlibs_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: unpackHS, packHS, iPackHS, packErho, unpackDQ, unpackSPauli, unpackHPauli

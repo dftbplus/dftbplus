@@ -23,7 +23,7 @@ module dftbp_reks_reks
   use dftbp_reks_reksio, only : printReksMicrostates, printReksSAInfo, printSaReksEnergy
   use dftbp_reks_reksvar, only : REKS_init, reksTypes, TReksCalc, TReksInp
 
-  implicit none
+  implicit none (type, external)
 
   private
   !> In REKS method, there is a symmetry for the microstates due to the restricted scheme.

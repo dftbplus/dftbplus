@@ -12,7 +12,7 @@ module dftbp_extlibs_chimes
 #:if WITH_CHIMES
   use chimescalc_serial08, only : TChimesCalc => ChimesCalc, TChimesCalc_init => ChimesCalc_init
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: withChimes

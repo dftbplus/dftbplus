@@ -24,7 +24,7 @@ module dftbp_common_environment
 #:if WITH_SCALAPACK
   use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_final, TBlacsEnv_init
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TEnvironment, TEnvironment_init

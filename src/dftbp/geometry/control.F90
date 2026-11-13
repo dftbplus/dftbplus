@@ -7,7 +7,7 @@
 
 !> Contains types for geometry control
 module dftbp_geometry_control
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TGeomChanges

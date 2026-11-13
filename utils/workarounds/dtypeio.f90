@@ -8,7 +8,7 @@
 ! NAG 7.1 can not use user-defined derived type I/O, when derived type is part of an array.
 ! Workaround: Make a local copy and use that in the I/O statement.
 module unitconversion
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TUnit
@@ -48,7 +48,7 @@ end module unitconversion
 
 program printunits
   use unitconversion, only : lengthUnits, TUnit
-  implicit none
+  implicit none (type, external)
 
   integer :: ii
   type(TUnit) :: localUnit

@@ -11,7 +11,7 @@ module test_include_pointerlist
   use fortuno_serial, only : serial_case_base, suite => serial_suite_item, test_item, test_list
   use ptrlisthelper, only : TInt, TIntList
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

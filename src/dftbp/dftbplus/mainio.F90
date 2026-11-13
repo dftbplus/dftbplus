@@ -70,7 +70,7 @@ module dftbp_dftbplus_mainio
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketComm
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: writeEigenvectors, writeRealEigvecs, writeCplxEigvecs

@@ -13,7 +13,7 @@ module dftbp_common_blacsenv
   use dftbp_common_mpienv, only : TMpiEnv
   use dftbp_common_status, only : TStatus
   use dftbp_extlibs_scalapackfx, only : blacsgrid
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final

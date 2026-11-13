@@ -19,7 +19,7 @@
 !   deallocated at entry.
 !
 module mymod
-  implicit none
+  implicit none (type, external)
 
 contains
 
@@ -53,7 +53,7 @@ end module mymod
 
 program test
   use mymod
-  implicit none
+  implicit none (type, external)
 
   integer, allocatable :: array(:)
 

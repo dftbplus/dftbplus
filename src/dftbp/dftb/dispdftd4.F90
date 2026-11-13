@@ -25,7 +25,7 @@ module dftbp_dftb_dispdftd4
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
 

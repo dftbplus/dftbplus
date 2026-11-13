@@ -14,7 +14,7 @@ module dftbp_dftb_h5correction
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_dftb_vdwdata, only : getVdwData
   use dftbp_io_message, only : warning
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TH5CorrectionInput, TH5Correction, TH5Correction_init

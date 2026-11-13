@@ -29,7 +29,7 @@ module dftbp_reks_reksen
   use dftbp_reks_reksvar, only : reksTypes, TReksCalc
   use dftbp_type_densedescr, only : TDenseDescr
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: constructMicrostates, calcWeights

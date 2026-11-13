@@ -34,7 +34,7 @@ module dftbp_extlibs_elsiiface
   use, intrinsic :: iso_c_binding, only : r8 => c_double, i4 => c_int32_t
   use dftbp_io_message, only : error
 #:endif
-  implicit none
+  implicit none (type, external)
   private
 
   public :: withElsi, withPexsi

@@ -49,7 +49,7 @@ module dftbp_elecsolvers_elsisolver
       & elsi_write_mat_complex_sparse, elsi_write_mat_real, elsi_write_mat_real_sparse
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TElsiSolverInp

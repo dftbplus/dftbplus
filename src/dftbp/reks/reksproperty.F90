@@ -27,7 +27,7 @@ module dftbp_reks_reksproperty
   use dftbp_reks_reksio, only : printRelaxedFONs, printRelaxedFONsL, printUnrelaxedFONs
   use dftbp_reks_reksvar, only : reksTypes
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getUnrelaxedDensMatAndTdp, getRelaxedDensMat, getRelaxedDensMatL

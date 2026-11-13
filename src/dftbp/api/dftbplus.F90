@@ -14,6 +14,6 @@ module dftbplus
   use dftbp_api, only : convertAtomTypesToSpecies, getDftbPlusApiVersion, getDftbPlusBuild,&
       & getMaxAngFromSlakoFile, TDftbPlus, TDftbPlus_destruct, TDftbPlus_init, TDftbPlusAtomList,&
       & TDftbPlusInput, TDftbPlusInput_destruct, TQDepExtPotGen
-  implicit none
+  implicit none (type, external)
 
 end module dftbplus

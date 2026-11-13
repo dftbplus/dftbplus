@@ -21,7 +21,7 @@ module dftbp_reks_reksio
   use dftbp_reks_rekscommon, only : getSpaceSym, getTwoIndices
   use dftbp_reks_reksvar, only : reksTypes, TReksCalc
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: printReksMicrostates, printSaReksEnergy

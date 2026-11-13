@@ -52,7 +52,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_transport_negfvars, only : TNEGFGreenDensInfo, TNEGFTunDos
 #:endif
   use dftbp_transport_negfvars, only : TTransPar
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TControl, TSlater, TInputData, TParallelOpts

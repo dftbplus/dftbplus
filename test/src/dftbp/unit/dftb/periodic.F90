@@ -16,7 +16,7 @@ module test_dftb_periodic
   use dftbp_dftb_periodic, only : allocateNeighbourArrays, distributeAtoms, fillNeighbourArrays,&
       & reallocateArrays2, TNeighbourList, TNeighbourlist_init, updateNeighbourList
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

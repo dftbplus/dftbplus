@@ -20,7 +20,7 @@
 !> Contains routines to write out various data structures in a comprehensive tagged format.
 module dftbp_io_taggedoutput
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tagLabels

@@ -28,7 +28,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
   use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: checkSpeciesNames, doOneTdStep, finalizeTimeProp, getAtomicMasses, getCM5Charges

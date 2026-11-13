@@ -12,15 +12,12 @@
 program splvalue
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
+  use dftbp_common_globalenv, only : destructGlobalEnv, ensureSerialRun, initGlobalEnv
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_dftb_repulsive_splinerep, only : TSplineRep, TSplineRep_init, TSplineRepInp
   use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readsplinerep
-#:if WITH_MPI
-  use dftbp_common_mpienv, only : TMpiEnv
-#:endif
-  implicit none
+  implicit none (type, external)
 
   type(TEnvironment) :: env
   character(*), parameter :: fname = "test.skf"
@@ -33,16 +30,8 @@ program splvalue
   real(dp) :: rr, energy, dEnergy, d2Energy
 
   call initGlobalEnv()
+  call ensureSerialRun()
   call TEnvironment_init(env)
-
-#:if WITH_MPI
-  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
-  ! build
-  call TMpiEnv_init(env%mpi)
-  if (.not. env%mpi%isSerialEnv()) then
-    call error('This is serial code, but invoked on multiple processors')
-  end if
-#:endif
 
   if (command_argument_count() /= 1) then
     call error("Wrong number of arguments. Use 'splvalue -h' to obtain help.")

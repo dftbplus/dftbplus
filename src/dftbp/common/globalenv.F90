@@ -21,11 +21,11 @@ module dftbp_common_globalenv
   use dftbp_extlibs_mpifx, only : MPI_THREAD_FUNNELED, mpifx_abort, mpifx_barrier, mpifx_comm,&
       & mpifx_finalize, mpifx_init_thread
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: initGlobalEnv, destructGlobalEnv
-  public :: abortProgram, shutdown, synchronizeAll
+  public :: abortProgram, shutdown, synchronizeAll, ensureSerialRun
   public :: stdOut0, stdErr0
   public :: tIoProc
   public :: withScalapack, withMpi
@@ -206,6 +206,30 @@ contains
   #:endif
 
   end subroutine synchronizeAll
+
+
+  !> Stops the program if it has been started on more than one MPI process.
+  !>
+  !> Should be called by purely serial programs right after initGlobalEnv(). It is a no-op in
+  !> non-MPI builds.
+  !>
+  !> Note: this routine must be called collectively by all processes.
+  !>
+  subroutine ensureSerialRun()
+
+  #:if WITH_MPI
+    if (globalMpiComm%size == 1) return
+    if (globalMpiComm%lead) then
+      write(stdOut0, '(1a)') 'ERROR!'
+      write(stdOut0, '(a,i0,a)') '-> This is serial code, but it was invoked on ',&
+          & globalMpiComm%size, ' MPI processes'
+      flush(stdOut0)
+    end if
+    call synchronizeAll()
+    call abortProgram()
+  #:endif
+
+  end subroutine ensureSerialRun
 
 
 end module dftbp_common_globalenv

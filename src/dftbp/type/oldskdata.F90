@@ -18,7 +18,7 @@ module dftbp_type_oldskdata
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp
   use dftbp_io_charmanip, only : tolower
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TOldSKData, readFromFile, readSplineRep, parseHybridXcTag

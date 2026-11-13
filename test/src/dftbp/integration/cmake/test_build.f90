@@ -7,6 +7,6 @@
 
 program test_build
   use dftbplus
-  implicit none
+  implicit none (type, external)
 
 end program test_build

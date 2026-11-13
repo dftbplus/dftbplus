@@ -18,7 +18,7 @@ module dftbp_dftbplus_input_geoopt
       & setChild
   use dftbp_io_hsdutils2, only : convertUnitHsd, localiseName
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   public :: readGeoOptInput, readOptimizerInput, TGeoOptInput

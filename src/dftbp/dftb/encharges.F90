@@ -25,7 +25,7 @@ module dftbp_dftb_encharges
   use dftbp_math_errorfunction, only : erfwrap
   use dftbp_math_matrixops, only : symmatinv
   use dftbp_math_simplealgebra, only : determinant33, invert33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TEeqCont, TEeqInput, init

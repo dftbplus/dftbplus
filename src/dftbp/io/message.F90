@@ -11,7 +11,7 @@
 !> or recoverable (warning) nature.
 module dftbp_io_message
   use dftbp_common_globalenv, only : abortProgram, stdOut0, synchronizeAll
-  implicit none
+  implicit none (type, external)
 
   private
 

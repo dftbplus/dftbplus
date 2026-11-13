@@ -11,7 +11,7 @@
 module dftbp_solvation_solvdata
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr, symbolToNumber
-  implicit none
+  implicit none (type, external)
   private
 
   public :: getVanDerWaalsRadiusD3, getVanDerWaalsRadiusCosmo, getVanDerWaalsRadiusBondi

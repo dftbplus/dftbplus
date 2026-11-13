@@ -20,7 +20,7 @@ module dftbp_dftbplus_oldcompat
   use dftbp_io_hsdutils2, only : getDescendant, setNodeName, setUnprocessed
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : removeChildNodes
-  implicit none
+  implicit none (type, external)
 
   private
   public :: convertOldHSD, minVersion, parserVersion, versionMaps

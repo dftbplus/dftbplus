@@ -14,7 +14,7 @@ module dftbp_dftbplus_specieslist
   use dftbp_extlibs_xmlf90, only : char, fnode, string
   use dftbp_io_hsdutils, only : getChildValue
   use dftbp_io_hsdutils2, only : convertUnitHsd, setProcessed
-  implicit none
+  implicit none (type, external)
 
   private
   public :: readSpeciesList

@@ -18,7 +18,7 @@ module dftbp_dftb_forces
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_math_quaternions, only : rotate3
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: derivative_shift

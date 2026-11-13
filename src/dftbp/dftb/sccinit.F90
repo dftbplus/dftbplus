@@ -20,7 +20,7 @@ module dftbp_dftb_sccinit
   use dftbp_math_simplealgebra, only : diagonal
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
-  implicit none
+  implicit none (type, external)
 
   private
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile

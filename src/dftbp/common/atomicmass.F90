@@ -11,7 +11,7 @@
 module dftbp_common_atomicmass
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : amu__au, elementSymbol, symbolToNumber
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getAtomicMass, getAtomicSymbol

@@ -15,7 +15,7 @@ module dftbp_dftb_dftd4param
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_extlibs_dftd4refs, only : alphaiw, ascale, clsh, clsq, hcount, refcn, refcovcn, refn,&
       & refsys, secaiw, sscale
-  implicit none
+  implicit none (type, external)
 
   public :: TDftD4Calc, TDispDftD4Inp, TDftD4Calculator_init
   public :: TDftD4Ref, TDftD4Ref_init

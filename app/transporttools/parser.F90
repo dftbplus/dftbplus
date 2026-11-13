@@ -32,7 +32,7 @@ module transporttools_parser
   use dftbp_type_oldskdata, only : readFromFile, TOldSKData
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1
-  implicit none
+  implicit none (type, external)
 
   private
   public :: parseHsdInput, parserVersion

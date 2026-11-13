@@ -33,7 +33,7 @@ module dftbp_api
   use dftbp_io_message, only : error
   use dftbp_type_linkedlist, only : append, asArray, get, init, len, TListString
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TDftbPlus, getDftbPlusBuild, getDftbPlusApiVersion

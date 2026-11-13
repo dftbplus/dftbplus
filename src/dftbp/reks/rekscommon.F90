@@ -20,7 +20,7 @@ module dftbp_reks_rekscommon
   use dftbp_reks_reksvar, only : reksTypes, TReksCalc
   use dftbp_type_densedescr, only : TDenseDescr
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: checkGammaPoint

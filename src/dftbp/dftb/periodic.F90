@@ -29,7 +29,7 @@ module dftbp_dftb_periodic
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
   use dftbp_type_linkedlist, only : append, asArray, destruct, init, len, TListRealR1
 
-  implicit none
+  implicit none (type, external)
   private
 
   public :: getCellTranslations, getLatticePoints

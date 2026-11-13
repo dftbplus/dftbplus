@@ -13,7 +13,8 @@ module dftbp_extlibs_mbd
 #:if WITH_MPI
   use mpi_f08, only : MPI_Comm
 #:endif
-  implicit none
+  implicit none (type, external)
+  
 
   private
   public :: TDispMbdInp, mbd_calc_t

@@ -21,7 +21,7 @@ module dftbp_dftb_mdftb
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TMdftbAtomicIntegrals, TMdftbInp, TMdftb, TMdftb_init

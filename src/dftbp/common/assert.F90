@@ -11,7 +11,7 @@
 module dftbp_common_assert
   use dftbp_common_globalenv, only : stdOut0
   use dftbp_common_globalenv, only : abortProgram
-  implicit none
+  implicit none (type, external)
 
   private
 #:block DEBUG_CODE

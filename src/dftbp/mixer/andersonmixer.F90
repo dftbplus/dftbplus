@@ -19,7 +19,7 @@ module dftbp_mixer_andersonmixer
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
   use dftbp_mixer_mixer, only : TMixerCmplx, TMixerReal
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TAndersonMixerInp

@@ -42,7 +42,7 @@
 !> Communications 79 (1994) 111
 module dftbp_math_ranlux
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TRanlux

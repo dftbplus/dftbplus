@@ -13,7 +13,7 @@ module dftbp_capicallback
   use iso_c_binding, only: c_ptr, c_int, c_funptr, c_loc, c_null_ptr, c_f_procpointer
   use dftbp_common_accuracy, only : dp
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: dmhs_callback_c_wrapper, set_dmhs_callback_c_wrapper, TCAuxWrapper, TCMatrixDescr

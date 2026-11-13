@@ -34,7 +34,7 @@ module dftbp_solvation_solvparser
   use dftbp_solvation_solventdata, only : SolventFromName, TSolventData
   use dftbp_solvation_solvinput, only : TSolvationInp
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   public :: readSolvation

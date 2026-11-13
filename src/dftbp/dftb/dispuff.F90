@@ -27,7 +27,7 @@ module dftbp_dftb_dispuff
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only : getLatticePoints, getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_simplealgebra, only : determinant33, invert33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDispUffInp, TDispUff, DispUff_init

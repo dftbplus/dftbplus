@@ -11,16 +11,15 @@
 ! non-overlapping MPI subgrids.
 
 program test_mpisubgrids
-  ! Omitting explicit import list, as some mpi modules simply miss symbols (as in MPICH 3.3)
+  ! No explicit import list, as some mpi modules miss symbols
   use mpi
-      !, only : MPI_COMM_WORLD, MPI_THREAD_FUNNELED, MPI_REAL8, MPI_SUM, mpi_comm,&
-      !& mpi_init_thread, mpi_comm_rank, mpi_comm_size, mpi_comm_split, mpi_ireduce, mpi_barrier,&
-      !& mpi_comm_free, mpi_finalize
   use, intrinsic :: iso_fortran_env, only : real64
   use dftbplus, only : TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use testhelpers, only : writeAutotestTag   ! Only needed for the internal test system
   use dftbp_common_constants, only : AA__Bohr   ! Imported to ensure accurate conversion
+  ! No enforcement of explicit externals, as some mpi modules miss symbols
   implicit none
+
 
   integer, parameter :: dp = real64
 

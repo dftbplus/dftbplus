@@ -101,7 +101,7 @@ module dftbp_dftbplus_parser
   use dftbp_transport_negfvars, only : ContactInfo, TElPh, TNEGFGreenDensInfo, TNEGFTunDos
 #:endif
   use dftbp_transport_negfvars, only : TTransPar
-  implicit none
+  implicit none (type, external)
 
   private
   public :: parserVersion, rootTag

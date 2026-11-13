@@ -21,7 +21,7 @@ module dftbp_dftb_shortgamma
 #:if WITH_SCALAPACK
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TShortGammaInput, TShortGamma, TShortGamma_init, TShortGammaDamp

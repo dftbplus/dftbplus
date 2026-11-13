@@ -10,7 +10,7 @@ module dftbp_dftbplus_qdepextpotgenc
   use, intrinsic :: iso_c_binding, only : c_double, c_ptr
   use dftbp_common_accuracy, only : dp
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
-  implicit none
+  implicit none (type, external)
   private
 
   public :: getExtPotIfaceC, getExtPotGradIfaceC

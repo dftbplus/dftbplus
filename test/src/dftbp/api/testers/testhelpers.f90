@@ -14,7 +14,7 @@ module testhelpers
   use dftbp_common_filesystem, only : findFile, getParamSearchPaths
   use dftbp_extlibs_xmlf90, only : string, char
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter, TTaggedWriter_init
-  implicit none
+  implicit none (type, external)
   private
 
   public :: writeAutotestTag, c_writeAutotestTag, searchFile

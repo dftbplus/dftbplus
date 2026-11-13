@@ -11,7 +11,7 @@
 module dftbp_dftbplus_apicallback
   use dftbp_common_accuracy, only : dp
   use dftbp_type_densedescr, only : TDenseDescr
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TAPICallback, TDMHSCallbackFunc, TSetDMHSCallbackFunc

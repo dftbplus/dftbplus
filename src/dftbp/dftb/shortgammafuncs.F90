@@ -11,7 +11,7 @@ module dftbp_dftb_shortgammafuncs
   use dftbp_common_accuracy, only : dp, lc, minHubDiff, minHubTol, minShortGamma, tolSameDist,&
       & tolShortGamma
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: expGammaCutoff, expGamma, expGammaPrime, expGammaDamped, expGammaDampedPrime

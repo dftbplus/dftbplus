@@ -13,7 +13,7 @@ program test_intcharges
       & TDftbPlus_init, TDftbPlusInput
   ! Only needed for the internal test system
   use testhelpers, only : searchFile, writeAutotestTag
-  implicit none
+  implicit none (type, external)
 
   integer, parameter :: dp = kind(1.0d0)
 

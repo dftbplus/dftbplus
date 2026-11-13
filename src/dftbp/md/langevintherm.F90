@@ -16,7 +16,7 @@ module dftbp_md_langevintherm
   use dftbp_md_mdcommon, only : MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon, boxMueller
   use dftbp_md_tempprofile, only : TTempProfile
   use dftbp_md_thermostat, only : TThermostat
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TLangevinThermInput

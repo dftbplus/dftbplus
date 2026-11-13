@@ -43,7 +43,7 @@ module dftbp_extlibs_poisson
       & set_contlabels, set_fermi, set_potentials
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: withPoisson
