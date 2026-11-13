@@ -455,7 +455,6 @@ contains
       call new_ipea1_calculator(calc, mol, exc)
       if (allocated(exc)) call error("Failed to initialize gfn2 calculator: "//exc%message)
     end select
-    
   end subroutine getCalculator
 #:endif
 
