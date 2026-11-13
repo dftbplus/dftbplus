@@ -8,12 +8,12 @@
 #:include 'common.fypp'
 
 !> Contains fundamental global computing environment settings.
-!>
-!> It contains global settings and routines, which can be used already before the parsing of the
-!> input has taken place and the details of the user settings for the running-environment are
-!> known. Also, it can be used by routines which are not MPI-aware but wish to make I/O or abort the
-!> code.
-!>
+!!
+!! It contains global settings and routines, which can be used already before the parsing of the
+!! input has taken place and the details of the user settings for the running-environment are
+!! known. Also, it can be used by routines which are not MPI-aware but wish to make I/O or abort the
+!! code.
+!!
 module dftbp_common_globalenv
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
 #:if WITH_MPI
@@ -98,7 +98,7 @@ contains
     integer, intent(in), optional :: devNull
 
     !> Effective standard output for the calling process (on an MPI run, this is redirected to
-    !> the null device on every process but the lead one)
+    !! the null device on every process but the lead one)
     integer, intent(out), optional :: stdOut
 
     integer :: outputUnit_
@@ -154,9 +154,9 @@ contains
 
 
   !> Gracefully shuts down environment and stops execution.
-  !>
-  !> Note: this routine must be called collectively by all processes.
-  !>
+  !!
+  !! Note: this routine must be called collectively by all processes.
+  !!
   subroutine shutdown()
 
     call synchronizeAll()
@@ -167,10 +167,10 @@ contains
 
 
   !> Aborts program execution immediately.
-  !>
-  !> Note: if this routine is called by any the processes, execution immediately stops
-  !> without waiting for any other processes.
-  !>
+  !!
+  !! Note: if this routine is called by any the processes, execution immediately stops
+  !! without waiting for any other processes.
+  !!
   subroutine abortProgram(errorCode)
 
     !> Error code to emit (default: 1)
@@ -209,12 +209,12 @@ contains
 
 
   !> Stops the program if it has been started on more than one MPI process.
-  !>
-  !> Should be called by purely serial programs right after initGlobalEnv(). It is a no-op in
-  !> non-MPI builds.
-  !>
-  !> Note: this routine must be called collectively by all processes.
-  !>
+  !!
+  !! Should be called by purely serial programs right after initGlobalEnv(). It is a no-op in
+  !! non-MPI builds.
+  !!
+  !! Note: this routine must be called collectively by all processes.
+  !!
   subroutine ensureSerialRun()
 
   #:if WITH_MPI
