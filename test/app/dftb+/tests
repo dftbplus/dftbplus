@@ -304,6 +304,9 @@ derivatives/H2Oext_gamma               #? MPI_PROCS <= 1
 derivatives/H2Oext_kpts                #? MPI_PROCS <= 1
 derivatives/H2Oext_subranges           #? not WITH_MPI
 
+derivatives/dielectric_nonscc          #? not WITH_MPI
+derivatives/dielectric_hybrid          #? not WITH_MPI
+
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
 legacy/file_access                     #? MPI_PROCS <= 1
