@@ -15,6 +15,9 @@ program dftbplus
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_main, only : runDftbPlus
+#:if WITH_MAGMA
+  use dftbp_extlibs_magma, only : magmaf_finalize
+#:endif
   use dftbp_io_formatout, only : printDftbHeader
   implicit none (type, external)
 
