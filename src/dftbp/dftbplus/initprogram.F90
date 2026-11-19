@@ -3108,7 +3108,7 @@ contains
     this%tWriteDetailedOut = env%tGlobalLead .and. input%ctrl%tWriteDetailedOut .and.&
         & .not. this%tRestartNoSC
     this%tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalLead&
-        & .and. this%electronicSolver%providesEigenvals
+        & .and. this%electronicSolver%providesEigenvals .and. .not.this%tRestartNoSC
 
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
