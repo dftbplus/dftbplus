@@ -12,9 +12,9 @@ module dftbp_timedep_transcharges
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
 #:if WITH_SCALAPACK
+  use dftbp_common_schedule, only : distributeRangeInChunks
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, pblasfx_pgemm, RSRC_,&
-      & scalafx_indxl2g
+  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, scalafx_indxl2g
 #:endif
   use dftbp_io_message, only : error
   use dftbp_type_densedescr, only : TDenseDescr
@@ -135,9 +135,9 @@ contains
 
   #:if WITH_SCALAPACK
 
-    integer :: iSpin, iAtom, nSpin, nOrbs, nLocRow, nLocCol
-    integer :: desc(DLEN_), iLoc, mLoc, iGlb, mGlb, jLoc, jGlb
-    real(dp), allocatable :: maskMat(:,:), workLocal(:,:), workGlobal(:,:)
+    integer :: iSpin, nSpin, first, last
+    integer :: desc(DLEN_), iLoc, iGlb, jLoc, jGlb
+    real(dp), allocatable :: cGlobal(:,:,:), scGlobal(:,:,:)
 
   #:endif
 
@@ -151,6 +151,7 @@ contains
 
     nSpin = size(grndEigVecs, dim=3)
 
+    this%tCacheChargesSame = tStoreSame
     if (tStoreSame) then
 
       @:ASSERT(tStoreOccVir)
@@ -160,11 +161,6 @@ contains
         @:ASSERT(.not.allocated(this%qCacheVirVir))
         allocate(this%qCacheVirVir(this%nAtom, sum(nXvvUD)))
       end if
-
-    else
-
-      this%tCacheChargesSame = .false.
-
     end if
 
     if (tStoreOccVir) then
@@ -177,89 +173,51 @@ contains
 
       allocate(this%qCacheOccVir(this%nAtom, nTrans))
       desc(:) = denseDesc%blacsOrbSqr
-      allocate(workGlobal(nOrb,nOrb))
-      nLocRow = size(grndEigVecs,dim=1)
-      nLocCol = size(grndEigVecs,dim=2)
-      allocate(workLocal(nLocRow,nLocCol))
-      allocate(maskMat(nLocRow,nLocCol))
 
+      ! Assemble the orbital coefficients once per spin from their block-cyclic distribution.
+      ! Each global entry is supplied by exactly one rank.
+      allocate(cGlobal(nOrb, nOrb, nSpin), source=0.0_dp)
+      allocate(scGlobal(nOrb, nOrb, nSpin), source=0.0_dp)
       do iSpin = 1, nSpin
-        do iAtom = 1, this%nAtom
-          workGlobal(:,:) = 0.0_dp
-          workLocal(:,:) = 0.0_dp
-          maskMat(:,:) = 0.0_dp
-
-          do mLoc = 1, size(grndEigVecs, dim=1)
-            mGlb = scalafx_indxl2g(mLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
+        do jLoc = 1, size(grndEigVecs, dim=2)
+          jGlb = scalafx_indxl2g(jLoc, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_), &
+              & env%blacs%orbitalGrid%ncol)
+          do iLoc = 1, size(grndEigVecs, dim=1)
+            iGlb = scalafx_indxl2g(iLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
                 & env%blacs%orbitalGrid%nrow)
-            if (mGlb >= denseDesc%iAtomStart(iAtom) .and. &
-                & mGlb < denseDesc%iAtomStart(iAtom + 1)) then
-              maskMat(mLoc,:) = sTimesGrndEigVecs(mLoc,:,iSpin)
-            end if
+            cGlobal(iGlb,jGlb,iSpin) = grndEigVecs(iLoc,jLoc,iSpin)
+            scGlobal(iGlb,jGlb,iSpin) = sTimesGrndEigVecs(iLoc,jLoc,iSpin)
           end do
+        end do
+        call mpifx_allreduceip(env%mpi%groupComm, cGlobal(:,:,iSpin), MPI_SUM)
+        call mpifx_allreduceip(env%mpi%groupComm, scGlobal(:,:,iSpin), MPI_SUM)
+      end do
 
-          call pblasfx_pgemm(grndEigVecs(:,:,iSpin), denseDesc%blacsOrbSqr, maskMat, &
-              & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="T")
+      ! Compute each charge column on one rank and leave it zero on the others.
+      ! The sum gives every rank the complete cache for lookups by global index.
+      this%qCacheOccVir(:,:) = 0.0_dp
+      call distributeRangeInChunks(env, 1, nTrans, first, last)
+      do ia = first, last
+        kk = win(ia)
+        call directCharge(getia(kk,:), this%qCacheOccVir(:,ia))
+      end do
+      call mpifx_allreduceip(env%mpi%groupComm, this%qCacheOccVir, MPI_SUM)
 
-          do jLoc = 1, size(grndEigVecs, dim=2)
-            jGlb = scalafx_indxl2g(jLoc, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_), &
-                & env%blacs%orbitalGrid%ncol)
-            do iLoc = 1, size(grndEigVecs, dim=1)
-              iGlb = scalafx_indxl2g(iLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
-                  & env%blacs%orbitalGrid%nrow)
-              workGlobal(iGlb,jGlb) =  workLocal(iLoc,jLoc)
-            enddo
-          enddo
+      if (tStoreSame .and. tFirstCall) then
+        this%qCacheOccOcc(:,:) = 0.0_dp
+        call distributeRangeInChunks(env, 1, sum(nXooUD), first, last)
+        do ij = first, last
+          call directCharge(getij(ij,:), this%qCacheOccOcc(:,ij))
+        end do
+        call mpifx_allreduceip(env%mpi%groupComm, this%qCacheOccOcc, MPI_SUM)
 
-          call mpifx_allreduceip(env%mpi%groupComm, workGlobal, MPI_SUM)
-
-          do ia = 1, nTrans
-            kk = win(ia)
-            ii = getia(kk,1)
-            aa = getia(kk,2)
-            ss = getia(kk,3)
-
-            if (ss == iSpin) then
-              if (kk <= nMatUp) then
-                this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa)+workGlobal(aa,ii))
-              else
-                this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa)+workGlobal(aa,ii))
-              end if
-            end if
-          enddo
-
-          if (tStoreSame .and. tFirstCall) then
-
-            do ij = 1, sum(nXooUD)
-              ii = getij(ij,1)
-              jj = getij(ij,2)
-              ss = getij(ij,3)
-              if (ss == iSpin) then
-                if(ij <= nXooUD(1)) then
-                  this%qCacheOccOcc(iAtom,ij) =  0.5_dp * (workGlobal(ii,jj)+workGlobal(jj,ii))
-                else
-                  this%qCacheOccOcc(iAtom,ij) =  0.5_dp * (workGlobal(ii,jj)+workGlobal(jj,ii))
-                end if
-              end if
-            enddo
-
-            do ab = 1, sum(nXvvUD)
-              aa = getab(ab,1)
-              bb = getab(ab,2)
-              ss = getab(ab,3)
-              if (ss == iSpin) then
-                if(ab <= nXvvUD(1)) then
-                  this%qCacheVirVir(iAtom,ab) = 0.5_dp * (workGlobal(aa,bb)+workGlobal(bb,aa))
-                else
-                  this%qCacheVirVir(iAtom,ab) = 0.5_dp * (workGlobal(aa,bb)+workGlobal(bb,aa))
-                end if
-              end if
-            end do
-
-          endif
-
-        enddo
-      enddo
+        this%qCacheVirVir(:,:) = 0.0_dp
+        call distributeRangeInChunks(env, 1, sum(nXvvUD), first, last)
+        do ab = first, last
+          call directCharge(getab(ab,:), this%qCacheVirVir(:,ab))
+        end do
+        call mpifx_allreduceip(env%mpi%groupComm, this%qCacheVirVir, MPI_SUM)
+      end if
 
       this%tCacheChargesOccVir = .true.
 
@@ -331,6 +289,36 @@ contains
 
     end if
 
+  #:endif
+
+  #:if WITH_SCALAPACK
+    contains
+
+      !> Mulliken charges for one orbital pair, using the assembled coefficients.
+      subroutine directCharge(pair, q)
+
+        !> Two orbital indices followed by the spin channel
+        integer, intent(in) :: pair(3)
+
+        !> Transition charge on each atom
+        real(dp), intent(out) :: q(:)
+
+        integer :: i, j, spin, atom, mu
+
+        i = pair(1)
+        j = pair(2)
+        spin = pair(3)
+
+        q(:) = 0.0_dp
+        do atom = 1, size(q)
+          do mu = denseDesc%iAtomStart(atom), denseDesc%iAtomStart(atom + 1) - 1
+            q(atom) = q(atom) + cGlobal(mu, i, spin) * scGlobal(mu, j, spin) &
+                & + cGlobal(mu, j, spin) * scGlobal(mu, i, spin)
+          end do
+        end do
+        q(:) = 0.5_dp * q
+
+      end subroutine directCharge
   #:endif
 
   end subroutine TTransCharges_init
