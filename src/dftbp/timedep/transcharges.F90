@@ -176,9 +176,8 @@ contains
 
       ! Assemble the orbital coefficients once per spin from their block-cyclic distribution.
       ! Each global entry is supplied by exactly one rank.
-      allocate(cGlobal(nOrb, nOrb, nSpin), scGlobal(nOrb, nOrb, nSpin))
-      cGlobal = 0.0_dp
-      scGlobal = 0.0_dp
+      allocate(cGlobal(nOrb, nOrb, nSpin), source=0.0_dp)
+      allocate(scGlobal(nOrb, nOrb, nSpin), source=0.0_dp)
       do iSpin = 1, nSpin
         do jLoc = 1, size(grndEigVecs, dim=2)
           jGlb = scalafx_indxl2g(jLoc, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_), &
@@ -196,7 +195,7 @@ contains
 
       ! Compute each charge column on one rank and leave it zero on the others.
       ! The sum gives every rank the complete cache for lookups by global index.
-      this%qCacheOccVir = 0.0_dp
+      this%qCacheOccVir(:,:) = 0.0_dp
       call distributeRangeInChunks(env, 1, nTrans, first, last)
       do ia = first, last
         kk = win(ia)
@@ -205,14 +204,14 @@ contains
       call mpifx_allreduceip(env%mpi%groupComm, this%qCacheOccVir, MPI_SUM)
 
       if (tStoreSame .and. tFirstCall) then
-        this%qCacheOccOcc = 0.0_dp
+        this%qCacheOccOcc(:,:) = 0.0_dp
         call distributeRangeInChunks(env, 1, sum(nXooUD), first, last)
         do ij = first, last
           call directCharge(getij(ij,:), this%qCacheOccOcc(:,ij))
         end do
         call mpifx_allreduceip(env%mpi%groupComm, this%qCacheOccOcc, MPI_SUM)
 
-        this%qCacheVirVir = 0.0_dp
+        this%qCacheVirVir(:,:) = 0.0_dp
         call distributeRangeInChunks(env, 1, sum(nXvvUD), first, last)
         do ab = first, last
           call directCharge(getab(ab,:), this%qCacheVirVir(:,ab))
@@ -310,8 +309,8 @@ contains
         j = pair(2)
         spin = pair(3)
 
+        q(:) = 0.0_dp
         do atom = 1, size(q)
-          q(atom) = 0.0_dp
           do mu = denseDesc%iAtomStart(atom), denseDesc%iAtomStart(atom + 1) - 1
             q(atom) = q(atom) + cGlobal(mu, i, spin) * scGlobal(mu, j, spin) &
                 & + cGlobal(mu, j, spin) * scGlobal(mu, i, spin)
