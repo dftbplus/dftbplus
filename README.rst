@@ -81,17 +81,7 @@ If the configuration was successful, start the build with::
 
   cmake --build _build -- -j
 
-After successful build, you should test the code. First download the files
-needed for the test ::
-
-  ./utils/get_opt_externals slakos
-  ./utils/get_opt_externals gbsa
-
-or ::
-
-  ./utils/get_opt_externals ALL
-
-and then run the tests with ::
+After successful build, you should test the code. Run the tests with ::
 
   pushd _build; ctest -j; popd
 
@@ -105,9 +95,12 @@ For further details see the `detailed building instructions <INSTALL.rst>`_.
 Parameterisations
 =================
 
-In order to carry out calculations with DFTB+, you need according
-parameterisations (a.k.a. Slater-Koster files). You can download them from
-`dftb.org <https://dftb.org>`_.
+In order to carry out calculations with the DFTB models, you need
+suitable parameterisations (a.k.a. Slater-Koster files). You can
+download them from `dftb.org <https://dftb.org>`_.
+
+The shell variable *DFTBPLUS_PARAM_DIR* can be set to point to their
+downloaded location (see the manual for details).
 
 
 Documentation

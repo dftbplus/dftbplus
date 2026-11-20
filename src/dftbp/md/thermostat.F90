@@ -8,7 +8,7 @@
 !> Contains the abstract interface that can provide any of the thermostats
 module dftbp_md_thermostat
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TThermostat

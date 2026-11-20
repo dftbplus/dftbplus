@@ -17,7 +17,7 @@ module dftbp_common_mpienv
 #:if WITH_TRANSPORT
   use dftbp_extlibs_negf, only : negf_cart_init
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TMpiEnv, TMpiEnv_init, TMpiEnv_final
@@ -50,18 +50,11 @@ module dftbp_common_mpienv
     !> Rank of the processes in the given group (with respect of globalComm)
     integer, allocatable :: groupMembersGlobal(:)
 
-    !> Rank of the processes in the given group (with respect of MPI_COMM_WORLD)
-    integer, allocatable :: groupMembersWorld(:)
-
     !> Whether current process is the global lead
     logical :: tGlobalLead
 
     !> Whether current process is the group lead
     logical :: tGroupLead
-
-  contains
-
-    procedure :: mpiSerialEnv
 
   end type TMpiEnv
 
@@ -69,31 +62,31 @@ module dftbp_common_mpienv
 contains
 
   !> Initializes MPI environment.
-  ! ---------------------------------------------------------------
-  ! Initializes global communicator and group communicators
-  ! Example:
-  ! globalSize = 10
-  ! nGroup = 2
-  ! groupSize = 5
-  !                        rank
-  ! globalComm:      0 1 2 3 4 5 6 7 8 9
-  ! groupComm:       0 1 2 3 4 0 1 2 3 4
-  ! interGroupComm:  0 0 0 0 0 1 1 1 1 1
-  ! ---------------------------------------------------------------
-  ! SCALAPACK
-  ! Different groups handle different kpoints/spin (iKS)
-  ! All procs within a group know eigenval(:,iKS)
-  ! These are distributed to all other nodes using interGroupComm
-  ! eigenvec(:,:,iKS) are used to build the density matrix, DM(:,:,iKS)
-  ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
-  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
-  ! ---------------------------------------------------------------
-  ! LIBNEGF
-  ! Different groups handle different kpoints/spin (iKS)
-  ! All procs within a group know densMat(:,:,iKS)
-  ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
-  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
-  ! ---------------------------------------------------------------
+  !! ---------------------------------------------------------------
+  !! Initializes global communicator and group communicators
+  !! Example:
+  !! globalSize = 10
+  !! nGroup = 2
+  !! groupSize = 5
+  !!                        rank
+  !! globalComm:      0 1 2 3 4 5 6 7 8 9
+  !! groupComm:       0 1 2 3 4 0 1 2 3 4
+  !! interGroupComm:  0 0 0 0 0 1 1 1 1 1
+  !! ---------------------------------------------------------------
+  !! SCALAPACK
+  !! Different groups handle different kpoints/spin (iKS)
+  !! All procs within a group know eigenval(:,iKS)
+  !! These are distributed to all other nodes using interGroupComm
+  !! eigenvec(:,:,iKS) are used to build the density matrix, DM(:,:,iKS)
+  !! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
+  !! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
+  !! ---------------------------------------------------------------
+  !! LIBNEGF
+  !! Different groups handle different kpoints/spin (iKS)
+  !! All procs within a group know densMat(:,:,iKS)
+  !! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
+  !! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
+  !! ---------------------------------------------------------------
   subroutine TMpiEnv_init(this, globalMpiComm, nGroup)
 
     !> Initialised instance on exit
@@ -137,32 +130,14 @@ contains
   !> Finalises the communicators in the structure supplied here
   subroutine TMpiEnv_final(this)
 
-    !>  Initialised instance.
+    !> Initialised instance.
     type(TMpiEnv), intent(inout) :: this
 
+    call this%nodeComm%free()
     call this%interGroupComm%free()
     call this%groupComm%free()
 
   end subroutine TMpiEnv_final
-
-
-  !> Routine to check this is a single processor instance, stopping otherwise (useful to call in
-  !> purely serial codes to avid multiple copies being invoked with mpirun)
-  subroutine mpiSerialEnv(this, iErr)
-
-    !> Instance
-    class(TMpiEnv), intent(in) :: this
-
-    !> Optional error flag
-    integer, intent(out), optional :: iErr
-
-    if (this%globalComm%size > 1) then
-
-      @:ERROR_HANDLING(iErr, -1, 'This is serial code, but invoked on multiple processors')
-
-    end if
-
-  end subroutine mpiSerialEnv
 
 
   !> Sets up subgrids and group communicators used with common (non-NEGF) solvers.
@@ -173,7 +148,6 @@ contains
 
     integer :: myRank, myGroup
     character(lc) :: tmpStr
-    type(mpifx_comm) :: mpiCommWorld
 
     this%groupSize = this%globalComm%size / this%nGroup
     if (this%nGroup * this%groupSize /= this%globalComm%size) then
@@ -188,11 +162,6 @@ contains
     allocate(this%groupMembersGlobal(this%groupSize))
     call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembersGlobal)
 
-    ! Make a wrapper around MPI_COMM_WORLD and get group member ids within that descriptor
-    call mpiCommWorld%init()
-    allocate(this%groupMembersWorld(this%groupSize))
-    call mpifx_allgather(this%groupComm, mpiCommWorld%rank, this%groupMembersWorld)
-
     myGroup = myRank
     myRank = this%myGroup
     call this%globalComm%split(myGroup, myRank, this%interGroupComm)
@@ -203,17 +172,17 @@ contains
 #:if WITH_TRANSPORT
 
   !> Sets up subgrids and group communicators used with NEGF solver.
-  !>
-  !> Note: it overrides the global communicator with the Cartesian global handler
-  !> created by libNEGF as libNEGF uses that. At a later stage, the Cartesian
-  !> communicator should be hidden in the libNEGF-DFTB+ interface instead.
-  !>
+  !!
+  !! Note: it overrides the global communicator with the Cartesian global handler
+  !! created by libNEGF as libNEGF uses that. At a later stage, the Cartesian
+  !! communicator should be hidden in the libNEGF-DFTB+ interface instead.
+  !!
   subroutine setup_subgrids_negf(this)
 
     !> Environment instance
     type(TMpiEnv), intent(inout) :: this
 
-    type(mpifx_comm) :: cartComm, mpiCommWorld
+    type(mpifx_comm) :: cartComm
 
     call negf_cart_init(this%globalComm, this%nGroup, cartComm, this%groupComm, this%interGroupComm)
     if (this%globalComm%lead .neqv. cartComm%lead) then
@@ -226,11 +195,6 @@ contains
 
     allocate(this%groupMembersGlobal(this%groupSize))
     call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembersGlobal)
-
-    ! Make a wrapper around MPI_COMM_WORLD and get group member ids within that descriptor
-    call mpiCommWorld%init()
-    allocate(this%groupMembersWorld(this%groupSize))
-    call mpifx_allgather(this%groupComm, mpiCommWorld%rank, this%groupMembersWorld)
 
   end subroutine setup_subgrids_negf
 

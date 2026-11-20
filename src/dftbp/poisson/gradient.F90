@@ -13,6 +13,7 @@
 !  under the LGPL licence.                                                *
 !**************************************************************************
 module dftbp_poisson_gradient
+  implicit none (type, external)
 
 
 real(8), allocatable, save :: gr(:,:)     !3,NNDIM

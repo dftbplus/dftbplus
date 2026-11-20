@@ -4,7 +4,7 @@ program testapp
   use test_common_file, only : file_tests => tests
   use test_common_memman, only : memman_tests => tests
   use test_common_schedule, only : schedule_tests => tests
-  implicit none
+  implicit none (type, external)
 
   call execute_serial_cmd_app(test_list([&
       atomicmass_tests(),&

@@ -38,8 +38,9 @@ add_subdirectory(timedep)
 add_subdirectory(type)
 add_subdirectory(solvation)
 add_subdirectory(transport)
+add_subdirectory(xtb)
 if(WITH_API)
-  add_subdirectory(api/mm)
+  add_subdirectory(api)
 endif()
 if(WITH_POISSON)
   add_subdirectory(poisson)
@@ -69,7 +70,7 @@ target_include_directories(dftbplus PUBLIC
 
 if(WITH_API)
   target_include_directories(dftbplus INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api/mm>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_INCLUDEDIR}>)
 endif()
 
@@ -124,6 +125,13 @@ if(WITH_ELSI)
   endif()
 endif()
 
+if(WITH_ELPA)
+  target_link_libraries(dftbplus PUBLIC elpa::elpa)
+  if(WITH_GPU)
+    target_link_directories(dftbplus PUBLIC ${CUDAToolkit_LIBRARY_DIR})
+  endif()
+endif()
+
 if(WITH_PLUMED)
   target_link_libraries(dftbplus PRIVATE Plumed::Plumed)
 endif()
@@ -167,7 +175,7 @@ if(INSTALL_INCLUDE_FILES)
 
   if(WITH_API)
     CONFIGURE_FILE(
-      "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/api/dftbplus.h"
       "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
       @ONLY
       )

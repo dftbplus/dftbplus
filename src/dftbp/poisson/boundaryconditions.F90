@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 module dftbp_poisson_boundaryconditions
+  implicit none (type, external)
 
   !> Enumerator containing possible Poisson boundary conditions
   type, private :: TBCPoissonEnum_

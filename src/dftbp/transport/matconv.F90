@@ -20,7 +20,7 @@ module dftbp_transport_matconv
   use dftbp_common_constants, only : imag, pi
   use dftbp_extlibs_negf, only : create, destroy, r_CSR, r_DNS, z_CSR, z_DNS
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: init,   destruct

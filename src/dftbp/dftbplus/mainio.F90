@@ -15,11 +15,11 @@
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, lc, mc, sc
-  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann, gfac,&
-      & Hartree__eV, quaternionName, spinName
+  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
+      & gfac, Hartree__eV, pi, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : abortProgram, destructGlobalEnv, stdOut
+  use dftbp_common_globalenv, only : abortProgram, destructGlobalEnv
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants
@@ -36,10 +36,12 @@ module dftbp_dftbplus_mainio
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_extlibs_xmlf90, only : xml_ADDXMLDeclaration, xml_Close, xml_EndElement,&
       & xml_NewElement, xml_OpenFile, xmlf_t
+  use dftbp_geometry_control, only : TGeomChanges
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_commonformats, only : format1U, format1U1e, format1Ue, format2U, format2Ue,&
       & formatBorn, formatdBorn, formatGeoOut, formatHessian
-  use dftbp_io_formatout, only : writeGenFormat, writeSparse, writeSparseAsSquare, writeXYZFormat
+  use dftbp_io_formatout, only : writeGenFormat, writeSparse, writeSparseAsSquare,&
+      & writeXYZFormat
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
@@ -47,6 +49,7 @@ module dftbp_dftbplus_mainio
   use dftbp_math_eigensolver, only : heev
   use dftbp_md_mdcommon, only : TMDOutput
   use dftbp_md_mdintegrator, only : state, TMdIntegrator
+  use dftbp_md_tempprofile, only : TTempProfile
   use dftbp_reks_reks, only : reksTypes, setReksTargetEnergy, TReksCalc
   use dftbp_solvation_cm5, only : TChargeModel5
   use dftbp_solvation_cosmo, only : TCosmo
@@ -67,7 +70,7 @@ module dftbp_dftbplus_mainio
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketComm
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: writeEigenvectors, writeRealEigvecs, writeCplxEigvecs
@@ -80,24 +83,27 @@ module dftbp_dftbplus_mainio
 #:endif
   public :: writeProjectedEigenvectors
   public :: writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
+  public :: writeBondInfo
   public :: writeDerivBandOut, writeHessianOut, writeBornChargesOut, writeBornDerivs
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7
-  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10, permitivityPrint
+  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10
+  public :: permitivityPrint
   public :: writeMdOut1, writeMdOut2
   public :: writeCharges
   public :: writeEsp
   public :: writeCurrentGeometry, writeExtendedGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printSccHeader, printElecConstrHeader
-  public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies, printVolume
+  public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
-  public :: printForceNorm, printLatticeForceNorm
+  public :: printForceNorm, printLatticeForceNorm, printLatticeInfo
   public :: printMdInfo, printBlankLine
   public :: printReksSccHeader, printReksSccInfo
   public :: writeReksDetailedOut1
   public :: readEigenvecs
+  public :: writeExcitedStateForces
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -2035,6 +2041,108 @@ contains
   end subroutine writeAutotestTag
 
 
+  !> Writes pairwise Mulliken bond populations, non-SCC bond energies and/or
+  !! Mayer bond orders as plain-text N x N matrices.
+  subroutine writeBondInfo(bondPop, bondEner, bondOrder, tWriteAutotest, autotestFile,&
+      & tWriteResultsTag, resultsFile, taggedWriter)
+
+    !> Pairwise Mulliken bond populations (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondPop(:,:)
+
+    !> Pairwise non-SCC bond energies (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondEner(:,:)
+
+    !> Pairwise Mayer bond orders (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondOrder(:,:)
+
+    !> Whether tagged output should be appended for regression testing
+    logical, intent(in) :: tWriteAutotest
+
+    !> Name of the autotest tag file to append to (mode = "a")
+    character(*), intent(in) :: autotestFile
+
+    !> Whether tagged output should be appended for results file
+    logical, intent(in) :: tWriteResultsTag
+
+    !> Name of the results tag file to append to (mode = "a")
+    character(*), intent(in) :: resultsFile
+
+    !> Tagged-output writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    type(TFileDescr) :: fd
+    integer :: nAtom, iAt
+
+    if (.not.any([allocated(bondPop), allocated(bondEner), allocated(bondOrder)])) return
+    if (.not.any([tWriteAutotest, tWriteResultsTag])) return
+
+    if (allocated(bondPop)) then
+      nAtom = size(bondPop, dim=1)
+      call openFile(fd, "bond_pop.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Mulliken bond populations: B_AB = sum_{mu in A, nu in B} P_{mu nu} S_{mu nu}"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondPop(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (allocated(bondEner)) then
+      nAtom = size(bondEner, dim=1)
+      call openFile(fd, "bond_energy.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Non-SCC bond energies: E_AB = sum_{mu in A, nu in B} P_{mu nu} H0_{mu nu} (a.u.)"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondEner(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (allocated(bondOrder)) then
+      nAtom = size(bondOrder, dim=1)
+      call openFile(fd, "bond_order.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Mayer bond orders: B_AB = sum_{mu in A, nu in B} (PS)_{mu nu} (PS)_{nu mu}"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondOrder(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (tWriteAutotest) then
+      call openFile(fd, autotestFile, mode="a")
+      if (allocated(bondPop)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondPopulations, bondPop)
+      end if
+      if (allocated(bondEner)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondEnergies, bondEner)
+      end if
+      if (allocated(bondOrder)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondOrders, bondOrder)
+      end if
+      call closeFile(fd)
+    end if
+
+    if (tWriteResultsTag) then
+      call openFile(fd, resultsFile, mode="a")
+      if (allocated(bondPop)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondPopulations, bondPop)
+      end if
+      if (allocated(bondEner)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondEnergies, bondEner)
+      end if
+      if (allocated(bondOrder)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondOrders, bondOrder)
+      end if
+      call closeFile(fd)
+    end if
+
+  end subroutine writeBondInfo
+
+
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, pBornMatrix, tPeriodic, cellVol,&
@@ -2504,7 +2612,10 @@ contains
 
 
   !> Write the energy second derivative matrix
-  subroutine writeHessianOut(fileName, pDynMatrix, indMovedAtoms, errStatus)
+  subroutine writeHessianOut(output, fileName, pDynMatrix, indMovedAtoms, errStatus)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2547,10 +2658,10 @@ contains
     end do
 
     if (tPartialHessian) then
-      write(stdOut, "(2A)") 'Hessian matrix written to ',&
+      write(output, "(2A)") 'Hessian matrix written to ',&
           & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
     else
-      write(stdOut, "(2A)") 'Hessian matrix written to ', fileName
+      write(output, "(2A)") 'Hessian matrix written to ', fileName
     end if
 
     call closeFile(fd)
@@ -2558,8 +2669,12 @@ contains
   end subroutine writeHessianOut
 
 
-  !> Write the dipole derivative wrt.coordinates matrix (i.e. Born charges)
-  subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+  !> Write the dipole derivative wrt.coordinates matrix/Born charges
+  subroutine writeBornChargesOut(output, fileName, pBornMatrix, indMovedAtoms, nDerivAtoms,&
+      & errStatus)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2603,17 +2718,20 @@ contains
     call closeFile(fd)
 
     if (tPartialMatrix) then
-      write(stdOut, "(2A)") 'Born charges matrix written to ',&
+      write(output, "(2A)") 'Born charges matrix written to ',&
           & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
     else
-      write(stdOut, "(2A)") 'Born charges matrix written to ', fileName
+      write(output, "(2A)") 'Born charges matrix written to ', fileName
     end if
 
   end subroutine writeBornChargesOut
 
 
-  !> Write the Derivatives of the polarizability with respect to atom positions
-  subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+  !> Write the Derivatives of the polarizability
+  subroutine writeBornDerivs(output, fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2656,7 +2774,7 @@ contains
     end do
 
     call closeFile(fd)
-    write(stdOut, "(2A)") 'Born charge derivative matrix written to ', file
+    write(output, "(2A)") 'Born charge derivative matrix written to ', file
 
   end subroutine writeBornDerivs
 
@@ -3124,9 +3242,12 @@ contains
 
   !> Wrapped call for detailedout2 and print energies, which can process multiple determinants,
   !> currently only for two spin channels
-  subroutine writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
+  subroutine writeDetailedOut2Dets(env, fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
       & electronicSolver, deltaDftb, q0, orb, qOutput, qDets, qBlockDets, species,&
       & iAtInCentralRegion, tPrintMulliken, cm5Cont)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> File ID
     type(TFileDescr), intent(inout) :: fdDetailedOut
@@ -3214,7 +3335,7 @@ contains
         & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
         & cm5Cont)
 
-    call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut%unit)
+    call printEnergies(fdDetailedOut%unit, dftbEnergy, electronicSolver, deltaDftb)
 
   end subroutine writeDetailedOut2Dets
 
@@ -3370,7 +3491,7 @@ contains
       end if
 
       if (isMdftb) then
-        call writeMdftbEnergies(energy, fd)
+        call writeMdftbEnergies(fd, energy)
       end if
 
       if (tDFTBU) then
@@ -3810,7 +3931,7 @@ contains
     end if
 
     if (allocated(quadrupoleMoment)) then
-      call printQuadrupoleMoment(quadrupoleMoment, fd)
+      call printQuadrupoleMoment(fd, quadrupoleMoment)
     end if
 
     if (allocated(eField)) then
@@ -3910,7 +4031,7 @@ contains
     !> Driving frequencies (including potentially 0 for static)
     real(dp), allocatable, intent(in) :: omega(:)
 
-    integer :: iCart, iAt, nAtom, iS, nSpin, iOmega
+    integer :: iCart, iAt, nAtom, iS, nSpin
 
     if (allocated(dqOut)) then
       nAtom = size(dqOut, dim=2)
@@ -3984,8 +4105,8 @@ contains
     do iOmega = 1, size(omega)
       write(fd,*)
       if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
-        write(fd, format2U)"Polarisability at omega = ", omega(iOmega), ' H ',&
-            & omega(iOmega) * Hartree__eV, ' eV'
+        write(fd, "(A, T32, F18.10, T51, A, T54, F16.4, T71, A)")"Polarisability at omega = ",&
+            & omega(iOmega), ' H ', omega(iOmega) * Hartree__eV, ' eV'
       else
         write(fd, *)"Static polarisability:"
       end if
@@ -4198,19 +4319,22 @@ contains
     end if
 
     if (deltaDftb%nDeterminant() > 1) then
-      call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fd)
+      call printEnergies(fd, dftbEnergy, electronicSolver, deltaDftb)
     end if
 
     if (allocated(quadrupoleMoment)) then
-      call printQuadrupoleMoment(quadrupoleMoment, fd)
+      call printQuadrupoleMoment(fd, quadrupoleMoment)
     end if
 
   end subroutine writeMdOut2
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, densityMatrix,&
-      & tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts, multipoles)
+  subroutine writeCharges(output, fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn,&
+      & densityMatrix, tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts, multipoles)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -4254,10 +4378,11 @@ contains
     call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, densityMatrix,&
         & tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts=coeffsAndShifts,&
         & multipoles=multipoles)
+
     if (tWriteAscii) then
-      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges) // '.dat'
+      write(output, "(A,A)") '>> Charges saved for restart in ', trim(fCharges) // '.dat'
     else
-      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges) // '.bin'
+      write(output, "(A,A)") '>> Charges saved for restart in ', trim(fCharges) // '.bin'
     end if
 
   end subroutine writeCharges
@@ -4328,7 +4453,7 @@ contains
     ! Write out matrices if necessary and quit.
     call writeHS(env, tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighbourList%iNeighbour,&
         & nNeighbourSK, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
-    write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
+    write(env%stdOut, "(A)") "Hamilton/Overlap written, exiting program."
     call env%destruct()
     call destructGlobalEnv()
     call abortProgram()
@@ -4425,7 +4550,7 @@ contains
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
       & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
-      & iLatGeoStep, nSpin, qOutput, velocities)
+      & iLatGeoStep, nSpin, qOutput, velocities, writeTrajectoryForces, derivs)
 
     !> File for geometry output
     character(*), intent(in) :: geoOutFile
@@ -4481,8 +4606,13 @@ contains
     !> Atomic velocities
     real(dp), intent(in), allocatable :: velocities(:,:)
 
+    !> Should per-atom forces be printed in the trajectory
+    logical, intent(in) :: writeTrajectoryForces
+
+    !> Energy derivatives with respect to atomic coordinates
+    real(dp), intent(in), allocatable :: derivs(:,:)
+
     integer :: nAtom
-    integer :: ii, jj
     character(lc) :: comment, fname
 
     nAtom = size(pCoord0Out, dim=2)
@@ -4498,21 +4628,33 @@ contains
 
     call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
 
-    if (tPrintMulliken) then
-      ! For non-colinear spin without velocities write magnetisation into the velocity field
-      if (nSpin == 4 .and. .not. allocated(velocities)) then
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1), dim=1),&
-            & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
-            & append=tAppendGeo)
+    if (writeTrajectoryForces) then
+      @:ASSERT(allocated(velocities))
+      @:ASSERT(allocated(derivs))
+      if (tPrintMulliken) then
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, charges=sum(qOutput(:,:,1),&
+            & dim=1), velocities=velocities, forces=-derivs, comment=comment, append=tAppendGeo)
       else
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
-            & append=tAppendGeo)
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+            & forces=-derivs, comment=comment, append=tAppendGeo)
       end if
     else
-      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
-          & comment=comment, append=tAppendGeo)
+      if (tPrintMulliken) then
+        ! For non-colinear spin without velocities write magnetisation into the velocity field
+        if (nSpin == 4 .and. .not. allocated(velocities)) then
+          call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+              & charges=sum(qOutput(:,:,1), dim=1),&
+              & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
+              & append=tAppendGeo)
+        else
+          call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+              & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+              & append=tAppendGeo)
+        end if
+      else
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+            & comment=comment, append=tAppendGeo)
+      end if
     end if
 
   end subroutine writeCurrentGeometry
@@ -4590,7 +4732,10 @@ contains
 
 
   !> Write out final status of the geometry driver.
-  subroutine writeFinalDriverStatus(tGeoOpt, tGeomEnd, tMd, tDerivs)
+  subroutine writeFinalDriverStatus(output, tGeoOpt, tGeomEnd, tMd, tDerivs)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Is the geometry being optimised?
     logical, intent(in) :: tGeoOpt
@@ -4606,21 +4751,21 @@ contains
 
     if (tGeoOpt) then
       if (tGeomEnd) then
-        write(stdOut, "(/, A)") "Geometry converged"
+        write(output, "(/, A)") "Geometry converged"
       else
-        call warning("!!! Geometry did NOT converge!")
+        call warning(output, "!!! Geometry did NOT converge!")
       end if
     elseif (tMD) then
       if (tGeomEnd) then
-        write(stdOut, "(/, A)") "Molecular dynamics completed"
+        write(output, "(/, A)") "Molecular dynamics completed"
       else
-        call warning("!!! Molecular dynamics terminated abnormally!")
+        call warning(output, "!!! Molecular dynamics terminated abnormally!")
       end if
     elseif (tDerivs) then
       if (tGeomEnd) then
-        write(stdOut, "(/, A)") "Second derivatives completed"
+        write(output, "(/, A)") "Second derivatives completed"
       else
-        call warning("!!! Second derivatives terminated abnormally!")
+        call warning(output, "!!! Second derivatives terminated abnormally!")
       end if
     end if
 
@@ -4628,7 +4773,10 @@ contains
 
 
   !> Prints geometry step information to standard out
-  subroutine printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+  subroutine printGeoStepInfo(output, tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Are coordinates being optimised
     logical, intent(in) :: tCoordOpt
@@ -4642,37 +4790,46 @@ contains
     !> How many lattice optimisation steps have occurred
     integer, intent(in) :: iLatGeoStep
 
-    write(stdOut, '(/, A)') repeat('-', 80)
+    write(output, '(/, A)') repeat('-', 80)
     if (tCoordOpt .and. tLatOpt) then
-      write(stdOut, "(/, A, I0, A, I0,/)") '***  Geometry step: ', iGeoStep, ', Lattice step: ',&
+      write(output, "(/, A, I0, A, I0,/)") '***  Geometry step: ', iGeoStep, ', Lattice step: ',&
           & iLatGeoStep
     else
-      write(stdOut, "(/, A, I0, /)") '***  Geometry step: ', iGeoStep
+      write(output, "(/, A, I0, /)") '***  Geometry step: ', iGeoStep
     end if
 
   end subroutine printGeoStepInfo
 
 
   !> Prints the line above the start of the SCC cycle data
-  subroutine printSccHeader()
+  subroutine printSccHeader(output)
 
-    write(stdOut, "(A5, A18, A18, A18)") "iSCC", " Total electronic ", "  Diff electronic ",&
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
+
+    write(output, "(A5, A18, A18, A18)") "iSCC", " Total electronic ", "  Diff electronic ",&
         & "     SCC error    "
 
   end subroutine printSccHeader
 
 
   !> Prints the line above the start of the electronic constraints cycle data
-  subroutine printElecConstrHeader()
+  subroutine printElecConstrHeader(output)
 
-    write(stdOut, "(A6,A5,3A18)") repeat(" ", 6), "iConst", "  Total electronic",&
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
+
+    write(output, "(A6,A5,3A18)") repeat(" ", 6), "iConst", "  Total electronic",&
         & "     max(dW/dVc)  ", "     dW           "
 
   end subroutine printElecConstrHeader
 
 
   !> Prints the line above the start of the REKS SCC cycle data
-  subroutine printReksSccHeader(reks)
+  subroutine printReksSccHeader(output, reks)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
@@ -4680,7 +4837,7 @@ contains
     select case (reks%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      write(stdOut,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
+      write(output,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
           & "      Diff energy   ", "      x_a    ", "   SCC error   "
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
@@ -4689,13 +4846,20 @@ contains
   end subroutine printReksSccHeader
 
 
-  subroutine printBlankLine()
-    write(stdOut, *)
+  subroutine printBlankLine(output)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
+
+    write(output, *)
   end subroutine printBlankLine
 
 
   !> Prints info about scc convergence.
-  subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
+  subroutine printSccInfo(output, tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Are orbital potentials being used
     logical, intent(in) :: tDftbU
@@ -4713,16 +4877,19 @@ contains
     real(dp), intent(in) :: sccErrorQ
 
     if (tDFTBU) then
-      write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
+      write(output, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
     else
-      write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
+      write(output, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
     end if
 
   end subroutine printSccInfo
 
 
   !> Prints info about electronic constraint convergence.
-  subroutine printElecConstrInfo(elecConstraint, iConstrIter, Eelec)
+  subroutine printElecConstrInfo(output, elecConstraint, iConstrIter, Eelec)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Represents electronic contraints
     type(TElecConstraint), intent(in) :: elecConstraint
@@ -4745,13 +4912,16 @@ contains
     ! Get maximum derivative of energy functional with respect to Vc
     dWdVcMax = elecConstraint%getMaxEnergyDerivWrtVc()
 
-    write(stdOut, "(T6,I5,3E18.8)") iConstrIter, Eelec, deltaWTotal, dWdVcMax
+    write(output, "(T6,I5,3E18.8)") iConstrIter, Eelec, deltaWTotal, dWdVcMax
 
   end subroutine printElecConstrInfo
 
 
   !> Prints info about scc convergence.
-  subroutine printReksSccInfo(iSccIter, Eavg, diffTotal, sccErrorQ, reks)
+  subroutine printReksSccInfo(output, iSccIter, Eavg, diffTotal, sccErrorQ, reks)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Iteration count
     integer, intent(in) :: iSccIter
@@ -4772,7 +4942,7 @@ contains
     select case (reks%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Eavg,&
+      write(output,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Eavg,&
           & diffTotal, reks%FONs(1,1) * 0.5_dp, sccErrorQ
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
@@ -4782,7 +4952,10 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, electronicSolver, deltaDftb, outUnit)
+  subroutine printEnergies(output, energy, electronicSolver, deltaDftb)
+
+    !> Output unit where results should be written to
+    integer, intent(in) :: output
 
     !> energy components, potentially from multiple determinants
     type(TEnergies), intent(in) :: energy(:)
@@ -4793,110 +4966,99 @@ contains
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
-    !> Optional unit to print out the results
-    integer, intent(in), optional :: outUnit
-
-    integer :: iUnit
-
-    if (present(outUnit)) then
-      iUnit = outUnit
-    else
-      iUnit = stdOut
-    end if
-
-    write(iUnit, *)
+    write(output, *)
 
     if (deltaDftb%iGround > 0) then
 
       if (deltaDftb%isNonAufbau) then
-        write(iUnit, format2U) "Ground State Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+        write(output, format2U) "Ground State Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(iUnit, format2U) "Ground State Extrapolated to 0K",&
+          write(output, format2U) "Ground State Extrapolated to 0K",&
               & energy(deltaDftb%iGround)%Ezero, "H",&
               & Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(iUnit, format2U) "Total Ground State Mermin egy",&
+          write(output, format2U) "Total Ground State Mermin egy",&
               & energy(deltaDftb%iGround)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(iUnit, format2U) 'Ground State Force related egy',&
+          write(output, format2U) 'Ground State Force related egy',&
               & energy(deltaDftb%iGround)%EForceRelated, 'H',&
               & energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
         end if
       else
-        write(iUnit, format2U) "Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+        write(output, format2U) "Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(iUnit, format2U) "Extrapolated to 0K", energy(deltaDftb%iGround)%Ezero,&
+          write(output, format2U) "Extrapolated to 0K", energy(deltaDftb%iGround)%Ezero,&
               & "H", Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(iUnit, format2U) "Total Mermin free energy", energy(deltaDftb%iGround)%EMermin,&
+          write(output, format2U) "Total Mermin free energy", energy(deltaDftb%iGround)%EMermin,&
               & "H", Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(iUnit, format2U) 'Force related energy', energy(deltaDftb%iGround)%EForceRelated,&
+          write(output, format2U) 'Force related energy', energy(deltaDftb%iGround)%EForceRelated,&
               & 'H', energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
         end if
       end if
-      write(iUnit,*)
+      write(output,*)
     end if
 
     if (deltaDftb%iTriplet > 0) then
 
-      write(iUnit, format2U) "Triplet State Total Energy", energy(deltaDftb%iTriplet)%Etotal,"H",&
+      write(output, format2U) "Triplet State Total Energy", energy(deltaDftb%iTriplet)%Etotal,"H",&
           & Hartree__eV * energy(deltaDftb%iTriplet)%Etotal,"eV"
       if (electronicSolver%providesEigenvals) then
-        write(iUnit, format2U) "Triplet State Extrapolated to 0K",&
+        write(output, format2U) "Triplet State Extrapolated to 0K",&
             & energy(deltaDftb%iTriplet)%Ezero, "H",&
             & Hartree__eV * energy(deltaDftb%iTriplet)%Ezero, "eV"
       end if
       if (electronicSolver%providesElectronEntropy) then
-        write(iUnit, format2U) "Triplet State Mermin free egy",&
+        write(output, format2U) "Triplet State Mermin free egy",&
             & energy(deltaDftb%iTriplet)%EMermin, "H",&
             & Hartree__eV * energy(deltaDftb%iTriplet)%EMermin, "eV"
       end if
       if (electronicSolver%providesFreeEnergy) then
-        write(iUnit, format2U) 'Triplet State Force related egy',&
+        write(output, format2U) 'Triplet State Force related egy',&
             & energy(deltaDftb%iTriplet)%EForceRelated, 'H',&
             & energy(deltaDftb%iTriplet)%EForceRelated * Hartree__eV, 'eV'
       end if
-      write(iUnit,*)
+      write(output,*)
     end if
 
     if (deltaDftb%iMixed > 0) then
 
       if (deltaDftb%isSpinPurify) then
 
-        write(iUnit, format2U) "Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
+        write(output, format2U) "Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iFinal)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(iUnit, format2U) "Purified Extrapolated 0K",&
+          write(output, format2U) "Purified Extrapolated 0K",&
               & energy(deltaDftb%iFinal)%Ezero, "H",&
               & Hartree__eV * energy(deltaDftb%iFinal)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(iUnit, format2U) "Purified State Mermin free egy",&
+          write(output, format2U) "Purified State Mermin free egy",&
               & energy(deltaDftb%iFinal)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iFinal)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(iUnit, format2U) 'Purified Force related egy',&
+          write(output, format2U) 'Purified Force related egy',&
               & energy(deltaDftb%iFinal)%EForceRelated, 'H',&
               & energy(deltaDftb%iFinal)%EForceRelated * Hartree__eV, 'eV'
         end if
 
         if (deltaDftb%iGround > 0) then
-          write(iUnit, *)
-          write(iUnit, format2U) 'S0 -> T1',&
+          write(output, *)
+          write(output, format2U) 'S0 -> T1',&
               & energy(deltaDftb%iTriplet)%EForceRelated&
               & - energy(deltaDftb%iGround)%EForceRelated, 'H',&
               & (energy(deltaDftb%iTriplet)%EForceRelated&
               & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV'
-          write(iUnit, format2U) 'S0 -> S1',&
+          write(output, format2U) 'S0 -> S1',&
               & energy(deltaDftb%iFinal)%EForceRelated - energy(deltaDftb%iGround)%EForceRelated,&
               & 'H',&
               & (energy(deltaDftb%iFinal)%EForceRelated - energy(deltaDftb%iGround)%EForceRelated)&
@@ -4905,46 +5067,75 @@ contains
 
       else
 
-        write(iUnit, format2U) "Mixed State Total Energy", energy(deltaDftb%iMixed)%Etotal,"H",&
+        write(output, format2U) "Mixed State Total Energy", energy(deltaDftb%iMixed)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iMixed)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(iUnit, format2U) "Mixed Extrapolated to 0K",&
+          write(output, format2U) "Mixed Extrapolated to 0K",&
               & energy(deltaDftb%iMixed)%Ezero, "H",&
               & Hartree__eV * energy(deltaDftb%iMixed)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(iUnit, format2U) "Mixed State Mermin free egy",&
+          write(output, format2U) "Mixed State Mermin free egy",&
               & energy(deltaDftb%iMixed)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iMixed)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(iUnit, format2U) 'Mixed State Force related egy',&
+          write(output, format2U) 'Mixed State Force related egy',&
               & energy(deltaDftb%iMixed)%EForceRelated, 'H',&
               & energy(deltaDftb%iMixed)%EForceRelated * Hartree__eV, 'eV'
         end if
 
       end if
 
-      write(iUnit,*)
+      write(output,*)
 
     end if
 
   end subroutine printEnergies
 
 
-  !> Prints cell volume.
-  subroutine printVolume(cellVol)
+  !> Prints periodic cell information
+  subroutine printLatticeInfo(fd, geoControl, latVec, cellVol)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Geometry change control
+    type(TGeomChanges), intent(in) :: geoControl
+
+    !> Lattice vectors
+    real(dp), intent(in) :: latVec(:,:)
 
     !> unit cell volume
     real(dp), intent(in) :: cellVol
 
-    write(stdOut, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
+    integer :: ii, jj
+    real(dp) :: norm(3,3), mag
 
-  end subroutine printVolume
+    write(fd,"(A)")'Lattice vectors (AA)'
+    do ii = 1, 3
+      mag = sqrt(sum(latvec(:,ii)**2))
+      norm(:,ii) = latvec(:,ii) / mag
+      write(fd, "(3F20.6,' :',E14.6)")latvec(:,ii) * Bohr__AA, mag * Bohr__AA
+    end do
+    write(fd,"(A)")'Angles (degrees) between lattice vectors'
+    do ii = 1, 3
+      do jj = ii + 1, 3
+        write(fd, "(1X, 'vector',I2, ' and vector', I2, ' : ', F12.6)")ii, jj,&
+            & acos(dot_product(norm(:,ii), norm(:,jj)))*180.0_dp/pi
+      end do
+    end do
+
+    write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
+
+  end subroutine printLatticeInfo
 
 
   !> Prints pressure and free energy.
-  subroutine printPressureAndFreeEnergy(pressure, cellPressure, EGibbs)
+  subroutine printPressureAndFreeEnergy(output, pressure, cellPressure, EGibbs)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> applied external pressure
     real(dp), intent(in) :: pressure
@@ -4955,61 +5146,76 @@ contains
     !> Gibbs free energy (E -TS_elec +pV)
     real(dp), intent(in) :: EGibbs
 
-    write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+    write(output, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
     if (abs(pressure) > epsilon(1.0_dp)) then
-      write(stdOut, format2U) "Gibbs free energy", EGibbs, 'H', Hartree__eV * EGibbs, 'eV'
+      write(output, format2U) "Gibbs free energy", EGibbs, 'H', Hartree__eV * EGibbs, 'eV'
     end if
 
   end subroutine printPressureAndFreeEnergy
 
 
   !> Writes maximal force component.
-  subroutine printMaxForce(maxForce)
+  subroutine printMaxForce(output, maxForce)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> maximum of the atomic forces
     real(dp), intent(in) :: maxForce
 
-    write(stdOut, "(A, ':', T30, E20.6)") "Maximal force component", maxForce
+    write(output, "(A, ':', T30, E20.6)") "Maximal force component", maxForce
 
   end subroutine printMaxForce
 
 
   !> Writes norm of the force
-  subroutine printForceNorm(forceNorm)
+  subroutine printForceNorm(output, forceNorm)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Norm of the force
     real(dp), intent(in) :: forceNorm
 
-    write(stdOut, "(A, ':', T30, E20.6)") "Averaged force norm", forceNorm
+    write(output, "(A, ':', T30, E20.6)") "Averaged force norm", forceNorm
 
   end subroutine printForceNorm
 
 
   !> Print maximal lattice force component
-  subroutine printMaxLatticeForce(maxLattForce)
+  subroutine printMaxLatticeForce(output, maxLattForce)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Maximum energy derivative with respect to lattice vectors
     real(dp), intent(in) :: maxLattForce
 
-    write(stdOut, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
+    write(output, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
 
   end subroutine printMaxLatticeForce
 
 
   !> Print norm of lattice force
-  subroutine printLatticeForceNorm(lattForceNorm)
+  subroutine printLatticeForceNorm(output, lattForceNorm)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Norm of the lattice force
     real(dp), intent(in) :: lattForceNorm
 
-    write(stdOut, format1Ue) "Averaged lattice force norm", lattForceNorm, 'au'
+    write(output, format1Ue) "Averaged lattice force norm", lattForceNorm, 'au'
 
   end subroutine printLatticeForceNorm
 
 
   !> Prints out info about current MD step.
-  subroutine printMdInfo(tSetFillingTemp, eField, tPeriodic, tempElec, tempIon, cellPressure,&
-      & pressure, energy)
+  subroutine printMdInfo(output, tSetFillingTemp, eField, tPeriodic, tempElec, tempIon,&
+      & cellPressure, pressure, energy, tempProfile)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Is the electronic temperature set by the thermostat method?
     logical, intent(in) :: tSetFillingTemp
@@ -5035,23 +5241,33 @@ contains
     !> data type for energy components and total
     type(TEnergies), intent(in) :: energy
 
+    !> Temperature profile in MD
+    type(TTempProfile), allocatable, intent(in) :: tempProfile
+
+    real(dp) :: temp
+
+    if (allocated(tempProfile)) then
+      call tempProfile%getTemperature(temp)
+      write(output, format2U)"Target MD temperature", temp, 'a.u.', temp / Boltzmann, 'K'
+    end if
+
     if (tSetFillingTemp) then
-      write(stdOut, format2U) 'Electronic Temperature', tempElec, 'H', tempElec / Boltzmann, 'K'
+      write(output, format2U) 'Electronic Temperature', tempElec, 'H', tempElec / Boltzmann, 'K'
     end if
     if (allocated(eField)) then
       if (allocated(eField%EFieldStrength)) then
-        write(stdOut, format1U1e) 'External E field', eField%absEField, 'au',&
+        write(output, format1U1e) 'External E field', eField%absEField, 'au',&
             & eField%absEField * au__V_m, 'V/m'
       end if
     end if
-    write(stdOut, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
-    write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
-    write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H",&
+    write(output, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
+    write(output, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
+    write(output, format2U) "Total MD Energy", energy%EMerminKin, "H",&
         & Hartree__eV * energy%EMerminKin, "eV"
     if (tPeriodic) then
-      write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+      write(output, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
       if (abs(pressure) < epsilon(1.0_dp)) then
-        write(stdOut, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+        write(output, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
             & Hartree__eV * energy%EGibbsKin, 'eV'
       end if
     end if
@@ -5094,7 +5310,7 @@ contains
     @:ASSERT(env%tGlobalLead .eqv. allocated(socket))
 
     if (env%tGlobalLead) then
-      call socket%receive(coord0, tmpLatVecs, tStopDriver)
+      call socket%receive(env, coord0, tmpLatVecs, tStopDriver)
     end if
     tCoordsChanged = .true.
     if (tPeriodic .and. .not. tStopDriver) then
@@ -5395,12 +5611,12 @@ contains
 
     integer, allocatable :: iOrbs(:)
     integer :: valShape(1)
-    integer :: iReg, dummy
+    integer :: iReg, placeholder
 
     do iReg = 1, size(fd)
       call elemShape(iOrbRegion, valshape, iReg)
       allocate(iOrbs(valshape(1)))
-      call intoArray(iOrbRegion, iOrbs, dummy, iReg)
+      call intoArray(iOrbRegion, iOrbs, placeholder, iReg)
       write(fd(iReg)%unit, "(f13.6,f10.6)") Hartree__eV * eigval, sum(fracs(iOrbs))
       deallocate(iOrbs)
     end do
@@ -5425,12 +5641,12 @@ contains
 
     integer, allocatable :: iOrbs(:)
     integer :: valShape(1)
-    integer :: iReg, dummy
+    integer :: iReg, placeholder
 
     do iReg = 1, size(fd)
       call elemShape(iOrbRegion, valshape, iReg)
       allocate(iOrbs(valshape(1)))
-      call intoArray(iOrbRegion, iOrbs, dummy, iReg)
+      call intoArray(iOrbRegion, iOrbs, placeholder, iReg)
       write(fd(iReg)%unit, "(f13.6,4f10.6)") Hartree__eV * eigval, sum(fracs(:,iOrbs), dim=2)
       deallocate(iOrbs)
     end do
@@ -5633,12 +5849,13 @@ contains
 
   #:if WITH_SCALAPACK
 
+    eigenvecs(:,:) = 0.0_dp
     call error("Eigenvector reading not currently supported for ScaLAPACK enabled builds")
 
   #:else
 
     type(TFileDescr) :: file
-    integer :: iMO, nOrb, dummy, ioStat
+    integer :: iMO, nOrb, tmpJobId, ioStat
 
     nOrb = size(eigenvecs,dim=1)
 
@@ -5646,9 +5863,9 @@ contains
     if (ioStat /= 0) then
       call error('no ' // eigvecBin // ' file!')
     end if
-    read(file%unit) dummy
+    read(file%unit) tmpJobId
     if (present(jobId)) then
-      jobId = dummy
+      jobId = tmpJobId
     end if
     do iMO = 1, nOrb
       read(file%unit) eigenvecs(:,iMO)
@@ -5949,7 +6166,7 @@ contains
       end if
 
       if (isMdftb) then
-        call writeMdftbEnergies(energy, fd)
+        call writeMdftbEnergies(fd, energy)
       end if
 
     end if
@@ -6018,7 +6235,10 @@ contains
 
 
   !> Write cavity information as cosmo file
-  subroutine writeCosmoFile(solvation, species0, speciesNames, coords0, energy)
+  subroutine writeCosmoFile(output, solvation, species0, speciesNames, coords0, energy)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Instance of the solvation model
     class(TSolvation), intent(in) :: solvation
@@ -6039,7 +6259,7 @@ contains
 
     select type(solvation)
     class is (TCosmo)
-      write(stdOut, '(*(a:, 1x))') "Cavity information written to", cosmoFile
+      write(output, '(*(a:, 1x))') "Cavity information written to", cosmoFile
       call openFile(file, cosmoFile, mode="w")
       call solvation%writeCosmoFile(file%unit, species0, speciesNames, coords0, energy)
       call closeFile(file)
@@ -6049,71 +6269,114 @@ contains
 
 
   !> Prints out the total quadrupole moment of the system
-  subroutine printQuadrupoleMoment(quadrupoleMoment, outUnit)
+  subroutine printQuadrupoleMoment(output, quadrupoleMoment)
+
+    !> Unit to print out the quadrupoleMoment
+    integer, intent(in) :: output
 
     !> quadrupole moment
     real(dp), intent(in), allocatable :: quadrupoleMoment(:,:)
 
-    !> Optional unit to print out the quadrupoleMoment
-    integer, intent(in), optional :: outUnit
-
-    integer :: iUnit
-
-    if (present(outUnit)) then
-      iUnit = outUnit
-    else
-      iUnit = stdOut
-    end if
-
-    write(iUnit, "(A)") ' Traceless Quadrupole moment in au'
-    write(iUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XX', quadrupoleMoment(1,1), ' YY',&
+    write(output, "(A)") ' Traceless Quadrupole moment in au'
+    write(output, "(A, F14.8, A, F14.8, A, F14.8)") ' XX', quadrupoleMoment(1,1), ' YY',&
         & quadrupoleMoment(2,2), ' ZZ', quadrupoleMoment(3,3)
-    write(iUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XY', quadrupoleMoment(1,2), ' XZ',&
+    write(output, "(A, F14.8, A, F14.8, A, F14.8)") ' XY', quadrupoleMoment(1,2), ' XZ',&
         & quadrupoleMoment(1,3), ' YZ', quadrupoleMoment(2,3)
 
-    write(iUnit, "(A)") ' Traceless Quadrupole moment in Buckingham or Debye*Ang'
-    write(iUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XX',&
+    write(output, "(A)") ' Traceless Quadrupole moment in Buckingham or Debye*Ang'
+    write(output, "(A, F14.8, A, F14.8, A, F14.8)") ' XX',&
         & quadrupoleMoment(1,1) * au__Debye * Bohr__AA, ' YY',&
         & quadrupoleMoment(2,2) * au__Debye * Bohr__AA, ' ZZ',&
         & quadrupoleMoment(3,3) * au__Debye * Bohr__AA
-    write(iUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XY',&
+    write(output, "(A, F14.8, A, F14.8, A, F14.8)") ' XY',&
         & quadrupoleMoment(1,2) * au__Debye * Bohr__AA, ' XZ',&
         & quadrupoleMoment(1,3) * au__Debye * Bohr__AA, ' YZ',&
         & quadrupoleMoment(2,3) * au__Debye * Bohr__AA
-    write(iUnit, *)
+    write(output, *)
 
   end subroutine printQuadrupoleMoment
 
 
   !> Writes the mdftb energy components.
-  subroutine writeMdftbEnergies(energy, iUnit)
+  subroutine writeMdftbEnergies(output, energy)
+
+    !> File unit to write out the mdftb energy components
+    integer, intent(in) :: output
 
     !> Energy terms in the system
     type(TEnergies), intent(in) :: energy
 
-    !> File unit to write out the mdftb energy components
-    integer, intent(in) :: iUnit
-
-
-    write(iUnit, format2U) 'Energy Monopole-Dipole', energy%EMdftbMD, 'H',&
+    write(output, format2U) 'Energy Monopole-Dipole', energy%EMdftbMD, 'H',&
         & energy%EMdftbMD * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Dipole-Dipole', energy%EMdftbDD, 'H',&
+    write(output, format2U) 'Energy Dipole-Dipole', energy%EMdftbDD, 'H',&
         & energy%EMdftbDD * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Monopole-Quadrupole', energy%EMdftbMQ, 'H',&
+    write(output, format2U) 'Energy Monopole-Quadrupole', energy%EMdftbMQ, 'H',&
         & energy%EMdftbMQ * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Dipole-Quadrupole', energy%EMdftbDQ, 'H',&
+    write(output, format2U) 'Energy Dipole-Quadrupole', energy%EMdftbDQ, 'H',&
         & energy%EMdftbDQ * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Quadrupole-Quadrupole', energy%EMdftbQQ, 'H',&
+    write(output, format2U) 'Energy Quadrupole-Quadrupole', energy%EMdftbQQ, 'H',&
         & energy%EMdftbQQ * Hartree__eV, 'eV'
 
-    write(iUnit, format2U) 'Energy Multipole', energy%EMdftb, 'H',&
+    write(output, format2U) 'Energy Multipole', energy%EMdftb, 'H',&
         & energy%EMdftb * Hartree__eV, 'eV'
 
   end subroutine writeMdftbEnergies
 
 
+  !> Write excited state forces
+  subroutine writeExcitedStateForces(env, fileName, derivs, excitedDerivs, indNACouplings)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> File name
+    character(*), intent(in) :: fileName
+
+    !> Ground state derivatives
+    real(dp), intent(in) :: derivs(:,:) 
+
+    !> Derivatives of the excited state energies
+    real(dp), intent(in) :: excitedDerivs(:,:,:)
+
+    !> Start and end index of excited state forces
+    integer, intent(in) :: indNACouplings(:)
+
+    type(TFileDescr) :: fd
+    integer :: ii, iAt, offSet
+
+  #:if WITH_MPI
+    if (.not. env%mpi%tGlobalLead) return
+  #:endif
+
+    offSet = indNACouplings(1)
+    call openFile(fd, fileName, mode="w")
+    write(fd%unit, "(A)") "Forces (au)"
+
+    if(indNACouplings(1) == 0) then
+      write(fd%unit, "(A, i5)") "State ", 0
+      do iAt = 1, size(derivs, dim=2)
+        write(fd%unit, "(3E24.12)") -derivs(:, iAt)
+      end do
+      offSet = 1
+    end if
+
+    if(size(excitedDerivs, dim=3) /= indNACouplings(2)-offSet+1) then
+      call error("Mismatch of number of gradient entries with NACV size.")
+    end if
+    
+    do ii = 1, size(excitedDerivs, dim=3)
+      write(fd%unit, "(A, i5)") "State ", ii + offSet - 1
+      do iAt = 1, size(derivs, dim=2)
+        write(fd%unit, "(3E24.12)") -derivs(:, iAt)-excitedDerivs(:,iAt,ii)
+      end do
+    enddo
+
+    call closeFile(fd)
+
+  end subroutine writeExcitedStateForces
+  
 end module dftbp_dftbplus_mainio

@@ -15,7 +15,7 @@ module dftbp_dftb_shift
   use dftbp_common_schedule, only : assembleChunks, distributeRangeWithWorkload
   use dftbp_type_commontypes, only : TOrbitals
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: addShift, totalShift, addOnsiteShift, addAtomicMultipoleShift
@@ -156,10 +156,10 @@ contains
     !> Indexing array for the Hamiltonian.
     integer, intent(in) :: iPair(0:,:)
 
-    !> Index mapping atoms onto the central cell atoms.
+    !> Number of atoms in the central cell.
     integer, intent(in) :: nAtom
 
-    !> Mapping from image atom to central cell
+    !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: img2CentCell(:)
 
     !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom,1:nSpin)

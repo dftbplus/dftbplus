@@ -44,7 +44,7 @@ module dftbp_extlibs_tblite
   use tblite_container, only : container_cache
   use tblite_context_type, only : context_type
   use tblite_cutoff, only : get_lattice_points
-  use tblite_integral_multipole, only : maxl, msao, multipole_cgto, multipole_grad_cgto
+  use tblite_integral_native_integrals, only : maxl, msao, multipole_cgto, multipole_grad_cgto
   use tblite_param, only : param_record
   use tblite_scf_info, only : atom_resolved, not_used, orbital_resolved, scf_info, shell_resolved
   use tblite_scf_potential, only : new_potential, potential_type
@@ -58,7 +58,7 @@ module dftbp_extlibs_tblite
   use tblite_xtb_ipea1, only : new_ipea1_calculator
   use tblite_xtb_singlepoint, only : xtb_singlepoint
 #:endif
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TTBLite, TTBLiteInput, TTBLite_init, writeTBLiteInfo
@@ -223,6 +223,9 @@ module dftbp_extlibs_tblite
 
     !> Get reference occupation
     procedure :: getReferenceN0
+
+    !> Get reference onsite energies
+    procedure :: getReferenceEi
 
     !> Returns the equivalence to get the correct mixing of charge dependent contributions
     procedure :: getOrbitalEquiv
@@ -437,17 +440,21 @@ contains
     !> Parametrisation data
     type(xtb_calculator), intent(out) :: calc
 
+    type(error_type), allocatable :: exc
+
     select case(method)
     case default
       call error("Unknown method selector")
     case(tbliteMethod%gfn2xtb)
-      call new_gfn2_calculator(calc, mol)
+      call new_gfn2_calculator(calc, mol, exc)
+      if (allocated(exc)) call error("Failed to initialize gfn2 calculator: "//exc%message)
     case(tbliteMethod%gfn1xtb)
-      call new_gfn1_calculator(calc, mol)
+      call new_gfn1_calculator(calc, mol, exc)
+      if (allocated(exc)) call error("Failed to initialize gfn2 calculator: "//exc%message)
     case(tbliteMethod%ipea1xtb)
-      call new_ipea1_calculator(calc, mol)
+      call new_ipea1_calculator(calc, mol, exc)
+      if (allocated(exc)) call error("Failed to initialize gfn2 calculator: "//exc%message)
     end select
-
   end subroutine getCalculator
 #:endif
 
@@ -990,6 +997,41 @@ contains
   #:endif
 
   end subroutine getReferenceN0
+
+
+  !> Get reference onsite energies.
+  subroutine getReferenceEi(this, species0, referenceEi)
+
+    !> Data structure
+    class(TTBLite), intent(in) :: this
+
+    !> Species of each atom, shape: [nAtom]
+    integer, intent(in) :: species0(:)
+
+    !> Reference onsite energies
+    real(dp), intent(out) :: referenceEi(:, :)
+
+  #:if WITH_TBLITE
+    integer :: iAt, iSp, iId, iSh
+    logical, allocatable :: done(:)
+
+    referenceEi(:,:) = 0.0_dp
+    allocate(done(maxval(species0)))
+    done(:) = .false.
+    do iAt = 1, size(species0)
+      iId = this%mol%id(iAt)
+      iSp = species0(iAt)
+      if (done(iSp)) cycle
+      do iSh = 1, this%calc%bas%nsh_at(iAt)
+        referenceEi(iSh, iSp) = this%calc%h0%selfenergy(iSh, iId)
+      end do
+      done(iSp) = .true.
+    end do
+  #:else
+    call notImplementedError
+  #:endif
+
+  end subroutine getReferenceEi
 
 
   !> Returns the equivalence to get the correct mixing of charge dependent contributions

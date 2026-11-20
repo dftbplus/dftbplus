@@ -18,7 +18,7 @@ module dftbp_dftb_spinorbit
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getOnsiteSpinOrbitEnergy, addOnsiteSpinOrbitHam

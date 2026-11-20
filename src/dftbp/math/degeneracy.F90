@@ -9,7 +9,7 @@
 
 module dftbp_math_degeneracy
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDegeneracyFind, TDegeneracyFind_init

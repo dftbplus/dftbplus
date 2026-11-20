@@ -36,7 +36,7 @@ Hamiltonian = DFTB {
         FixedFermiLevel [au] = -0.1643246144
     }
     SlaterKosterFiles = {
-        Fe-Fe = "./Fe-Fe.skf"
+        Fe-Fe = "slakos/origin/pbc-0-3/Fe-Fe.skf"
     }
     SpinOrbit = {
         Dual = Yes

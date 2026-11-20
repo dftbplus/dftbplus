@@ -8,7 +8,7 @@
 !> Contains routines to symmetrize parts of a calculation
 module dftbp_math_contactsymm
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   !> Atoms that are equivalent in some sense
   type TEquivContactAtoms

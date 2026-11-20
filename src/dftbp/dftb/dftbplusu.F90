@@ -13,7 +13,7 @@ module dftbp_dftb_dftbplusu
   use dftbp_common_accuracy, only : dp, sc
   use dftbp_math_sorting, only : heap_sort
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDftbUInp, TDftbU, TDftbU_init, plusUFunctionals

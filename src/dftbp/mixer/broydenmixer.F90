@@ -19,7 +19,7 @@ module dftbp_mixer_broydenmixer
   use dftbp_io_message, only : error
   use dftbp_math_lapackroutines, only : getrf, getrs
   use dftbp_mixer_mixer, only : TMixerCmplx, TMixerReal
-  implicit none
+  implicit none (type, external)
 
 
   private

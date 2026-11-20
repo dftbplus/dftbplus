@@ -70,22 +70,22 @@ Hamiltonian = DFTB{
   }
 
   SlaterKosterFiles = {
-    C-N = "C-N.skf"
-    C-H = "C-H.skf"
-    C-C = "C-C.skf"
-    C-O = "C-O.skf"
-    H-C = "H-C.skf"
-    H-H = "H-H.skf"
-    H-N = "H-N.skf"
-    H-O = "H-O.skf"
-    O-H = "O-H.skf"
-    O-O = "O-O.skf"
-    O-C = "O-C.skf"
-    O-N = "O-N.skf"
-    N-N = "N-N.skf"
-    N-O = "N-O.skf"
-    N-H = "N-H.skf"
-    N-C = "N-C.skf"
+    C-N = "slakos/origin/mio-1-1/C-N.skf"
+    C-H = "slakos/origin/mio-1-1/C-H.skf"
+    C-C = "slakos/origin/mio-1-1/C-C.skf"
+    C-O = "slakos/origin/mio-1-1/C-O.skf"
+    H-C = "slakos/origin/mio-1-1/H-C.skf"
+    H-H = "slakos/origin/mio-1-1/H-H.skf"
+    H-N = "slakos/origin/mio-1-1/H-N.skf"
+    H-O = "slakos/origin/mio-1-1/H-O.skf"
+    O-H = "slakos/origin/mio-1-1/O-H.skf"
+    O-O = "slakos/origin/mio-1-1/O-O.skf"
+    O-C = "slakos/origin/mio-1-1/O-C.skf"
+    O-N = "slakos/origin/mio-1-1/O-N.skf"
+    N-N = "slakos/origin/mio-1-1/N-N.skf"
+    N-O = "slakos/origin/mio-1-1/N-O.skf"
+    N-H = "slakos/origin/mio-1-1/N-H.skf"
+    N-C = "slakos/origin/mio-1-1/N-C.skf"
   }
 }
 

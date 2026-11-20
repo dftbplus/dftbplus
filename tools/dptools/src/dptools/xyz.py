@@ -51,22 +51,22 @@ class Xyz:
         words = lines[0].split()
         natom = int(words[0])
         comment = lines[1].strip()
-        specienames = []
-        speciedict = {}
+        speciesnames = []
+        speciesdict = {}
         indexes = np.empty((natom, ), dtype=int)
         coords = np.empty((natom, 3), dtype=float)
         for ii, line in enumerate(lines[2:2+natom]):
             words = line.split()
             species = words[0]
-            index = speciedict.get(species, -1)
+            index = speciesdict.get(species, -1)
             if index == -1:
-                specienames.append(species)
-                speciedict[species] = len(specienames) - 1
-                indexes[ii] = len(specienames) - 1
+                speciesnames.append(species)
+                speciesdict[species] = len(speciesnames) - 1
+                indexes[ii] = len(speciesnames) - 1
             else:
                 indexes[ii] = index
             coords[ii] = np.array(words[1:4], dtype=float)
-        geometry = Geometry(specienames, indexes, coords)
+        geometry = Geometry(speciesnames, indexes, coords)
         return cls(geometry, comment)
 
 
@@ -82,7 +82,7 @@ class Xyz:
         fp.write(self.comment + "\n")
         for ii in range(geo.natom):
             fp.write("{0:3s} {1:18.10E} {2:18.10E} {3:18.10E}\n".format(
-                geo.specienames[geo.indexes[ii]], *geo.coords[ii]))
+                geo.speciesnames[geo.indexes[ii]], *geo.coords[ii]))
         fp.close()
 
     def equals(self, other, tolerance=_TOLERANCE, check_comment=False):

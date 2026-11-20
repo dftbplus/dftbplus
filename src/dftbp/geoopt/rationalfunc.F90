@@ -18,7 +18,7 @@ module dftbp_geoopt_rationalfunc
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   use dftbp_math_blasroutines, only : spmv
   use dftbp_math_eigensolver, only : syev => heev
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TRationalFuncInput, TRationalFunc, TRationalFunc_init
@@ -125,7 +125,11 @@ contains
     displ(:) = this%uaug(:this%nVar) / this%uaug(nVar1)
     call bfgsUpdate(grad, this%gLast, displ, this%diagLimit, this%hess)
 
-    this%aaug(:) = [this%hess, grad, 0.0_dp]
+    ! Workaround: ifx 2025.3.0 20251023 mpiifx segfaults
+    !this%aaug(:) = [this%hess, grad, 0.0_dp]
+    this%aaug(:size(this%hess)) = this%hess
+    this%aaug(size(this%hess)+1:size(this%hess)+size(grad)) = grad
+    this%aaug(size(this%hess)+size(grad)+1:) = 0.0_dp
     this%uaug(:) = [-grad, 1.0_dp]
     this%uaug(:) = this%uaug(:) / norm2(this%uaug)
 

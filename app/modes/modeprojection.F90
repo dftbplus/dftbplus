@@ -16,7 +16,7 @@ module modes_modeprojection
   use dftbp_math_matrixops, only : adjointLowerTriangle, makeSimilarityTrans
   use dftbp_math_simplealgebra, only : cross3
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   public :: project
@@ -24,9 +24,13 @@ module modes_modeprojection
 
 contains
 
-  !> Projection out of the space of the dynamical matrix.
-  subroutine project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
+
+  !> Projection out of the space of the dynamical matrix
+  subroutine project(output, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
       & atomicMasses)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Dynamical matrix
     real(dp), intent(inout) :: dynMatrix(:,:)
@@ -80,8 +84,8 @@ contains
 
     if (tRemoveRotate) then
       if (geo%tPeriodic) then
-        call warning("Rotational modes were requested to be removed for a periodic geometry -&
-            & results probably unphysical!")
+        call warning(output, "Rotational modes were requested to be removed for a periodic&
+            & geometry - results probably unphysical!")
       end if
 
       centreOfMass(:) = getCentreOfMass(geo%coords, atomicMasses, movedAtoms)

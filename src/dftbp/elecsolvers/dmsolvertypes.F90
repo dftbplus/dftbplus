@@ -7,7 +7,7 @@
 
 !> Types for electronic solution of hamiltonian
 module dftbp_elecsolvers_dmsolvertypes
-  implicit none
+  implicit none (type, external)
 
   private
   public :: densityMatrixTypes

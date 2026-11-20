@@ -12,7 +12,7 @@
 !> Note: this also has the same functional form as onsite 3rd order SCC contributions
 module dftbp_dftb_chargepenalty
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   Private
   public :: TChrgPenalty, TChrgPenalty_init

@@ -631,7 +631,6 @@ Cartesian axes, $x$, $y$, $z$.
   \kw{BoundaryRegion} & m & & global\{\} &  \pref{Boundary Conditions} \\
   \kw{Gate} & m & & none\{\} & \pref{Electrostatic Gates} \\
   \kw{MaxParallelNodes} & m & & none\{\} & \pref{Parallelisations} \\
-  \kw{RecomputeAfterDensity} & l & & No & \\
   \kw{PoissonThickness} & r & contacts = 1 & &\\
 \end{ptableh}
 
@@ -678,12 +677,6 @@ Cartesian axes, $x$, $y$, $z$.
   the Poisson equation (default value 10$^{-6}$).
 \item[\is{MaxPoissonIterations}] Defines the maximum number of iterations allowed
   for the solver.
-\item[\is{RecomputeAfterDensity}] When set to \is{Yes}, Poisson's equation is
-  solved again after the density matrix is created in order to make the
-  electrostatic energy consistent with the newly updated charges.  In transport
-  calculations it is set to \is{No} by default in order to avoid the extra time
-  spent on the Poisson step. This does not affect the SCC loop or other
-  calculations apart from the electronic energy and forces.
 \item[\is{PoissonThickness}] In the special case of a single contact (cases like
   the end of semi-infinite wires or surfaces of crystals), the thickness of the
   Poisson box normal to the surface of the contact can be set with this command.
@@ -881,6 +874,8 @@ Gate = Cylindrical {
 \end{verbatim}
 
 The various options for the gates have the following meanings:
+
+{\bf Planar Gate Options:}
 \begin{description}
 \item[\is{GateLength\_l}]\modif{\modtype{length}} Sets the gate length along the
   transport direction (always assumed to be $z$). The gate is centred in the
@@ -892,16 +887,78 @@ The various options for the gates have the following meanings:
   from the centre axis of the device region.
 \item[\is{GatePotential}]\modif{\modtype{energy}} Sets the potential applied to
   the gate.
-\item[\is{GateRadius}]\modif{\modtype{length}} For a cylindrical gate, sets the
-  distance of the gate from the centre axis or gate radius.
+\item[\is{InsulatorLength\_t}]\modif{\modtype{length}} Sets the insulator layer
+  extent transverse to the transport direction. If present, an insulator
+  material is assumed to be defined in the Poisson box.
+\item[\is{InsulatorLength\_l}]\modif{\modtype{length}} Sets the insulator layer
+  length along the transport direction.
+\item[\is{InsulatorDistance}]\modif{\modtype{length}} Sets the distance of the
+  insulator from the centre axis of the device region.
+\item[\is{BufferLength}]\modif{\modtype{length}} Sets the smoothing region width
+  for the permittivity transition between the insulator and surrounding medium.
+  A larger buffer length results in a smoother transition.
+\item[\is{Permittivity}]\modif{\modtype{dimensionless}} Sets the relative
+  permittivity (dielectric constant) of the insulator material. Default is 1.0
+  (vacuum).
+\item[\is{GateDirection}] Specifies the direction of the gate normal (perpendicular
+  to the gate plane). Takes integer values 1, 2, or 3 corresponding to the $x$,
+  $y$, or $z$ directions respectively. Default is 2 (y-direction). Keep in mind, that
+  the gate direction cannot be parallel to the transport direction.
+\end{description}
+
+{\bf Cylindrical Gate Options:}
+\begin{description}
+\item[\is{GateLength}]\modif{\modtype{length}} Sets the length of the cylindrical
+  gate along the cylinder axis (transport direction).
+\item[\is{GateRadius}]\modif{\modtype{length}} Sets the radius of the cylindrical
+  gate from the centre axis.
+\item[\is{GatePotential}]\modif{\modtype{energy}} Sets the potential applied to
+  the gate.
+\item[\is{InsulatorRadius}]\modif{\modtype{length}} Sets the radius of the
+  insulator layer around the cylindrical gate. If present, an insulator
+  material is assumed to be defined in the Poisson box.
+\item[\is{InsulatorLength}]\modif{\modtype{length}} Sets the length of the
+  insulator layer along the cylinder axis.
+\item[\is{BufferLength}]\modif{\modtype{length}} Sets the smoothing region width
+  for the permittivity transition between the insulator and surrounding medium.
+\item[\is{Permittivity}]\modif{\modtype{dimensionless}} Sets the relative
+  permittivity (dielectric constant) of the insulator material. Default is 1.0
+  (vacuum).
+\item[\is{InsulatorSharpBC}] When set to \is{Yes}, uses sharp boundary
+  conditions for the insulator region instead of smooth transitions. Default is
+  \is{No}.
+\item[\is{GateCenterX}] Specifies the $x$-coordinate of the cylindrical gate
+  center. If not specified, the center is automatically positioned.
+\item[\is{GateCenterY}] Specifies the $y$-coordinate of the cylindrical gate
+  center. If not specified, the center is automatically positioned.
+\item[\is{GateCenterZ}] Specifies the $z$-coordinate of the cylindrical gate
+  center. If not specified, the center is automatically positioned.
 \end{description}
 
 \begin{ptableh}
-  \kw{GateLenth\_l} & r &  & 0.0 &  \\
-  \kw{GateLenth\_t} & r &  & 0.0 &  \\
+  \multicolumn{5}{l}{{\bf Planar Gate:}} \\
+  \kw{GateLength\_l} & r &  & 0.0 &  \\
+  \kw{GateLength\_t} & r &  & 0.0 &  \\
   \kw{GateDistance} & r &  & 0.0 &  \\
   \kw{GatePotential} & r &  & 0.0 &  \\
+  \kw{InsulatorLength\_t} & r &  & 0.0 &  \\
+  \kw{InsulatorLength\_l} & r &  & 0.0 &  \\
+  \kw{InsulatorDistance} & r &  & 0.0 &  \\
+  \kw{BufferLength} & r &  & 0.0 &  \\
+  \kw{Permittivity} & r &  & 1.0 &  \\
+  \kw{GateDirection} & i &  & 2 &  \\
+  \multicolumn{5}{l}{{\bf Cylindrical Gate:}} \\
+  \kw{GateLength} & r &  & 0.0 &  \\
   \kw{GateRadius} & r &  & 0.0 &  \\
+  \kw{GatePotential} & r &  & 0.0 &  \\
+  \kw{InsulatorRadius} & r &  & 0.0 &  \\
+  \kw{InsulatorLength} & r &  & 0.0 &  \\
+  \kw{BufferLength} & r &  & 0.0 &  \\
+  \kw{Permittivity} & r &  & 1.0 &  \\
+  \kw{InsulatorSharpBC} & l &  & No &  \\
+  \kw{GateCenterX} & r &  & auto &  \\
+  \kw{GateCenterY} & r &  & auto &  \\
+  \kw{GateCenterZ} & r &  & auto &  \\
 \end{ptableh}
 
 Note that the gate option has not be tested thoroughly and may still contain
@@ -1012,6 +1069,18 @@ conditions system has been defined in \is{Transport} (see p.\pref{Transport}).
   block follow the same syntax as a \dftbp{} calculation without transport (see
   section~\ref{sec:dftbp.ProjectStates}). If \is{Region} is absent the default
   behaviour is to compute the projected DOS on the whole central region.
+
+  By using the \kw{EachAtom} option, the LDOS will be computed and
+  output separately for each specified atom. Usage example:
+  \begin{verbatim}
+  Region = EachAtom {
+    Atoms = 1:80
+  }
+  \end{verbatim}
+  This will treat each atom from 1 to 80 as an individual region. The atom
+  specification can use ranges (e.g., \verb|1:80|), lists (e.g., \verb|1 2 3|),
+  or species specifications (e.g., \verb|C|). This is particularly useful for
+  analyzing atom-resolved properties in extended systems.
 \item[\is{ComputeLDOS}] Change the default bahaviour of projected DOS calculation.
   When set to No, PDOS is not computed. In the case of two contacts
   the code can exploit a fast and less memory consuming algorithm for transmission.

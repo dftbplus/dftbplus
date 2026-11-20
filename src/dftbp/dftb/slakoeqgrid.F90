@@ -13,7 +13,7 @@ module dftbp_dftb_slakoeqgrid
   use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp
   use dftbp_io_message, only : error
   use dftbp_math_interpolation, only : freeCubicSpline, poly5ToZero, polyInterUniform
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSlakoEqGrid, init

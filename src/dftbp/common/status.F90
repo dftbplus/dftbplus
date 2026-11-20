@@ -9,7 +9,7 @@
 
 !> Implements a status object to indicate possible errors.
 module dftbp_common_status
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TStatus

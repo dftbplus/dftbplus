@@ -61,7 +61,7 @@ Hamiltonian = Dftb {
     }
 
     SlaterKosterfiles = {
-        H-H = "H-H.skf"
+        H-H = "slakos/origin/mio-1-1/H-H.skf"
     }
 
     Solver = GreensFunction{

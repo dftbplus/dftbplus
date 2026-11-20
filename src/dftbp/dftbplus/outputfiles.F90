@@ -7,7 +7,7 @@
 
 !> Global names for output files for the main program.
 module dftbp_dftbplus_outputfiles
-  implicit none
+  implicit none (type, external)
 
   public
 
@@ -53,5 +53,8 @@ module dftbp_dftbplus_outputfiles
 
   !> file name for shift data
   character(*), parameter :: fShifts = "shifts.dat"
+
+  !> file name for excited state forces
+  character(*), parameter :: excFrcOut = "FRC.DAT"  
 
 end module dftbp_dftbplus_outputfiles

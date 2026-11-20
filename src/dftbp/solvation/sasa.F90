@@ -21,7 +21,7 @@ module dftbp_solvation_sasa
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSASACont, TSASAInput, TSASACont_init
@@ -305,7 +305,7 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, this%sCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neighList, this%sCutoff)
 
     call getSASA(env, nNeigh, neighList%iNeighbour, img2CentCell, species0, &
         & coords, this%tolerance, this%smoothingPar, this%probeRad, &

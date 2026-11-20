@@ -134,7 +134,7 @@ def _repeatgeo(geo, latvecs, repeats):
         newlatvecs = latvecs * repeats[:, np.newaxis]
     else:
         newlatvecs = None
-    newgeo = Geometry(geo.specienames, allinds, allcoords, latvecs=newlatvecs,
+    newgeo = Geometry(geo.speciesnames, allinds, allcoords, latvecs=newlatvecs,
                       origin=geo.origin)
     return newgeo
 
@@ -164,6 +164,6 @@ def _repeatgeo2(geo, latvecs, repeats):
         newlatvecs = latvecs * repeats[:, np.newaxis]
     else:
         newlatvecs = None
-    newgeo = Geometry(geo.specienames, allinds, allcoords, latvecs=newlatvecs,
+    newgeo = Geometry(geo.speciesnames, allinds, allcoords, latvecs=newlatvecs,
                       origin=geo.origin)
     return newgeo

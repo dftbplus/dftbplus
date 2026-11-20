@@ -28,7 +28,7 @@ module dftbp_io_hsdutils
   use dftbp_io_xmlutils, only : getChildrenByName, getFirstChildByName
   use dftbp_type_linkedlist, only : append, len, TListComplex, TListComplexR1, TListInt,&
       & TlistIntR1, TListReal, TListRealR1, TListString
-  implicit none
+  implicit none (type, external)
 
   private
   public :: checkError, detailedError, detailedWarning
@@ -1738,7 +1738,7 @@ contains
   !> Caveat: If allowEmptyValue is set to .true. and the child has no subnodes (empty value) then
   !> the returned value is an unassociated pointer
   subroutine getChVal_node(node, name, variableValue, default, modifier, child, list, &
-      & allowEmptyValue, dummyValue)
+      & allowEmptyValue, dontMarkProcessed)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1768,11 +1768,11 @@ contains
     logical, intent(in), optional :: allowEmptyValue
 
     !> If true, the value is not marked as processed.
-    logical, intent(in), optional :: dummyValue
+    logical, intent(in), optional :: dontMarkProcessed
 
     type(string) :: modif
     type(fnode), pointer :: child2
-    logical :: tList, tAllowEmptyVal, tDummyValue
+    logical :: tList, tAllowEmptyVal, shouldMarkProcessed
 
     @:ASSERT(associated(node))
   #:block DEBUG_CODE
@@ -1794,10 +1794,10 @@ contains
     else
       tAllowEmptyVal = .false.
     end if
-    if (present(dummyValue)) then
-      tDummyValue = dummyValue
+    if (present(dontMarkProcessed)) then
+      shouldMarkProcessed = dontMarkProcessed
     else
-      tDummyValue = .false.
+      shouldMarkProcessed = .false.
     end if
 
     child2 => getFirstChildByName(node, tolower(name))
@@ -1828,7 +1828,7 @@ contains
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
     end if
-    if (associated(variableValue) .and. .not. tDummyValue) then
+    if (associated(variableValue) .and. .not. shouldMarkProcessed) then
       if (getNodeType(variableValue) == ELEMENT_NODE) then
         call setAttribute(variableValue, attrProcessed, "")
       end if
@@ -1841,8 +1841,11 @@ contains
 
 
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
-  subroutine getSelectedAtomIndices(node, selectionExpr, speciesNames, species, selectedIndices,&
-        & selectionRange, indexRange)
+  subroutine getSelectedAtomIndices(output, node, selectionExpr, speciesNames, species,&
+      & selectedIndices, selectionRange, indexRange)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Top node for detailed errors.
     type(fnode), pointer, intent(in) :: node
@@ -1886,14 +1889,18 @@ contains
     end if
     selectedIndices = pack([(ii, ii = selectionRange_(1), selectionRange_(2))], selected)
     if (size(selectedIndices) == 0) then
-      call detailedWarning(node, "Atom index selection expression selected no atoms")
+      call detailedWarning(output, node, "Atom index selection expression selected no atoms")
     end if
 
   end subroutine getSelectedAtomIndices
 
 
   !> Converts a string containing indices and ranges to a list of indices.
-  subroutine getSelectedIndices(node, selectionExpr, selectionRange, selectedIndices, indexRange)
+  subroutine getSelectedIndices(output, node, selectionExpr, selectionRange, selectedIndices,&
+      & indexRange)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Top node for detailed errors.
     type(fnode), pointer, intent(in) :: node
@@ -1924,7 +1931,7 @@ contains
     end if
     selectedIndices = pack([(ii, ii = selectionRange(1), selectionRange(2))], selected)
     if (size(selectedIndices) == 0) then
-      call detailedWarning(node, "Atom index selection expression selected no atoms")
+      call detailedWarning(output, node, "Atom index selection expression selected no atoms")
     end if
 
   end subroutine getSelectedIndices
@@ -3325,7 +3332,7 @@ contains
     !> If created child should be marked as a list.
     logical, optional, intent(in) :: list
 
-    type(fnode), pointer :: child2, dummy
+    type(fnode), pointer :: child2, removed
     logical :: tReplace, tList
 
     if (present(replace)) then
@@ -3340,7 +3347,7 @@ contains
     end if
     call createChild_local(node, name, tList, tReplace, child2)
     if (associated(variableValue)) then
-      dummy => appendChild(child2, variableValue)
+      removed => appendChild(child2, variableValue)
     end if
     if (present(child)) then
       child => child2
@@ -3377,7 +3384,7 @@ contains
     !> Value to set (if empty, no child is appended to the created child)
     character(len=*), intent(in), optional :: variableValue
 
-    type(fnode), pointer :: parent, oldChild, child2, text, dummy
+    type(fnode), pointer :: parent, oldChild, child2, text, removed
     character(len=len(name)) :: loName
     type(string) :: newName, parentname
 
@@ -3403,20 +3410,20 @@ contains
     end if
 
     ! If parent is a text mode, no subnodes should be allowed.
-    dummy => getFirstChild(parent)
-    if (associated(dummy)) then
-      call getNodeName(dummy, parentname)
+    removed => getFirstChild(parent)
+    if (associated(removed)) then
+      call getNodeName(removed, parentname)
       if (char(parentname) == textNodeName) then
         call detailedError(node, "Node contains superfluous free text: '"&
-            & // trim(dummy%nodeValue) // "'")
+            & // trim(removed%nodeValue) // "'")
       end if
     end if
 
     if (associated(oldChild)) then
-      dummy => replaceChild(parent, child2, oldChild)
+      removed => replaceChild(parent, child2, oldChild)
       call destroyNode(oldChild)
     else
-      dummy => appendChild(parent, child2)
+      removed => appendChild(parent, child2)
     end if
 
     if (len(newName) > 0) then
@@ -3430,7 +3437,7 @@ contains
     call setAttribute(child, attrProcessed, "")
     if (present(variableValue)) then
       text => createTextNode(variableValue)
-      dummy => appendChild(child, text)
+      removed => appendChild(child, text)
     end if
 
   end subroutine createChild_local
@@ -3477,7 +3484,7 @@ contains
     character(len=*), optional, intent(in) :: modifier
 
     logical :: tReplace, tList
-    type(fnode), pointer :: dummy
+    type(fnode), pointer :: removed
 
     if (present(replace)) then
       tReplace = replace
@@ -3493,14 +3500,14 @@ contains
     child => getFirstChildByName(node, tolower(name))
     if (associated(child)) then
       if (tReplace) then
-        dummy => removeChild(node, child)
+        removed => removeChild(node, child)
         call destroyNode(child)
       else
         call detailedError(node, MSG_EXISTING_CHILD // name)
       end if
     end if
     child => createElement(tolower(name))
-    dummy => appendChild(node, child)
+    removed => appendChild(node, child)
     call setAttribute(child, attrName, name)
     call setAttribute(child, attrProcessed, "")
     if (tList) then
@@ -3598,7 +3605,10 @@ contains
 
 
   !> Prints detailed warning, including line number and path
-  subroutine detailedWarning(node, msg)
+  subroutine detailedWarning(output, node, msg)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Node where the error occurred.
     type(fnode), pointer :: node
@@ -3610,7 +3620,7 @@ contains
 
     str = trim(msg)
     call appendPathAndLine(node, str)
-    call warning(char(str) // newline)
+    call warning(output, char(str) // newline)
 
   end subroutine detailedWarning
 

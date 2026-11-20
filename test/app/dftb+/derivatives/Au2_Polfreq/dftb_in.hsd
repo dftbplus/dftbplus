@@ -23,7 +23,7 @@ Hamiltonian = Dftb {
         Au [eV] = {0.0 0.5 1.5}
     }
     SlaterKosterFiles = {
-        Au-Au = "Au-Au.skf"
+        Au-Au = "slakos/origin/auorg-1-1/Au-Au.skf"
     }
 }
 

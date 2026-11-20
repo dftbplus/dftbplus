@@ -29,7 +29,7 @@ module phonons_libnegfint
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_globalenv, only : tIoProc
   use dftbp_extlibs_negf, only : associate_ldos, associate_lead_currents, associate_transmission,&
       & COMP_SGF, compute_phonon_current, convertHeatConductance, convertHeatCurrent, create,&
       & csr2dns, DELTA_MINGO, DELTA_SQ, DELTA_W, destroy, destroy_negf, dns2csr, get_params,&
@@ -44,12 +44,12 @@ module phonons_libnegfint
   use dftbp_extlibs_negf, only : negf_mpi_init
 #:endif
   use phonons_initphonons, only : modeEnum, TempMax, TempMin, TempStep
-  implicit none
+  implicit none (type, external)
   private
 
   Type(Tnegf), target, public :: negf
   ! Workaround: ifort 17, ifort 16
-  ! Passing negf for pointer dummy arguments fails despite target attribute, so pointer is needed
+  ! Passing negf for pointer arguments fails despite target attribute, so pointer is needed
   type(TNegf), pointer :: pNegf
 
   public :: negf_init, negf_destroy
@@ -95,15 +95,13 @@ contains
 
 
     ! local variables
-    integer :: i, l, ncont, nc_vec(1), nldos
+    integer :: i, l, ncont, nldos
     integer, dimension(:), allocatable :: sizes
-    ! string needed to hold processor name
-    character(:), allocatable :: hostname
     type(lnParams) :: parms
 
     initinfo = .true.
 
-    pNegf=>negf
+    pNegf => negf
 
   #:if WITH_MPI
     call negf_mpi_init(env%mpi%globalComm, tIOproc)
@@ -260,19 +258,25 @@ contains
   end subroutine init_tun_proj
 
 
-  subroutine negf_destroy()
+  subroutine negf_destroy(output)
 
-    write(stdOut, *)
-    write(stdOut, *) 'Release NEGF memory:'
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
+
+    write(output, *)
+    write(output, *) 'Release NEGF memory:'
     call destruct(csrHam)
     call destroy_negf(negf)
-    call writePeakInfo(stdOut)
-    call writeMemInfo(stdOut)
+    call writePeakInfo(output)
+    call writeMemInfo(output)
 
   end subroutine negf_destroy
 
 
-  subroutine negf_init_str(nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
+  subroutine negf_init_str(output, nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Number of atoms
     integer, intent(in) :: nAtoms
@@ -363,8 +367,8 @@ contains
 
        do j1 = 1, ncont
           if (count(minv(:,j1).eq.j1).gt.1) then
-             write(stdOut,*) 'Contact',j1,'interacts with more than one PL:'
-             write(stdOut,*) 'PLs:',minv(:,j1)
+             write(output,*) 'Contact',j1,'interacts with more than one PL:'
+             write(output,*) 'PLs:',minv(:,j1)
              call error('check cutoff value or PL size')
           end if
           do m = 1, transpar%nPLs
@@ -373,11 +377,11 @@ contains
        end do
 
 
-       write(stdOut,*)
-       write(stdOut,*) ' Structure info:'
-       write(stdOut,*) ' Number of PLs:',nbl
-       write(stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
-       write(stdOut,*)
+       write(output,*)
+       write(output,*) ' Structure info:'
+       write(output,*) ' Number of PLs:',nbl
+       write(output,*) ' PLs coupled to contacts:',cblk(1:ncont)
+       write(output,*)
 
     end if
 
@@ -626,32 +630,6 @@ contains
 
   end subroutine negf_phonon_current
 
-  subroutine printH(fu, H)
-    integer, intent(in) :: fu
-    type(z_CSR), intent(in) :: H
-
-    type(z_DNS) :: tmp
-    integer :: ii, jj
-    real(dp) :: maxv
-
-    call create(tmp, H%nrow, H%ncol)
-
-    call csr2dns(H,tmp)
-
-    maxv = maxval(abs(tmp%val))
-    write(fu, *) 'Normalized Dynamical Matrix:'
-
-    do ii = 1, tmp%nrow, 3
-       do jj = 1, tmp%ncol, 3
-          write(fu,'(F8.4)',advance='no') real(tmp%val(ii,jj))/maxv
-       end do
-       write(fu,*)
-    end do
-
-    call destroy(tmp)
-
-  end subroutine printH
-
 
   !> Utility to allocate and sum partial results from different channels
 #:if WITH_MPI
@@ -861,33 +839,5 @@ contains
     end if
 
   end subroutine write_file
-
-
-  !> DEBUG routine dumping H and S on file in Matlab format
-  subroutine negf_dumpHS(HH,SS)
-    type(z_CSR), intent(in) :: HH, SS
-
-    type(TFileDescr) :: fd
-
-    write(stdOut,*) 'Dumping H and S on files...'
-    call openFile(fd, 'HH.dat', mode="w")
-    write(fd%unit, *) '% Size =',HH%nrow, HH%ncol
-    write(fd%unit, *) '% Nonzeros =',HH%nnz
-    write(fd%unit, *) '% '
-    write(fd%unit, *) 'zzz = ['
-    call printcsr(fd%unit, HH)
-    write(fd%unit, *) ']'
-    call closeFile(fd)
-
-    call openFile(fd, 'SS.dat', mode="w")
-    write(fd%unit, *) '% Size =',SS%nrow, SS%ncol
-    write(fd%unit, *) '% Nonzeros =',SS%nnz
-    write(fd%unit, *) '% '
-    write(fd%unit, *) 'zzz = ['
-    call printcsr(fd%unit, SS)
-    write(fd%unit, *) ']'
-    call closeFile(fd)
-  end subroutine negf_dumpHS
-
 
 end module phonons_libnegfint

@@ -18,7 +18,7 @@ module dftbp_reks_reksvar
   use dftbp_io_message, only : error
   use dftbp_type_orbitals, only : TOrbitals
 
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TReksInp, TReksCalc, REKS_init, reksTypes

@@ -8,7 +8,7 @@
 !> Contains a list of physical constants for the code
 module dftbp_common_constants
   use dftbp_common_accuracy, only : dp, mc
-  implicit none
+  implicit none (type, external)
 
   private
   public :: pi, Bohr__AA, AA__Bohr, Hartree__eV, eV__Hartree, Boltzmann, au__kg, kg__au, e__amu

@@ -11,7 +11,7 @@ module dftbp_dftb_extfields
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_io_message, only : warning
-  implicit none
+  implicit none (type, external)
 
   public :: TEField, TElecFieldInput, addUpExternalField
 
@@ -52,7 +52,7 @@ module dftbp_dftb_extfields
     real(dp), allocatable :: atomicPotential(:)
 
     !> Is this an onsite (net charge related, so diagonal elements of hamiltonian) or not
-    !> (gross/Mulliken charge related, so incluing off diagonal coupling)
+    !! (gross/Mulliken charge related, so incluing off diagonal coupling)
     logical, allocatable :: atomicOnSite(:)
 
   end type TEField
@@ -81,8 +81,11 @@ module dftbp_dftb_extfields
 contains
 
   !> Sets up external electric or other fields
-  subroutine addUpExternalField(eField, tPeriodic, neighbourList, nNeighbourSK, iCellVec,&
+  subroutine addUpExternalField(output, eField, tPeriodic, neighbourList, nNeighbourSK, iCellVec,&
       & cellVec, deltaT, iGeoStep, coord0Fold, coord, potential)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Whether an external field is present
     type(TEfield), intent(inout), allocatable :: eField
@@ -132,7 +135,7 @@ contains
         eField%absEfield = sqrt(sum(eField%Efield**2))
         if (tPeriodic) then
           isBoundaryCrossed = .false.
-          do iAt1 = 1, nAtom
+          lpAtom: do iAt1 = 1, nAtom
             do iNeigh = 1, nNeighbourSK(iAt1)
               iAt2 = neighbourList%iNeighbour(iNeigh, iAt1)
               ! overlap between atom in central cell and non-central cell
@@ -141,13 +144,14 @@ contains
                 if (abs(dot_product(cellVec(:, iCellVec(iAt2)), eField%EfieldVector))&
                     & > epsilon(1.0_dp)) then
                   isBoundaryCrossed = .true.
+                  exit lpAtom
                 end if
               end if
             end do
-          end do
+          end do lpAtom
           if (isBoundaryCrossed) then
-            call warning("Interactions between atoms cross the saw-tooth discontinuity in the&
-                & electric field")
+            call warning(output, "Interactions between atoms cross the saw-tooth discontinuity in&
+                & the electric field")
           end if
           do iAt1 = 1, nAtom
             potential%extAtom(iAt1,1) = potential%extAtom(iAt1,1)&

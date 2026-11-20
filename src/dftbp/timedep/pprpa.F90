@@ -11,6 +11,7 @@
 !> Excitations energies according to the particle-particle Random Phase Approximation
 !! (doi:10.1063/1.4977928).
 module dftbp_timedep_pprpa
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_common_environment, only : TEnvironment
@@ -25,7 +26,7 @@ module dftbp_timedep_pprpa
   use dftbp_timedep_transcharges, only : transq
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  implicit none
+  implicit none (type, external)
 
   private
   public :: ppRPAenergies, TppRPAcal
@@ -43,7 +44,7 @@ module dftbp_timedep_pprpa
     real(dp), allocatable :: hhubbard(:)
 
     !> Tamm Dancoff Approximation?
-    logical :: tTDA
+    logical :: isTDA
 
     !> Virtual orbital constraint?
     logical :: tConstVir
@@ -168,7 +169,8 @@ contains
         symmetries(:) = [ "S", "T" ]
       end select
     else
-      @:ERROR_HANDLING(err, -1, "Spin-unrestricted calculations currently not possible with pp-RPA")
+      @:ERROR_HANDLING(env%stdOut, err, -1, "spin-unrestricted calculations currently not possible&
+          & with pp-RPA")
     end if
 
     ! Allocation for general arrays
@@ -188,10 +190,10 @@ contains
 
     nocc = nint(rnel)
     if (abs(rnel - real(nocc,dp)) > epsilon(0.0_dp)) then
-      @:ERROR_HANDLING(err, -1, "Fractionally charged systems not possible with pp-RPA")
+      @:ERROR_HANDLING(env%stdOut, err, -1, "Fractionally charged systems not possible with pp-RPA")
     end if
     if (mod(abs(nocc),2) == 1) then
-      @:ERROR_HANDLING(err, -1, "Odd numbers of electrons not possible with pp-RPA")
+      @:ERROR_HANDLING(env%stdOut, err, -1, "Odd numbers of electrons not possible with pp-RPA")
     end if
     nocc = nocc / 2
 
@@ -222,13 +224,13 @@ contains
       sym = symmetries(isym)
 
       if (sym == "S") then
-        if (.not. RPA%tTDa) then
+        if (.not. RPA%isTDA) then
           dim_rpa = nxvv + nxoo
         else
           dim_rpa = nxvv
         end if
       else
-        if (.not. RPA%tTDa) then
+        if (.not. RPA%isTDA) then
           dim_rpa = nxvv + nxoo - nvir - nocc
         else
           dim_rpa = nxvv - nvir
@@ -238,11 +240,11 @@ contains
       allocate(pp_eval(dim_rpa))
       allocate(vr(dim_rpa, dim_rpa))
 
-      call buildAndDiagppRPAmatrix(RPA%tTDa, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, env,&
-          & denseDesc, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
+      call buildAndDiagppRPAmatrix(env%stdOut, RPA%isTDA, sym, grndEigVal(:,1), nocc, nvir, nxvv,&
+          & nxoo, env, denseDesc, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
 
-      call writeppRPAExcitations(RPA%tTDa, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc, nvir,&
-          & nxvv, nxoo, fdExc, fdTagged, taggedWriter, eval_0, homo)
+      call writeppRPAExcitations(RPA%isTDA, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc,&
+          & nvir, nxvv, nxoo, fdExc, fdTagged, taggedWriter, eval_0, homo)
 
       deallocate(pp_eval)
       deallocate(vr)
@@ -255,11 +257,14 @@ contains
 
 
   !> Builds and diagonalizes the pp-RPA matrix
-  subroutine buildAndDiagppRPAmatrix(tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
+  subroutine buildAndDiagppRPAmatrix(output, isTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
       & denseDesc, gamma_eri, stimc, cc, pp_eval, vr, err)
 
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
+
     !> Tamm-Dancoff approximation?
-    logical, intent(in) :: tTDA
+    logical, intent(in) :: isTDA
 
     !> Symmetry to calculate transitions
     character, intent(in) :: sym
@@ -310,7 +315,8 @@ contains
     integer :: ab_r, cd_r, ij_r, kl_r
     integer :: at1, at2, natom
     real(dp):: factor1, factor2
-    logical :: updwn
+    ! Spin-up channel only for closed-shell systems
+    real(dp), parameter :: updwn = +1.0_dp
     real(dp):: q_1(size(gamma_eri, dim=1))
     real(dp):: q_2(size(gamma_eri, dim=1))
     real(dp):: q_3(size(gamma_eri, dim=1))
@@ -334,9 +340,6 @@ contains
     allocate(work(5*nRPA))
     allocate(wi(nRPA))
     allocate(PP(nRPA, nRPA))
-
-    ! Spin-up channel only for closed-shell systems
-    updwn = .true.
 
     if (sym == "S") then !------ singlets -------
 
@@ -363,10 +366,10 @@ contains
             factor2 = sqrtFact
           end if
 
-          q_1(:) = transq(a, c, env, denseDesc, updwn, stimc, cc)
-          q_2(:) = transq(b, d, env, denseDesc, updwn, stimc, cc)
-          q_3(:) = transq(a, d, env, denseDesc, updwn, stimc, cc)
-          q_4(:) = transq(b, c, env, denseDesc, updwn, stimc, cc)
+          q_1(:) = transq(a, c, denseDesc, updwn, stimc, cc)
+          q_2(:) = transq(b, d, denseDesc, updwn, stimc, cc)
+          q_3(:) = transq(a, d, denseDesc, updwn, stimc, cc)
+          q_4(:) = transq(b, c, denseDesc, updwn, stimc, cc)
 
 
           !A_s(ab,cd) = A_s(ab,cd) + factor1 * factor2 * (&
@@ -388,7 +391,7 @@ contains
 
       end do
 
-      if (.not. tTDA) then
+      if (.not. isTDA) then
         ! Build Matrix B
         B_s(:,:) = 0.0_dp
 
@@ -405,10 +408,10 @@ contains
               factor2 = sqrtFact
             end if
 
-            q_1(:) = transq(k, a, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(l, b, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(l, a, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(k, b, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(k, a, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(l, b, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(l, a, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(k, b, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -439,10 +442,10 @@ contains
               factor2 = sqrtFact
             end if
 
-            q_1(:) = transq(i, k, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(j, l, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(i, l, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(j, k, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(i, k, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(j, l, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(i, l, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(j, k, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -485,10 +488,10 @@ contains
           if (c == d) cycle
           cd_r = cd_r + 1
 
-          q_1(:) = transq(a, c, env, denseDesc, updwn, stimc, cc)
-          q_2(:) = transq(b, d, env, denseDesc, updwn, stimc, cc)
-          q_3(:) = transq(a, d, env, denseDesc, updwn, stimc, cc)
-          q_4(:) = transq(b, c, env, denseDesc, updwn, stimc, cc)
+          q_1(:) = transq(a, c, denseDesc, updwn, stimc, cc)
+          q_2(:) = transq(b, d, denseDesc, updwn, stimc, cc)
+          q_3(:) = transq(a, d, denseDesc, updwn, stimc, cc)
+          q_4(:) = transq(b, c, denseDesc, updwn, stimc, cc)
 
           do at1 = 1, natom
             do at2 = 1, natom
@@ -505,7 +508,7 @@ contains
 
       end do
 
-      if (.not. tTDA) then
+      if (.not. isTDA) then
         ! Build Matrix B
         B_t(:,:) = 0.0_dp
         ab_r = 0
@@ -520,10 +523,10 @@ contains
             if (k == l) cycle
             kl_r = kl_r + 1
 
-            q_1(:) = transq(k, a, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(l, b, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(l, a, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(k, b, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(k, a, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(l, b, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(l, a, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(k, b, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -552,10 +555,10 @@ contains
             if (k == l) cycle
             kl_r = kl_r + 1
 
-            q_1(:) = transq(i, k, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(j, l, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(i, l, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(j, k, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(i, k, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(j, l, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(i, l, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(j, k, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -586,18 +589,18 @@ contains
     call geev(PP, pp_eval, wi, vl, vr, info)
 
     if (info /= 0) then
-      @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0)", " Error with dgeev, info = ", info)
+      @:FORMATTED_ERROR_HANDLING(output, err, info, "(A,I0)", " Error with dgeev, info = ", info)
     end if
 
   end subroutine buildAndDiagppRPAmatrix
 
 
   !> Write pp-RPA excitation energies in output file.
-  subroutine writeppRPAExcitations(tTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo,&
+  subroutine writeppRPAExcitations(isTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo,&
       & fdExc, fdTagged, taggedWriter, eval_0, homo)
 
     !> Tamm-Dancoff approximation?
-    logical, intent(in) :: tTDA
+    logical, intent(in) :: isTDA
 
     !> Symmetry to calculate transitions
     character, intent(in) :: sym
@@ -664,7 +667,7 @@ contains
     end if
 
     ! Neglect negative-norm eigenvectors
-    if (.not. tTDA) then
+    if (.not. isTDA) then
       allocate(norm(nRPA))
       norm(:) = sum(vr(:nxvv_r,:)**2, dim=1)
       norm(:) = norm - sum(vr(nxvv_r+1:nxvv_r+nxoo_r,:)**2, dim=1)
@@ -677,7 +680,7 @@ contains
     ii = 0
     RPA: do i = 1, nRPA
 
-      if (.not. tTDA) then
+      if (.not. isTDA) then
         if (norm(e_ind(i)) < 0.0_dp) cycle RPA
       end if
 

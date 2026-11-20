@@ -18,7 +18,7 @@ module dftbp_math_angmomentum
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : scalafx_addg2l
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getLOperators, getLOperatorsForSpecies, getLOnsite, getLDual, rotateZ

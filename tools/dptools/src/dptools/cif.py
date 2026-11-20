@@ -65,23 +65,23 @@ class Cif:
             celllengths[jj] = lines[jj + 1].split()[1]
             cellangles[jj] = lines[jj + 4].split()[1]
         natom = len(lines) - 13
-        specienames = []
-        speciedict = {}
+        speciesnames = []
+        speciesdict = {}
         indexes = np.empty((natom, ), dtype=int)
         coords = np.empty((natom, 3), dtype=float)
         for ii, line in enumerate(lines[13:13+natom]):
             words = line.split()
             species = words[0]
-            index = speciedict.get(species, -1)
+            index = speciesdict.get(species, -1)
             if index == -1:
-                specienames.append(species)
-                speciedict[species] = len(specienames) - 1
-                indexes[ii] = len(specienames) - 1
+                speciesnames.append(species)
+                speciesdict[species] = len(speciesnames) - 1
+                indexes[ii] = len(speciesnames) - 1
             else:
                 indexes[ii] = index
             coords[ii] = np.array(words[1:4], dtype=float)
         latvecs = get_latvecs_fromcif(celllengths, cellangles)
-        geometry = Geometry(specienames, indexes, coords, latvecs=latvecs, relcoords=True)
+        geometry = Geometry(speciesnames, indexes, coords, latvecs=latvecs, relcoords=True)
         return cls(geometry)
 
 
@@ -105,7 +105,7 @@ class Cif:
                  "_atom_site_fract_y\n_atom_site_fract_z\n")
         for ii in range(geo.natom):
             fp.write("{0:3s} {1:.10f} {2:.10f} {3:.10f}\n".format(
-                geo.specienames[geo.indexes[ii]], *geo.relcoords[ii]))
+                geo.speciesnames[geo.indexes[ii]], *geo.relcoords[ii]))
         fp.close()
 
     def equals(self, other, abstolerance=_ABSTOLERANCE, reltolerance=_RELTOLERANCE):

@@ -31,6 +31,13 @@ foreach(test IN LISTS tests)
     COMMAND ${srcdir}/bin/autotest2
         -r ${srcdir} -w ${builddir} -d ${srcdir}/bin/tagdiff
         -P "${TEST_RUNNER}" -p "$<TARGET_FILE:phonons>"
-        -s P,R,C,S ${test})
-    set_tests_properties(app/phonons/${test} PROPERTIES LABELS "phonons/${test}")
+        -s P,R,C,S ${test}
+    )
+    set_tests_properties(
+      app/phonons/${test} 
+      PROPERTIES
+      LABELS "phonons/${test}"
+      ENVIRONMENT "DFTBPLUS_PARAM_DIR=${PROJECT_SOURCE_DIR}/external"
+    )
+        
 endforeach()

@@ -34,7 +34,7 @@ def main():
         [0.000000000000000E+00,  0.000000000000000E+00, -0.147977639152057E+01]])
 
     # the values of extpot and extpotgrad used here were
-    # taken from file: test/api/mm/testers/test_extpot.f90
+    # taken from file: test/api/testers/test_extpot.f90
     extpot = np.array([-0.025850198503435,
                        -0.005996294763958,
                        -0.022919371690684])

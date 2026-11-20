@@ -10,7 +10,7 @@
 !> Provides data structure for parallelising over k-points and spin.
 module dftbp_type_parallelks
   use dftbp_common_environment, only : TEnvironment
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TParallelKS, TParallelKS_init

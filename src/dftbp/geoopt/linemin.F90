@@ -34,7 +34,7 @@
 module dftbp_geoopt_linemin
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : goldenMeanP1
-  implicit none
+  implicit none (type, external)
 
   private
 

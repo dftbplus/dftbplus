@@ -18,7 +18,7 @@ module dftbp_dftb_vdwdata
   use dftbp_common_constants, only : AA__Bohr
   use dftbp_io_charmanip, only : tolower
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getVdwData

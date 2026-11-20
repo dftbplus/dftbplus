@@ -10,7 +10,7 @@
 !> Data types for linear response routines.
 module dftbp_timedep_linresptypes
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: linrespSolverTypes, TLinResp, TCasidaParameter, TCasidaParameter_init
@@ -31,6 +31,9 @@ module dftbp_timedep_linresptypes
 
     !> Number of excitations to be calculated
     integer :: nExc
+
+    !> Is Tamm-Dancoff Approximation being used?
+    logical :: isTDA
 
     !> State of interest (< 0 find brightest, 0 calculate all nexc states, > 0 that specific state)
     integer :: nStat
@@ -76,6 +79,9 @@ module dftbp_timedep_linresptypes
 
     !> Whether X+Y data should be written
     logical :: writeXplusY = .false.
+
+    !> Whether X+Y data should be written as a text file
+    logical :: writeXplusYAscii = .true.   
 
     !> Should non-adiabatic couplings be computed?
     logical :: tNaCoupling = .false.
@@ -138,6 +144,12 @@ module dftbp_timedep_linresptypes
 
     !> Subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
+
+    !> Is a spectral folding used to get interior eigenvalues
+    logical :: isSpectrumFolded = .false.
+
+    !> shift value for RPA eigen-problem
+    real(dp) :: shiftSpace = 0.0_dp
 
     !> Whether the NACV file should be written
     logical :: writeNacv  = .false.

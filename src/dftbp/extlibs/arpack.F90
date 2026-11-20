@@ -21,7 +21,7 @@ module dftbp_extlibs_arpack
 #:if not WITH_ARPACK
   use dftbp_io_message, only : error
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: withArpack, saupd, seupd

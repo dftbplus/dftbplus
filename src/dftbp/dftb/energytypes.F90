@@ -10,7 +10,7 @@
 !> Module to wrap around the different energy components in the DFTB total energy expression
 module dftbp_dftb_energytypes
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TEnergies, TEnergies_init

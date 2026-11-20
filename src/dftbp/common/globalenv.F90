@@ -8,12 +8,12 @@
 #:include 'common.fypp'
 
 !> Contains fundamental global computing environment settings.
-!>
-!> It contains global settings and routines, which can be used already before the parsing of the
-!> input has taken place and the details of the user settings for the running-environment are
-!> known. Also, it can be used by routines which are not MPI-aware but wish to make I/O or abort the
-!> code.
-!>
+!!
+!! It contains global settings and routines, which can be used already before the parsing of the
+!! input has taken place and the details of the user settings for the running-environment are
+!! known. Also, it can be used by routines which are not MPI-aware but wish to make I/O or abort the
+!! code.
+!!
 module dftbp_common_globalenv
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
 #:if WITH_MPI
@@ -21,12 +21,13 @@ module dftbp_common_globalenv
   use dftbp_extlibs_mpifx, only : MPI_THREAD_FUNNELED, mpifx_abort, mpifx_barrier, mpifx_comm,&
       & mpifx_finalize, mpifx_init_thread
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: initGlobalEnv, destructGlobalEnv
-  public :: abortProgram, shutdown, synchronizeAll
-  public :: stdOut, stdOut0, stdErr, stdErr0, tIoProc
+  public :: abortProgram, shutdown, synchronizeAll, ensureSerialRun
+  public :: stdOut0, stdErr0
+  public :: tIoProc
   public :: withScalapack, withMpi
   public :: instanceSafeBuild
   #:if WITH_MPI
@@ -35,16 +36,22 @@ module dftbp_common_globalenv
 
 
   !> Unredirected standard out
+  !!
+  !! Note: Do NOT use this parameter in the production part of the code, as the standard output unit
+  !! number should always be taken from the actual environment instance (which is passed
+  !! around). Using it in debug-only parts (e.g. in asserts) and in printing error messages
+  !! immediately before an error stop is OK.
+  !!
   integer, parameter :: stdOut0 = output_unit
 
   !> Unredirected standard error
+  !!
+  !! Note: Do NOT use this parameter in the production part of the code, as the standard error unit
+  !! number should always be taken from the actual environment instance (which is passed
+  !! around). Using it in debug-only parts (e.g. in asserts) and in printing error messages
+  !! immediately before an error stop is OK.
+  !!
   integer, parameter :: stdErr0 = error_unit
-
-  !> Standard out file handler
-  integer, protected :: stdOut = stdOut0
-
-  !> Standard error file handler
-  integer, protected :: stdErr = stdErr0
 
   !> Whether current process is the global lead process
   logical, protected :: tIoProc = .true.
@@ -62,7 +69,7 @@ module dftbp_common_globalenv
 
 #:if WITH_MPI
   !> Whether MPI finalization should be performed at the end
-  logical :: doMpiFinalization = .true.
+  logical, protected :: doMpiFinalization = .true.
 #:endif
 
   !> Whether code was compiled with many-body dispersion support
@@ -76,7 +83,7 @@ module dftbp_common_globalenv
 contains
 
   !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit, devNull)
+  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit, devNull, stdOut)
 
     !> Customised global standard output
     integer, intent(in), optional :: outputUnit
@@ -90,52 +97,46 @@ contains
     !> Unit of the null device (needed for follow processes to suppress their output)
     integer, intent(in), optional :: devNull
 
+    !> Effective standard output for the calling process (on an MPI run, this is redirected to
+    !! the null device on every process but the lead one)
+    integer, intent(out), optional :: stdOut
 
-    integer :: outputUnit0, errorUnit0, devNull0
-
-  #:if WITH_MPI
-    integer :: mpiComm0
-  #:endif
+    integer :: outputUnit_
 
     if (present(outputUnit)) then
-      outputUnit0 = outputUnit
+      outputUnit_ = outputUnit
     else
-      outputUnit0 = stdOut0
-    end if
-
-    if (present(errorUnit)) then
-      errorUnit0 = errorUnit
-    else
-      errorUnit0 = stdErr0
+      outputUnit_ = stdOut0
     end if
 
   #:if WITH_MPI
-    if (present(mpiComm)) then
-      mpiComm0 = mpiComm
-      doMpiFinalization = .false.
-    else
-      mpiComm0 = MPI_COMM_WORLD
-      call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
-    end if
+    block
+      integer :: mpiComm_, devNull_
 
-    call globalMpiComm%init(commid=mpiComm0)
-    if (globalMpiComm%lead) then
-      stdOut = outputUnit0
-      stdErr = errorUnit0
-    else
-      if (present(devNull)) then
-        devNull0 = devNull
+      if (present(mpiComm)) then
+        mpiComm_ = mpiComm
+        doMpiFinalization = .false.
       else
-        open(newunit=devNull0, file="/dev/null", action="write")
+        mpiComm_ = MPI_COMM_WORLD
+        call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
       end if
-      stdOut = devNull0
-      stdErr = devNull0
-    end if
-    tIoProc = globalMpiComm%lead
-  #:else
-    stdOut = outputUnit0
-    stdErr = errorUnit0
+
+      call globalMpiComm%init(commid=mpiComm_)
+      if (.not. globalMpiComm%lead) then
+        if (present(devNull)) then
+          devNull_ = devNull
+        else
+          open(newunit=devNull_, file="/dev/null", action="write")
+        end if
+        outputUnit_ = devNull_
+      end if
+      tIoProc = globalMpiComm%lead
+    end block
   #:endif
+
+    if (present(stdOut)) then
+      stdOut = outputUnit_
+    end if
 
   end subroutine initGlobalEnv
 
@@ -153,9 +154,9 @@ contains
 
 
   !> Gracefully shuts down environment and stops execution.
-  !>
-  !> Note: this routine must be called collectively by all processes.
-  !>
+  !!
+  !! Note: this routine must be called collectively by all processes.
+  !!
   subroutine shutdown()
 
     call synchronizeAll()
@@ -166,10 +167,10 @@ contains
 
 
   !> Aborts program execution immediately.
-  !>
-  !> Note: if this routine is called by any the processes, execution immediately stops
-  !> without waiting for any other processes.
-  !>
+  !!
+  !! Note: if this routine is called by any the processes, execution immediately stops
+  !! without waiting for any other processes.
+  !!
   subroutine abortProgram(errorCode)
 
     !> Error code to emit (default: 1)
@@ -205,6 +206,30 @@ contains
   #:endif
 
   end subroutine synchronizeAll
+
+
+  !> Stops the program if it has been started on more than one MPI process.
+  !!
+  !! Should be called by purely serial programs right after initGlobalEnv(). It is a no-op in
+  !! non-MPI builds.
+  !!
+  !! Note: this routine must be called collectively by all processes.
+  !!
+  subroutine ensureSerialRun()
+
+  #:if WITH_MPI
+    if (globalMpiComm%size == 1) return
+    if (globalMpiComm%lead) then
+      write(stdOut0, '(1a)') 'ERROR!'
+      write(stdOut0, '(a,i0,a)') '-> This is serial code, but it was invoked on ',&
+          & globalMpiComm%size, ' MPI processes'
+      flush(stdOut0)
+    end if
+    call synchronizeAll()
+    call abortProgram()
+  #:endif
+
+  end subroutine ensureSerialRun
 
 
 end module dftbp_common_globalenv

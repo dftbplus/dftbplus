@@ -20,21 +20,23 @@ module dftbp_poisson_poisson
   use dftbp_common_constants, only : Bohr__AA, hartree__eV, pi
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_extlibs_mudpack, only : mud3
+  use dftbp_io_message, only : warning
   use dftbp_poisson_bulkpot, only : compbulk_pot, create_phi_bulk, destroy_phi_bulk, readbulk_pot,&
       & super_array
-  use dftbp_poisson_fancybc, only : bndyc, cilgate_bound, coef, coef_cilgate, coef_gate, coef_tip,&
-      & gate_bound, local_bound, tip_bound
+  use dftbp_poisson_fancybc, only : bndyc, cilgate_bound, coef, coef_cilgate,&
+      & coef_cilgate_sharp_bc, coef_gate, coef_tip, gate_bound, local_bound, tip_bound
   use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate, writePoissMemInfo,&
       & writePoissPeakInfo
   use dftbp_poisson_gewald, only : getalpha, long_pot, rezvol, short_pot
   use dftbp_poisson_mpi_poisson, only : active_id, id, id0, numprocs
   use dftbp_poisson_parameters, only : base_atom1, base_atom2, bias_dEf, biasdir, bufferBox,&
-      & cluster, cntr_cont, cntr_gate, contdir, delta, deltaR_max, dmin, do_renorm, DoCilGate,&
-      & DoGate, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r, etb, fictcont, fixed_renorm,&
-      & FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc, iatm, init_defaults, InitPot,&
-      & LmbMax, localBC, maxiter, MAXNCONT, maxpoissiter, mbound_end, mixed, mu, ncdim, ncont, nf,&
-      & ni, overrBulkBC, overrideBC, OxLength, PoissAcc, poissBC, PoissBounds, PoissBox,&
+      & cluster, cntr_cont, cntr_gate, cntr_gate_set, contdir, delta, deltaR_max, dmin, do_renorm,&
+      & DoCilGate, DoGate, DoInsulator, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r,&
+      & etb, fictcont, fixed_renorm, FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc,&
+      & iatm, insLength_t, insLength_l, insSharpBC, init_defaults, InitPot, LmbMax, localBC,&
+      & maxiter, MAXNCONT, maxpoissiter, mbound_end, mixed, mu, ncdim, ncont, nf, ni, overrBulkBC,&
+      & overrideBC, OxLength, OxLength_t, OxLength_l, PoissAcc, poissBC, PoissBounds, PoissBox,&
       & PoissPlane, R_cont, racc, ReadBulk, Readold, Rmin_Gate, Rmin_Ins, SaveHS, SaveNNList,&
       & SavePOT, scratchfolder, set_accuracy, set_builtin, set_cluster, set_cont_indices,&
       & set_contdir, set_contlabels, set_dopoisson, set_fermi, set_mol_indeces, set_ncont,&
@@ -49,7 +51,7 @@ module dftbp_poisson_poisson
   use dftbp_poisson_mpi_poisson, only : global_comm, mpifx_gatherv, poiss_comm, poiss_mpi_init,&
       & poiss_mpi_split
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   ! from parameters
@@ -58,13 +60,14 @@ module dftbp_poisson_poisson
   public :: iatc, iatm, ncdim, mbound_end, maxiter, localBC, poissBC
   public :: overrideBC, overrBulkBC, maxpoissiter
   public :: Temp, telec, deltaR_max, LmbMax, gate
-  public :: GateLength_l, GateLength_t, OxLength, Efermi
-  public :: bias_dEf, Rmin_Ins, Rmin_Gate, dr_eps
-  public :: eps_r, cntr_gate, tip_atom, base_atom1, base_atom2, tipbias
+  public :: GateLength_l, GateLength_t, OxLength, OxLength_t, OxLength_l, insLength_t, insLength_l
+  public :: Efermi
+  public :: bias_dEf, Rmin_Ins, Rmin_Gate, dr_eps, insSharpBC
+  public :: eps_r, cntr_gate, cntr_gate_set, tip_atom, base_atom1, base_atom2, tipbias
   public :: DOS, delta, racc, PoissAcc, dmin, PoissBox, PoissBounds
   public :: PoissPlane,mu,cntr_cont,R_cont,dR_cont,x0,y0,z0,bufferBox
   public :: etb ,cluster ,SavePot ,SaveNNList,SaveHS,FictCont,FoundBox,DoPoisson
-  public :: Readold,InitPot,DoGate,DoCilGate,DoTip,ReadBulk,mixed
+  public :: Readold,InitPot,DoGate,DoCilGate,DoInsulator,DoTip,ReadBulk,mixed
   public :: do_renorm, fixed_renorm
   public :: scratchfolder
   public :: init_defaults
@@ -98,23 +101,26 @@ module dftbp_poisson_poisson
  contains
 
  !------------------------------------------------------------------------------
- subroutine poiss_freepoisson()
+ subroutine poiss_freepoisson(output)
+
+   !> Output unit for human readable messages
+   integer, intent(in) :: output
 
    if (active_id) then
-     call finalize_mudpack()
+     call finalize_mudpack(output)
    endif
 
-   if(allocated(x)) call log_gdeallocate(x)
-   if(allocated(izp)) call log_gdeallocate(izp)
-   if(allocated(dQmat)) call log_gdeallocate(dQmat)
-   if(allocated(uhubb)) call log_gdeallocate(uhubb)
-   if(allocated(lmax)) call log_gdeallocate(lmax)
-   if(allocated(nshells)) call log_gdeallocate(nshells)
-   if(allocated(angshells)) call log_gdeallocate(angshells)
-   if(allocated(renorm)) call log_gdeallocate(renorm)
+   if(allocated(x)) call log_gdeallocate(output, x)
+   if(allocated(izp)) call log_gdeallocate(output, izp)
+   if(allocated(dQmat)) call log_gdeallocate(output, dQmat)
+   if(allocated(uhubb)) call log_gdeallocate(output, uhubb)
+   if(allocated(lmax)) call log_gdeallocate(output, lmax)
+   if(allocated(nshells)) call log_gdeallocate(output, nshells)
+   if(allocated(angshells)) call log_gdeallocate(output, angshells)
+   if(allocated(renorm)) call log_gdeallocate(output, renorm)
    if (id0) then
-     call writePoissPeakInfo(stdOut)
-     call writePoissMemInfo(stdOut)
+     call writePoissPeakInfo(output)
+     call writePoissMemInfo(output)
    endif
 
  end subroutine poiss_freepoisson
@@ -135,7 +141,7 @@ module dftbp_poisson_poisson
 
      if(.not.SavePot) return
 
-     write(stdOut,"('>> Saving Poisson output in potential.dat')")
+     write(env%stdOut,"('>> Saving Poisson output in potential.dat')")
 
      PoissFlag=2
 
@@ -174,7 +180,10 @@ module dftbp_poisson_poisson
  end subroutine poiss_updcoords
 
  ! -----------------------------------------------------------------------------
- subroutine init_poissbox(iErr)
+ subroutine init_poissbox(env, iErr)
+
+  !> Environment
+  type(TEnvironment), intent(in) :: env
 
   !> Error code, 0 if no problems
   integer, intent(out), optional :: iErr
@@ -226,7 +235,7 @@ module dftbp_poisson_poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
-         @:FORMATTED_ERROR_HANDLING(iErr, -1, "(A,I0)",&
+         @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, -1, "(A,I0)",&
              & "Device and contact atoms overlap at contact", m)
        end if
      else
@@ -235,7 +244,7 @@ module dftbp_poisson_poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
-         @:FORMATTED_ERROR_HANDLING(iErr, -2, "(A,I0)",&
+         @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, -2, "(A,I0)",&
              & "Device and contact atoms overlap at contact", m)
        end if
      end if
@@ -255,7 +264,7 @@ module dftbp_poisson_poisson
            tmpdir(f)=1
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
-          @:ERROR_HANDLING(iErr, -3, 'Contacts in the same direction must be aligned')
+          @:ERROR_HANDLING(env%stdOut, iErr, -3, 'Contacts in the same direction must be aligned')
         endif
      enddo
      ! Adjust PoissonBox if there are no facing contacts
@@ -316,7 +325,7 @@ module dftbp_poisson_poisson
   !---- ---------------------------
   do i=1,3
     if(PoissBox(i,i) .le. 0.0_dp) then
-      @:FORMATTED_ERROR_HANDLING(iErr, -4, '(A,A)', 'PoissBox negative along ', dir(i))
+      @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, -4, '(A,A)', 'PoissBox negative along ', dir(i))
     end if
   enddo
 
@@ -327,7 +336,7 @@ module dftbp_poisson_poisson
   if (DoGate) then
      biasdir = abs(contdir(1))
      if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
-       @:ERROR_HANDLING(iErr, -5, 'Gate Distance too large')
+       @:ERROR_HANDLING(env%stdOut, iErr, -5, 'Gate Distance too large')
      end if
   endif
 
@@ -336,7 +345,7 @@ module dftbp_poisson_poisson
      biasdir = abs(contdir(1))
 
      if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-       @:ERROR_HANDLING(iErr, -6, 'Gate insulator is longer than Poisson box!')
+       call warning(env%stdOut, 'Gate insulator is longer than Poisson box (use with caution)')
      end if
 
      do i = 1,3
@@ -344,7 +353,8 @@ module dftbp_poisson_poisson
           cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
-          @:ERROR_HANDLING(iErr, -7, 'Gate transversal section is bigger than Poisson box!')
+          @:ERROR_HANDLING(env%stdOut, iErr, -7, 'Gate transversal section is bigger than Poisson&
+              & box!')
         end if
       end do
   end if
@@ -353,8 +363,12 @@ module dftbp_poisson_poisson
   ! Gate geometry mid point definition
   !---------------------------------------
   if (DoGate.or.DoCilGate) then
+     ! Set cntr_gate components: use user value if set, otherwise use center of PoissBounds
      do i = 1,3
-        cntr_gate(i) = ( PoissBounds(i,2) + PoissBounds(i,1) )/2.d0
+        if (.not. cntr_gate_set(i)) then
+           ! Component not explicitly set by user, use default from PoissBounds center
+           cntr_gate(i) = ( PoissBounds(i,2) + PoissBounds(i,1) )/2.d0
+        end if
      end do
   end if
 
@@ -459,23 +473,23 @@ subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
     end do
 
     if (niter_.eq.1.and.verbose.gt.30) then
-       write(stdOut,'(73("-"))')
-       write(stdOut,*) "Poisson Box internally adjusted:"
-       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' x range=',PoissBounds(1,1)*Bohr__AA,&
+       write(env%stdOut,'(73("-"))')
+       write(env%stdOut,*) "Poisson Box internally adjusted:"
+       write(env%stdOut,'(a,f12.5,f12.5,a11,l3)') ' x range=',PoissBounds(1,1)*Bohr__AA,&
             PoissBounds(1,2)*Bohr__AA,'; Periodic:',period_dir(1)
-       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' y range=',PoissBounds(2,1)*Bohr__AA,&
+       write(env%stdOut,'(a,f12.5,f12.5,a11,l3)') ' y range=',PoissBounds(2,1)*Bohr__AA,&
             PoissBounds(2,2)*Bohr__AA,'; Periodic:',period_dir(2)
-       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' z range=',PoissBounds(3,1)*Bohr__AA,&
+       write(env%stdOut,'(a,f12.5,f12.5,a11,l3)') ' z range=',PoissBounds(3,1)*Bohr__AA,&
             PoissBounds(3,2)*Bohr__AA,'; Periodic:',period_dir(3)
 
-       write(stdOut,*) 'Mesh details:'
-       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lx=',PoissBox(1,1)*Bohr__AA,&
+       write(env%stdOut,*) 'Mesh details:'
+       write(env%stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lx=',PoissBox(1,1)*Bohr__AA,&
             '  nx=',iparm(14),'   dlx=',dlx*Bohr__AA
-       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Ly=',PoissBox(2,2)*Bohr__AA,&
+       write(env%stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Ly=',PoissBox(2,2)*Bohr__AA,&
             '  ny=',iparm(15),'   dly=',dly*Bohr__AA
-       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lz=',PoissBox(3,3)*Bohr__AA,&
+       write(env%stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lz=',PoissBox(3,3)*Bohr__AA,&
             '  nz=',iparm(16),'   dlz=',dlz*Bohr__AA
-       write(stdOut,'(73("-"))')
+       write(env%stdOut,'(73("-"))')
     endif
 
     !--------------------------
@@ -509,11 +523,11 @@ subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
  ! 3. Allocate space for phi_,rhs_ and work
  !**********************************************************************************
  if (id0 .and. .not.allocated(phi_)) then
-    call log_gallocate(phi_,iparm(14),iparm(15),iparm(16))
+    call log_gallocate(env%stdOut, phi_,iparm(14),iparm(15),iparm(16))
     phi_(:,:,:) = 0.d0
  end if
  if (id0 .and. .not.allocated(rhs_)) then
-    call log_gallocate(rhs_,iparm(14),iparm(15),iparm(16))
+    call log_gallocate(env%stdOut, rhs_,iparm(14),iparm(15),iparm(16))
     rhs_(:,:,:) = 0.d0
  end if
 
@@ -603,24 +617,24 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
 
 
     if(id0.and.niter_.eq.1.and.verbose.gt.VBT) then
-      write(stdOut,*) 'Boundary Conditions:'
+      write(env%stdOut,*) 'Boundary Conditions:'
       BCinfo = 'x: '//boundary2string(iparm(2),mixed(1))
       if (overrideBC(1).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
       BCinfo = trim(BCinfo)//'  '//boundary2string(iparm(3),mixed(2))
       if (overrideBC(2).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
-      write(stdOut,*) trim(BCinfo)
+      write(env%stdOut,*) trim(BCinfo)
 
       BCinfo = 'y: '//boundary2string(iparm(4),mixed(3))
       if (overrideBC(3).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
       BCinfo = trim(BCinfo)//'  '//boundary2string(iparm(5),mixed(4))
       if (overrideBC(4).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
-      write(stdOut,*) trim(BCinfo)
+      write(env%stdOut,*) trim(BCinfo)
 
       BCinfo = 'z: '//boundary2string(iparm(6),mixed(5))
       if (overrideBC(5).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
       BCinfo = trim(BCinfo)//'  '//boundary2string(iparm(7),mixed(6))
       if (overrideBC(6).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
-      write(stdOut,*) trim(BCinfo)
+      write(env%stdOut,*) trim(BCinfo)
     endif
 
     !------------------------------------------
@@ -655,7 +669,7 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
     if (cluster.and.period .and. niter_.eq.1) then
       call env%globalTimer%startTimer(globalTimers%poissonEwald)
       if (id0) then
-        call set_phi_periodic(phi_,iparm,fparm)
+        call set_phi_periodic(env, phi_,iparm,fparm)
       end if
       call env%globalTimer%stopTimer(globalTimers%poissonEwald)
     end if
@@ -663,29 +677,29 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
     if (ncont.gt.0) then
 
       allocate(bulk(ncont))
-       call create_phi_bulk(bulk,iparm,dlx,dly,dlz,cont_mem)
+       call create_phi_bulk(env%stdOut, bulk,iparm,dlx,dly,dlz,cont_mem)
 
        if(InitPot.and.id0.and.niter_.eq.1.and.verbose.gt.VBT) then
-         write(stdOut,*) 'Bulk Potential Info:'
+         write(env%stdOut,*) 'Bulk Potential Info:'
          do m = 1,ncont
-            write(stdOut,*) 'contact',m
+            write(env%stdOut,*) 'contact',m
             if (bulk(m)%doEwald) then
-               write(stdOut,*) 'BC = all periodic solved with Ewalds on two planes'
+               write(env%stdOut,*) 'BC = all periodic solved with Ewalds on two planes'
             endif
-            write(stdOut,*) 'x: '//boundary2string(bulk(m)%iparm(2))//'  '&
+            write(env%stdOut,*) 'x: '//boundary2string(bulk(m)%iparm(2))//'  '&
                             //boundary2string(bulk(m)%iparm(3))
-            write(stdOut,*) 'y: '//boundary2string(bulk(m)%iparm(4))//'  '&
+            write(env%stdOut,*) 'y: '//boundary2string(bulk(m)%iparm(4))//'  '&
                             //boundary2string(bulk(m)%iparm(5))
-            write(stdOut,*) 'z: '//boundary2string(bulk(m)%iparm(6))//'  '&
+            write(env%stdOut,*) 'z: '//boundary2string(bulk(m)%iparm(6))//'  '&
                             //boundary2string(bulk(m)%iparm(7))
          enddo
        endif
 
        if(id0.and.niter_.eq.1.and.verbose.gt.VBT) then
-         write(stdOut,*) 'Memory required for Poisson:', &
+         write(env%stdOut,*) 'Memory required for Poisson:', &
                           (2*size(phi_)+iparm(21)+cont_mem)*8.d0/1d6,'Mb'
 
-         write(stdOut,'(73("-"))')
+         write(env%stdOut,'(73("-"))')
        endif
 
        ! -----------------------------------------------------------------------
@@ -696,18 +710,18 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
          if (ReadBulk) then
            !Read old bulk potential
            call env%globalTimer%startTimer(globalTimers%poissonBulkRead)
-           call readbulk_pot(bulk)
+           call readbulk_pot(env, bulk)
            call env%globalTimer%stopTimer(globalTimers%poissonBulkRead)
          else
            !Compute bulk potential
            call env%globalTimer%startTimer(globalTimers%poissonBulkCalc)
-           call compbulk_pot(bulk,iparm,fparm)
+           call compbulk_pot(env, bulk,iparm,fparm)
            ReadBulk=.true.
            call env%globalTimer%stopTimer(globalTimers%poissonBulkCalc)
          end if
 
        else
-         if(id0.and.verbose.gt.VBT) write(stdOut,*) 'No bulk potential'
+         if(id0.and.verbose.gt.VBT) write(env%stdOut,*) 'No bulk potential'
        endif
 
     else
@@ -717,7 +731,7 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
 
     !write(stdOut,*) 'debug bulk potential'
     !do m=1,ncont
-    !  call write_super_array(bulk(m))
+    !  call write_super_array(env%stdOut, bulk(m))
     !  call save_bulkpot(bulk,m)
     !enddo
 
@@ -774,7 +788,7 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
     !**********************************************************************************
     if (id0) then
 
-      call log_gallocate(work,worksize)
+      call log_gallocate(env%stdOut, work,worksize)
 
       call env%globalTimer%startTimer(globalTimers%poissonSoln)
       do i = 0,1
@@ -783,7 +797,11 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
         if (DoGate) then
            call mud3(iparm,fparm,work,coef_gate,bndyc,rhs_,phi_,mgopt,err)
         elseif (DoCilGate) then
-           call mud3(iparm,fparm,work,coef_cilgate,bndyc,rhs_,phi_,mgopt,err)
+           if (insSharpBC) then
+              call mud3(iparm,fparm,work,coef_cilgate_sharp_bc,bndyc,rhs_,phi_,mgopt,err)
+           else
+              call mud3(iparm,fparm,work,coef_cilgate,bndyc,rhs_,phi_,mgopt,err)
+           end if
         elseif (DoTip) then
            call mud3(iparm,fparm,work,coef_tip,bndyc,rhs_,phi_,mgopt,err)
         elseif (cluster.and.period) then
@@ -796,36 +814,37 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
 
         if (err.ne.0.and.err.ne.9) then
           if(err.gt.0) then
-            @:FORMATTED_ERROR_HANDLING(iErr, err, "(A,I0)", 'Fatal Error in poisson solver:', err)
+            @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, err, "(A,I0)", 'Fatal Error in poisson&
+                & solver:', err)
           end if
         end if
         if (err.eq.9) then
-          call log_gdeallocate(work)
-          call log_gallocate(work,worksize)
+          call log_gdeallocate(env%stdOut, work)
+          call log_gallocate(env%stdOut, work,worksize)
         end if
       end do
 
       call env%globalTimer%stopTimer(globalTimers%poissonSoln)
 
       if (err.lt.-1) then
-        write(stdOut,*) 'Non-fatal Error in poisson solver:',err
+        write(env%stdOut,*) 'Non-fatal Error in poisson solver:',err
       endif
 
       ncycles = iparm(23)
-      call log_gdeallocate(work)
+      call log_gdeallocate(env%stdOut, work)
     end if
 
     if (id0) then
       if (verbose.gt.30) then
-        write(stdOut,'(1x,73("-"))')
-        write(stdOut,*) 'Relative Poisson Error =',fparm(8)
-        write(stdOut,'(a,i3,a,i3)') ' Number of cycles executed =',ncycles,'/',iparm(18)
-        write(stdOut,'(1x,73("-"))')
+        write(env%stdOut,'(1x,73("-"))')
+        write(env%stdOut,*) 'Relative Poisson Error =',fparm(8)
+        write(env%stdOut,'(a,i3,a,i3)') ' Number of cycles executed =',ncycles,'/',iparm(18)
+        write(env%stdOut,'(1x,73("-"))')
         flush(6)
       end if
 
       if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
-        @:ERROR_HANDLING(iErr, -1, 'Convergence in Poisson solver not obtained')
+        @:ERROR_HANDLING(env%stdOut, iErr, -1, 'Convergence in Poisson solver not obtained')
       end if
 
     end if
@@ -839,7 +858,7 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
       call env%globalTimer%stopTimer(globalTimers%poissonShifts)
     end if
 
-    call destroy_phi_bulk(bulk)
+    call destroy_phi_bulk(env%stdOut, bulk)
 
     deallocate(bulk,stat=err)
 
@@ -854,13 +873,13 @@ case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient
 case(SavePOT)    ! Poisson called in order to save potential and charge density
  !////////////////////////////////////////////////////////////////////////
 
-    if (id0) call save_pot(iparm,fparm,dlx,dly,dlz,phi_,rhs_)
+    if (id0) call save_pot(env, iparm,fparm,dlx,dly,dlz,phi_,rhs_)
 
  !///////////////////////////////////////////
 case(CLEAN)       ! Deallocate Poisson variables
  !///////////////////////////////////////////
 
-   call finalize_mudpack()
+   call finalize_mudpack(env%stdOut)
    return
 
  end select
@@ -875,10 +894,13 @@ end subroutine Mudpack_drv
 !> It does the same as calling mudpack_drv() with the CLEAN(=3) choice, but does not require
 !> the unnecessary arguments of that routine.
 !>
-subroutine finalize_mudpack()
+subroutine finalize_mudpack(output)
 
-  if (allocated(phi_)) call log_gdeallocate(phi_)
-  if (allocated(rhs_)) call log_gdeallocate(rhs_)
+  !> Output unit for human readable messages
+  integer, intent(in) :: output
+
+  if (allocated(phi_)) call log_gdeallocate(output, phi_)
+  if (allocated(rhs_)) call log_gdeallocate(output, rhs_)
   niter_ = 1
 
 end subroutine finalize_mudpack
@@ -913,9 +935,9 @@ subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
 
   if (numprocs > 1) then
 
-    call log_gallocate(dim_rhs,numprocs)
-    call log_gallocate(istart,numprocs)
-    call log_gallocate(iend,numprocs)
+    call log_gallocate(env%stdOut, dim_rhs,numprocs)
+    call log_gallocate(env%stdOut, istart,numprocs)
+    call log_gallocate(env%stdOut, iend,numprocs)
 
     ! z points per processor
     npid = int(iparm(16)/numprocs)
@@ -939,7 +961,7 @@ subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
     fparm_tmp(6) = fparm(5) + (iend(id+1)-1)*dlz
 
     ! Allocate space for local rhs.
-    call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
+    call log_gallocate(env%stdOut, rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
     !---------------------------------------------------------------------
 
     call env%globalTimer%startTimer(globalTimers%poissonDensity)
@@ -947,7 +969,7 @@ subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
     !! Set a renormalization volume for grid projection
 
     if (do_renorm) then
-      call renormalization_volume(iparm_tmp,fparm_tmp,dlx,dly,dlz,fixed_renorm)
+      call renormalization_volume(env, iparm_tmp,fparm_tmp,dlx,dly,dlz,fixed_renorm)
       do_renorm = .false.
     endif
 
@@ -970,17 +992,17 @@ subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
     ! gather all partial results on lead node 0
     call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
 
-    call log_gdeallocate(rhs_par)
-    call log_gdeallocate(dim_rhs)
-    call log_gdeallocate(istart)
-    call log_gdeallocate(iend)
+    call log_gdeallocate(env%stdOut, rhs_par)
+    call log_gdeallocate(env%stdOut, dim_rhs)
+    call log_gdeallocate(env%stdOut, istart)
+    call log_gdeallocate(env%stdOut, iend)
 
   else
 
  #:endif
 
     if (do_renorm) then
-      call renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed_renorm)
+      call renormalization_volume(env, iparm,fparm,dlx,dly,dlz,fixed_renorm)
       do_renorm = .false.
     endif
 
@@ -1009,9 +1031,12 @@ subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
 end subroutine set_rhs
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-subroutine renormalization_volume(iparm, fparm, dlx, dly, dlz, fixed)
+subroutine renormalization_volume(env, iparm, fparm, dlx, dly, dlz, fixed)
 
   implicit none
+
+  !> Environment
+  type(TEnvironment), intent(in) :: env
 
   integer :: iparm(23)
   real(kind=dp) :: fparm(8)
@@ -1053,7 +1078,7 @@ subroutine renormalization_volume(iparm, fparm, dlx, dly, dlz, fixed)
 
   tau = 3.2d0 * uhubb
 
-  if (.not.(allocated(renorm))) call log_gallocate(renorm,maxval(nshells),natoms)
+  if (.not.(allocated(renorm))) call log_gallocate(env%stdOut, renorm,maxval(nshells),natoms)
   renorm(:,:) = 0.0
 
   if (fixed) then
@@ -1535,7 +1560,10 @@ subroutine gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
 end subroutine gradient_V
 
 
-subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
+subroutine save_pot(env, iparm,fparm,dlx,dly,dlz,phi,rhs)
+
+  !> Environment
+  type(TEnvironment), intent(in) :: env
 
   integer, intent(in) :: iparm(23)
   real(kind=dp), intent(in) :: fparm(8)
@@ -1551,7 +1579,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
   FixDir=int(PoissPlane(1))
 
   if (verbose.gt.70) then
-    if(id0) write(stdOut,'(1x,a)') 'Saving charge density and potential ...'
+    if(id0) write(env%stdOut,'(1x,a)') 'Saving charge density and potential ...'
   endif
 
   ! Saving 3D potential and density
@@ -1720,10 +1748,13 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 
    if (id0.and.DoGate) then
      call openFile(fp, 'gate.dat', mode="w")
+     write(fp%unit,'(A)') 'gatedir, biasdir'
      write(fp%unit,'(i2)') gatedir, biasdir
 
      z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0
      z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
+     write(fp%unit,'(2A)') 'cntr_gate(biasdir) - GateLength_l/2.d0', 'cntr_gate(biasdir)&
+         & + GateLength_l/2.d0'
      write(fp%unit,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
 
      do i=1,3
@@ -1731,12 +1762,16 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      enddo
      z_min_gate = cntr_gate(i) - GateLength_t/2.d0
      z_max_gate = cntr_gate(i) + GateLength_t/2.d0
+     write(fp%unit,'(2A)') 'cntr_gate(i) - GateLength_l/2.d0', 'cntr_gate(i) + GateLength_l/2.d0'
      write(fp%unit,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
 
-     z_min_ox = cntr_gate(gatedir) - OxLength/2.d0
-     z_max_ox = cntr_gate(gatedir) + OxLength/2.d0
-     write(fp%unit,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     z_min_ox = cntr_gate(gatedir) - OxLength_l/2.d0
+     z_max_ox = cntr_gate(gatedir) + OxLength_t/2.d0
+     write(fp%unit,'(2A)') 'cntr_gate(i) - GateLength_l/2.d0', 'cntr_gate(i) + GateLength_l/2.d0'
+          write(fp%unit,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     write(fp%unit,'(2A)') 'Rmin_Gate', 'Rmin_Ins'
      write(fp%unit,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
+     write(fp%unit,'(2A)') 'cntr_gate(1)', 'cntr_gate(2)', 'cntr_gate(3)'
      write(fp%unit,'(E17.8,E17.8)')cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
      call closeFile(fp)
    end if
@@ -1746,7 +1781,11 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  ! Perform a standard gamma-functional calculation for periodic systems
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine set_phi_periodic(phi, iparm, fparm)
+ subroutine set_phi_periodic(env, phi, iparm, fparm)
+
+   !> Environment
+   type(TEnvironment), intent(in) :: env
+
    real(dp), dimension(:,:,:) :: phi
    integer, dimension(:) :: iparm
    real(dp), dimension(:) :: fparm
@@ -1812,7 +1851,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
             nsh = nshells(izp(atom))
 
             ! Compute L-independent part:
-            call long_pot(distR,basis,recbasis,alpha,vol,tol,lng_pot)
+            call long_pot(env%stdOut, distR,basis,recbasis,alpha,vol,tol,lng_pot)
             ! total atomic charge
             deltaQ = sum(dQmat(1:nsh,atom) )
             phi(i,j,k) = phi(i,j,k) + deltaQ*lng_pot
@@ -1822,7 +1861,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
                deltaQ = dQmat(l,atom)
                uhatm = uhubb(l,izp(atom))
 
-               call short_pot(distR,basis,uhatm,deltaQ,tol,sh_pot)
+               call short_pot(env%stdOut, distR,basis,uhatm,deltaQ,tol,sh_pot)
 
                !OMP CRITICAL
                phi(i,j,k) = phi(i,j,k) - sh_pot
@@ -1843,7 +1882,10 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
  ! CALL - BACK functions used by libmesh poisson
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
- real(dp) function rho(xx1,yy1,zz1)
+ real(dp) function rho(env, xx1,yy1,zz1)
+
+   !> Environment
+   type(TEnvironment), intent(in) :: env
 
    real(dp) :: xx1, yy1, zz1
    real(dp) :: xx, yy, zz
@@ -1878,7 +1920,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 
    else !Periodic structure
 
-      write(stdOut,*) 'periodic poisson not yet implemented'
+      write(env%stdOut,*) 'periodic poisson not yet implemented'
 
    end if
 

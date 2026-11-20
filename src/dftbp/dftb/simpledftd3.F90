@@ -10,7 +10,7 @@
 
 !> A simple reimplementation of DFT-D3
 module dftbp_dftb_simpledftd3
-  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan, ieee_is_finite
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
@@ -21,7 +21,7 @@ module dftbp_dftb_simpledftd3
   use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSimpleDftD3, TSimpleDftD3Input, init
@@ -224,9 +224,9 @@ contains
     this%gradients(:, :) = 0.0_dp
     this%sigma(:, :) = 0.0_dp
 
-    call this%cnCont%updateCoords(neigh, img2CentCell, coords, species0)
+    call this%cnCont%updateCoords(env, neigh, img2CentCell, coords, species0)
 
-    call getNrOfNeighboursForAll(nNeighbour, neigh, this%cutoffInter)
+    call getNrOfNeighboursForAll(env%stdOut, nNeighbour, neigh, this%cutoffInter)
     call dispersionGradient(env, this%ref, this%param, nNeighbour, coords, &
         & species0, neigh, img2CentCell, this%cnCont%cn, this%cnCont%dcndr, &
         & this%cnCont%dcndL, this%energies, this%gradients, this%sigma)
@@ -404,7 +404,7 @@ contains
         expd = 2.0_dp * wf * (calc%referenceCN(iRef1, iSp1) - cn(iAt1)) * gw
 
         gwk = expw * norm
-        if (ieee_is_nan(gwk)) then
+        if (.not. ieee_is_finite(gwk)) then
           if (maxval(calc%referenceCN(:calc%numberOfReferences(iSp1), iSp1))&
               & == calc%referenceCN(iRef1, iSp1)) then
             gwk = 1.0_dp
@@ -415,7 +415,7 @@ contains
         gwVec(iRef1, iAt1) = gwk
 
         dgwk = expd * norm - expw * dnorm * norm**2
-        if (ieee_is_nan(dgwk)) then
+        if (.not. ieee_is_finite(dgwk)) then
           dgwk = 0.0_dp
         end if
         gwdcn(iRef1, iAt1) = dgwk

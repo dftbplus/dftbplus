@@ -8,7 +8,7 @@
 #:include "allocatablelist.fypp"
 
 module alloclisthelper
-  implicit none
+  implicit none (type, external)
 
   @:declare_allocatable_list(TIntList, integer)
 

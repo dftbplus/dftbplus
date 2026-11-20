@@ -10,7 +10,7 @@ module dftbp_geoopt_fire
   use dftbp_common_accuracy, only : dp
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TFireInput, TFire, TFire_init

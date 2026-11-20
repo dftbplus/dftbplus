@@ -10,7 +10,7 @@
 !> Contains subroutines for the dense matrix representation
 module dftbp_dftb_dense
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: buildSquaredAtomIndex, getDescriptor

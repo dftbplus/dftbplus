@@ -21,7 +21,7 @@ module dftbp_derivs_rotatedegen
   use dftbp_extlibs_scalapackfx, only : linecomm
   use dftbp_type_densedescr, only : TDenseDescr
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TRotateDegen, TRotateDegen_init

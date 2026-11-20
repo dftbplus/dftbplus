@@ -15,18 +15,22 @@ program dftbplus
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_main, only : runDftbPlus
+#:if WITH_MAGMA
+  use dftbp_extlibs_magma, only : magmaf_finalize
+#:endif
   use dftbp_io_formatout, only : printDftbHeader
-  implicit none
+  implicit none (type, external)
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input
   type(TDftbPlusMain), allocatable, target :: main
+  integer :: stdOut
 
-  call initGlobalEnv()
-  call printDftbHeader(releaseName, releaseYear)
+  call initGlobalEnv(stdOut=stdOut)
+  call TEnvironment_init(env, stdOut=stdOut)
+  call printDftbHeader(env%stdOut, releaseName, releaseYear)
   allocate(input)
-  call parseHsdInput(input)
-  call TEnvironment_init(env)
+  call parseHsdInput(env, input)
   allocate(main)
   call main%initProgramVariables(input, env)
   deallocate(input)

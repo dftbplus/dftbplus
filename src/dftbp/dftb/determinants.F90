@@ -13,7 +13,7 @@ module dftbp_dftb_determinants
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_etemp, only : Efilling
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public :: determinants, TDftbDeterminants_init, TDftbDeterminants

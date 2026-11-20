@@ -8,7 +8,7 @@
 !> Contains the interface for an external population dependent potential.
 module dftbp_dftbplus_qdepextpotgen
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TQDepExtPotGen, TQDepExtPotGenWrapper

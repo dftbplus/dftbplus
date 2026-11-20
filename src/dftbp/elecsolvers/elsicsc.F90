@@ -19,7 +19,7 @@ module dftbp_elecsolvers_elsicsc
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduce
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TElsiCsc, TElsiCsc_init

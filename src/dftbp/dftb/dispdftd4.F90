@@ -10,7 +10,7 @@
 
 !> Implementation of the D4 dispersion model
 module dftbp_dftb_dispdftd4
-  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan, ieee_is_finite
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
@@ -25,7 +25,7 @@ module dftbp_dftb_dispdftd4
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
 
@@ -277,7 +277,7 @@ contains
 
     if (allocated(this%sc)) then
       allocate(nNeighbour(this%nAtom))
-      call getNrOfNeighboursForAll(nNeighbour, neigh, this%calc%cutoffInter)
+      call getNrOfNeighboursForAll(env%stdOut, nNeighbour, neigh, this%calc%cutoffInter)
       call weightDispMat(this%calc, this%ref, env, this%nAtom, nNeighbour, neigh, &
           & img2CentCell, species0, this%cnCont%cn, this%sc%scratch, this%sc%dispMat)
     end if
@@ -572,7 +572,7 @@ contains
         end do
 
         gwk = expw * norm
-        if (ieee_is_nan(gwk)) then
+        if (.not. ieee_is_finite(gwk)) then
           if (maxval(ref%cn(:ref%nRef(iSp1), iSp1))&
               & == ref%cn(iRef1, iSp1)) then
             gwk = 1.0_dp
@@ -585,7 +585,7 @@ contains
         zetadq(iRef1, iAt1) = dzetaScale(calc%ga, eta1, qRef1, q(iAt1)+zEff1) * gwk
 
         dgwk = expd * norm - expw * dnorm * norm**2
-        if (ieee_is_nan(dgwk)) then
+        if (.not. ieee_is_finite(dgwk)) then
           dgwk = 0.0_dp
         end if
         zetadcn(iRef1, iAt1) = zetaScale(calc%ga, eta1, qRef1, q(iAt1) + zEff1) * dgwk
@@ -1054,11 +1054,11 @@ contains
     sigma(:, :) = 0.0_dp
 
     if (present(eeqCont)) then
-      call eeqCont%updateCoords(neigh, img2CentCell, coords, species, stat)
+      call eeqCont%updateCoords(env, neigh, img2CentCell, coords, species, stat)
       @:PROPAGATE_ERROR(stat)
     end if
 
-    call cnCont%updateCoords(neigh, img2CentCell, coords, species)
+    call cnCont%updateCoords(env, neigh, img2CentCell, coords, species)
 
     nRef = maxval(ref%nRef)
     allocate(nNeighbour(nAtom))
@@ -1077,7 +1077,7 @@ contains
     localSigma(:,:) = 0.0_dp
 
     if (present(eeqCont)) then
-      call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
+      call getNrOfNeighboursForAll(env%stdOut, nNeighbour, neigh, calc%cutoffInter)
 
       call weightReferences(calc, ref, env, nAtom, species, cnCont%cn, &
           & eeqCont%charges, zetaVec, zetadq, zetadcn)
@@ -1091,7 +1091,7 @@ contains
     end if
 
     if (calc%s9 > 0.0_dp) then
-      call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffThree)
+      call getNrOfNeighboursForAll(env%stdOut, nNeighbour, neigh, calc%cutoffThree)
 
       call weightReferences(calc, ref, env, nAtom, species, cnCont%cn, zero, &
           & zetaVec, zetadq, zetadcn)
@@ -1380,7 +1380,7 @@ contains
         end do
 
         gwk = expw * norm
-        if (ieee_is_nan(gwk)) then
+        if (.not. ieee_is_finite(gwk)) then
           if (maxval(ref%cn(:ref%nRef(iSp1), iSp1))&
               & == ref%cn(iRef1, iSp1)) then
             gwk = 1.0_dp
@@ -1543,7 +1543,7 @@ contains
     localDeriv(:,:) = 0.0_dp
     localSigma(:,:) = 0.0_dp
 
-    call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
+    call getNrOfNeighboursForAll(env%stdOut, nNeighbour, neigh, calc%cutoffInter)
 
     call weightReferences(calc, ref, env, nAtom, species, cnCont%cn, &
         & charges, zetaVec, zetadq, zetadcn)

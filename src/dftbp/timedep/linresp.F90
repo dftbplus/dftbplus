@@ -17,6 +17,7 @@
 !!   case).
 !! * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr
@@ -31,7 +32,7 @@ module dftbp_timedep_linresp
   use dftbp_timedep_linresptypes, only : linrespSolverTypes, TLinResp
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TLinresp, TLinrespini
@@ -42,6 +43,9 @@ module dftbp_timedep_linresp
 
     !> Number of excitations to be found
     integer :: nExc
+
+    !> Is Tamm-Dancoff Approximation being used?
+    logical :: isTDA
 
     !> Is an energy window being used?
     logical :: tEnergyWindow
@@ -62,6 +66,9 @@ module dftbp_timedep_linresp
     !> Number of excited states to find
     integer :: nStat
 
+    !> Was nstat set by the user?
+    logical :: tnStat
+    
     !> Symmetry of states being calculated
     character :: sym
 
@@ -88,6 +95,9 @@ module dftbp_timedep_linresp
 
     !> Write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
+
+    !> Write X+Y vector as text
+    logical :: tXplusYAscii
 
     !> Should CI be optimized
     logical :: isCIopt
@@ -125,16 +135,22 @@ module dftbp_timedep_linresp
     !> Diagnose output of Arnoldi solver
     logical :: tDiagnoseArnoldi
 
+    !> Shift eigenspectrum and fold if requiring interior states for higher energy transitions
+    real(dp), allocatable :: shiftSpace
+
   end type TLinrespini
 
 
 contains
 
   !> Initialize an internal data type for linear response excitations.
-  subroutine LinResp_init(this, ini, nAtom, nEl, nSpin, onSiteMatrixElements, isIoProc)
+  subroutine LinResp_init(this, env, ini, nAtom, nEl, nSpin, onSiteMatrixElements, isIoProc)
 
     !> Data structure for linear response
     type(TLinResp), intent(out) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Initial values for setting parameters
     type(TLinrespini), intent(inout) :: ini
@@ -161,16 +177,46 @@ contains
     this%iLinRespSolver = ini%iLinRespSolver
 
     if (any([linrespSolverTypes%Arpack, linrespSolverTypes%Stratmann] == this%iLinRespSolver)) then
+
+      if (this%iLinRespSolver == linrespSolverTypes%Arpack) then
+        if (allocated(ini%shiftSpace)) then
+          this%isSpectrumFolded = .true.
+          if (ini%isTDA) then
+            ! TDA operator A has eigenvalues omega
+            this%shiftSpace = ini%shiftSpace
+          else
+            ! Full-Casida operator Omega has eigenvalues omega**2
+            this%shiftSpace = ini%shiftSpace**2
+          end if
+        else
+          this%isSpectrumFolded = .false.
+          this%shiftSpace = 0.0_dp
+        end if
+      else
+        if (allocated(ini%shiftSpace)) then
+          call error("Folded spectrum not implemented for this method")
+        end if
+      end if
+
       this%tinit = .true.
     else
       call error('Internal error: Illegal routine call to LinResp_init.')
     end if
 
     if (this%iLinRespSolver == linrespSolverTypes%Arpack .and. .not. withArpack) then
-      call error('This binary is buit without ARPACK support, but it is requested.')
+      call error('This binary is built without ARPACK support, but it is requested.')
     end if
 
+  #:if WITH_MPI
+    if (this%iLinRespSolver == linrespSolverTypes%Arpack) then
+      if (.not. ini%tCacheCharges) then
+        call error("Uncached charges currently not supported for MPI enabled builds")
+      end if
+    end if
+  #:endif
+
     this%nExc = ini%nExc
+    this%isTDA = ini%isTDA
     this%tEnergyWindow = ini%tEnergyWindow
     this%energyWindow = ini%energyWindow
     this%tOscillatorWindow = ini%tOscillatorWindow
@@ -216,7 +262,7 @@ contains
         call error("CI optimization: States must be neighbouring.")
       end if
       if (ini%isCIopt .and. ini%nstat /= 0) then
-        call warning("CI optimization: Setting of StateOfInterest will be ignored.")
+        call warning(env%stdOut, "CI optimization: Setting of StateOfInterest will be ignored.")
       end if
       this%tNaCoupling = .true.
       this%indNACouplings = ini%indNACouplings
@@ -233,6 +279,7 @@ contains
     this%writeTransQ = ini%tTransQ .and. isIoProc
     this%writeSPTrans = ini%tSPTrans .and. isIoProc
     this%writeXplusY = ini%tXplusY .and. isIoProc
+    this%writeXplusYAscii = ini%tXplusYAscii .and. isIoProc
     this%writeTransDip = ini%tTradip .and. isIoProc
     this%writeNacv = this%tNaCoupling .and. isIoProc
 
@@ -261,18 +308,15 @@ contains
 
 
   !> Wrapper to call the actual linear response routine for excitation energies
-  subroutine linResp_calcExcitations(env, this, tSpin, denseDesc, eigVec, eigVal, SSqrReal,&
+  subroutine linResp_calcExcitations(env, this, denseDesc, eigVec, eigVal, SSqrReal,&
       & filling, coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb,&
-      & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies)
+      & fdAutotest, fdResults, taggedWriter, hybridXc, excEnergy, allExcEnergies)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
-
-    !> Is this a spin-polarized calculation
-    logical, intent(in) :: tSpin
 
     !> Indexing array for dense H and S
     type(TDenseDescr), intent(in) :: denseDesc
@@ -310,8 +354,11 @@ contains
     !> Data type with atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> File id for tagging information
-    type(TFileDescr), intent(in) :: fdTagged
+    !> File id for tagging information for regression system
+    type(TFileDescr), intent(in) :: fdAutotest
+
+    !> File id for tagged results output
+    type(TFileDescr), intent(in) :: fdResults
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -328,8 +375,8 @@ contains
     if (this%tInit) then
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
-          & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-          & hybridXc, excEnergy, allExcEnergies)
+          & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdAutotest, fdResults,&
+          & taggedWriter, hybridXc, excEnergy, allExcEnergies)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations.')
     end if
@@ -338,16 +385,13 @@ contains
 
 
   !> Wrapper to call linear response calculations of excitations and forces in excited states
-  subroutine LinResp_addGradients(env, tSpin, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
+  subroutine LinResp_addGradients(env, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies, excgradient, nacv, derivator,&
-      & rhoSqr, deltaRho, occNatural, naturalOrbs)
+      & fdAutotest, fdResults, taggedWriter, hybridXc, excEnergy, allExcEnergies, excgradient,&
+      & nacv, derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-
-    !> Is this a spin-polarized calculation
-    logical, intent(in) :: tSpin
 
     !> Data for the actual calculation
     type(TLinResp), intent(inout) :: this
@@ -404,7 +448,10 @@ contains
     real(dp), intent(inout), allocatable :: deltaRho(:,:,:)
 
     !> File descriptor for tagged data
-    type(TFileDescr), intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdAutotest
+
+    !> File id for tagged results information
+    type(TFileDescr), intent(in) :: fdResults
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -445,16 +492,17 @@ contains
 
       if (allocated(occNatural)) then
         call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-            & hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho, shift=shiftPerAtom,&
-            & skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient, nacv=nacv,&
-            & derivator=derivator, rhoSqr=rhoSqr, occNatural=occNatural, naturalOrbs=naturalOrbs)
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdAutotest, fdResults,&
+            & taggedWriter, hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho,&
+            & shift=shiftPerAtom, skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient,&
+            & nacv=nacv, derivator=derivator, rhoSqr=rhoSqr, occNatural=occNatural,&
+            & naturalOrbs=naturalOrbs)
       else
-         call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-            & hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho, shift=shiftPerAtom,&
-            & skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient, nacv=nacv,&
-            & derivator=derivator, rhoSqr=rhoSqr)
+        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdAutotest, fdResults,&
+            & taggedWriter, hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho,&
+            & shift=shiftPerAtom, skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient,&
+            & nacv=nacv, derivator=derivator, rhoSqr=rhoSqr)
       end if
 
     else

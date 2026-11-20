@@ -11,7 +11,7 @@
 module dftbp_md_extlagrangian
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
   private
   public ::ExtLagrangian, ExtLagrangian_init

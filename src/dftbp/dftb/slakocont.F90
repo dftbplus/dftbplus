@@ -15,7 +15,7 @@
 module dftbp_dftb_slakocont
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_slakoeqgrid, only : getCutoff, getNIntegrals, getSKIntegrals, TSlakoEqGrid
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TSlakoCont, init

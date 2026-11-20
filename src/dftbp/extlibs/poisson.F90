@@ -17,7 +17,6 @@ module dftbp_extlibs_poisson
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : globalTimers, TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
@@ -26,14 +25,15 @@ module dftbp_extlibs_poisson
 #:if WITH_POISSON
   use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
   use dftbp_poisson_poisson, only : active_id, angShells, bufferBox, check_biasdir, check_contacts,&
-      & check_localbc, check_parameters, check_poisson_box, deltaR_max, DoCilGate, DoGate, dQmat,&
-      & dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox, Gate, GateDir, GateLength_l, GateLength_t,&
-      & id0, init_charges, init_defaults, init_poissbox, init_skdata, init_structure, InitPot, izp,&
-      & lmax, localBC, MaxPoissIter, mudpack_drv, natoms, nshells, numprocs, overrBulkBC,&
-      & overrideBC, OxLength, period, poiss_freepoisson, poiss_getlatvecs, poiss_savepotential,&
-      & poiss_updcoords, ReadBulk, Rmin_Gate, Rmin_Ins, SavePot, scratchfolder, set_accuracy,&
-      & set_cluster, set_dopoisson, set_mol_indeces, set_ncont, set_poissonbox, set_poissongrid,&
-      & set_scratch, set_temperature, set_verbose, uhubb, verbose, write_parameters
+      & cntr_gate, cntr_gate_set, check_localbc, check_parameters, check_poisson_box, deltaR_max,&
+      & DoCilGate, DoGate, DoInsulator, dQmat, dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox,&
+      & Gate, GateDir, GateLength_l, GateLength_t, id0, init_charges, init_defaults, init_poissbox,&
+      & init_skdata, init_structure, InitPot, insLength_t, insLength_l, izp, lmax, localBC,&
+      & MaxPoissIter, mudpack_drv, natoms, nshells, numprocs, overrBulkBC, overrideBC, OxLength,&
+      & OxLength_t, OxLength_l, period, poiss_freepoisson, poiss_getlatvecs, poiss_savepotential,&
+      & poiss_updcoords, ReadBulk, Rmin_Gate, Rmin_Ins, SavePot, insSharpBC, scratchfolder,&
+      & set_accuracy, set_cluster, set_dopoisson, set_mol_indeces, set_ncont, set_poissonbox,&
+      & set_poissongrid, set_scratch, set_temperature, set_verbose, uhubb, verbose, write_parameters
   #:if WITH_MPI
   use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
   #:endif
@@ -43,7 +43,7 @@ module dftbp_extlibs_poisson
       & set_contlabels, set_fermi, set_potentials
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: withPoisson
@@ -68,6 +68,11 @@ module dftbp_extlibs_poisson
 
     ! Stores the shift vector to use in order to upload the shell potential
     real(dp), allocatable :: shellPotUpload_(:,:)
+
+    logical :: isInitialised_ = .false.
+
+    !> Output unit for human readable messages
+    integer :: output
 
   contains
 
@@ -188,6 +193,9 @@ module dftbp_extlibs_poisson
     !> Planar or cylindrical gate
     character(1) :: gateType
 
+    !> Planar or cylindrical gate
+    logical :: insulatorIsPresent
+
     !> gate direction
     integer :: gatedir
 
@@ -195,13 +203,19 @@ module dftbp_extlibs_poisson
     real(dp) :: gatePot
 
     !> Gate length along transport direction
-    real(dp) :: gateLength_l
+    real(dp) :: gateLength_l = 0.0_dp
 
     !> Gate length in transverse direction
-    real(dp) :: gateLength_t
+    real(dp) :: gateLength_t = 0.0_dp
 
     !> Insulator length
     real(dp) :: insLength
+
+    !> Insulator length in transverse direction
+    real(dp) :: insLength_t
+
+    !> Insulator length in lateral direction
+    real(dp) :: insLength_l
 
     !> Radius of insulator
     real(dp) :: insRad
@@ -214,6 +228,15 @@ module dftbp_extlibs_poisson
 
     !> Buffer layer between dielectric and vacuum
     real(dp) :: dr_eps
+
+    !> Center of cylindrical gate
+    real(dp) :: gateCntr(3)
+
+    !> Flags for which gate center components are explicitly set by user
+    logical :: gateCntrSet(3)
+
+    !> Flag to use sharp boundary conditions for insulator (instead of smooth transition)
+    logical :: insSharpBC
 
     !> Box buffer inside the contact region
     real(dp) :: bufferBox
@@ -311,6 +334,8 @@ contains
 
     integer :: nAtom
 
+    this%output = env%stdOut
+
     if (nInstances_ > 0) then
       call error("Internal error: There exists already an instance of PoissonSolver")
     end if
@@ -327,6 +352,7 @@ contains
   #:else
     call poiss_init_(env, input%poissonStruct, orb, input%hubbU, input%poissonInfo, success)
   #:endif
+    this%isInitialised_ = .true.
 
   end subroutine TPoisson_init
 
@@ -344,7 +370,8 @@ contains
   subroutine finalize_(this)
     type(TPoisson), intent(inout) :: this
 
-    call poiss_destroy_()
+    if (.not. this%isInitialised_) return
+    call poiss_destroy_(this%output)
     nInstances_ = nInstances_ - 1
 
   end subroutine finalize_
@@ -444,10 +471,10 @@ contains
     !> Gradients
     real(dp), intent(out) :: gradients(:,:)
 
-    real(dp), allocatable :: dummyArray(:,:)
+    real(dp), allocatable :: fakePotential(:,:)
 
-    allocate(dummyArray, mold=this%shellPot_)
-    call poiss_getshift_(env, dummyArray, gradients)
+    allocate(fakePotential, mold=this%shellPot_)
+    call poiss_getshift_(env, fakePotential, gradients)
 
   end subroutine getGradients
 
@@ -513,10 +540,10 @@ contains
     call mpifx_barrier(env%mpi%globalComm, iErr)
   #:endif
 
-    write(stdOut,*)
-    write(stdOut,*) 'Poisson Initialisation:'
-    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
-    write(stdOut,*)
+    write(env%stdOut,*)
+    write(env%stdOut,*) 'Poisson Initialisation:'
+    write(env%stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
+    write(env%stdOut,*)
 
     ! Directory for temporary files
     call set_scratch(poissoninfo%scratch)
@@ -524,7 +551,7 @@ contains
   #:if WITH_TRANSPORT
     if (id0 .and. transpar%ncont > 0) then
       ! only use a scratch folder on the lead node
-      call create_directory_(trim(scratchfolder),iErr)
+      call create_directory_(env%stdOut, trim(scratchfolder),iErr)
     end if
   #:endif
 
@@ -532,17 +559,17 @@ contains
       ! processors over which the right hand side of the Poisson equation is parallelised
 
       iErr = 0
-      call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
-          & structure%latVecs, structure%isperiodic)
+      call init_structure(env%stdOut, structure%nAtom, structure%nSpecies, structure%specie0,&
+          & structure%x0, structure%latVecs, structure%isperiodic)
 
-      call init_skdata(orb%nShell, orb%angShell, hubbU)
+      call init_skdata(env%stdOut, orb%nShell, orb%angShell, hubbU)
 
-      call init_charges()
+      call init_charges(env%stdOut)
 
       ! Initialise renormalization factors for grid projection
 
       if (iErr.ne.0) then
-        call poiss_destroy_()
+        call poiss_destroy_(env%stdOut)
         initinfo = .false.
         return
       endif
@@ -614,15 +641,15 @@ contains
 
       ! if deltaR_max > 0 is a radius cutoff, if < 0 a tolerance
       if (deltaR_max < 0.0_dp) then
-        write(stdOut,*) "Atomic density tolerance: ", -deltaR_max
+        write(env%stdOut,*) "Atomic density tolerance: ", -deltaR_max
         deltaR_max = getAtomDensityCutoff_(-deltaR_max, uhubb)
       end if
 
-      write(stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
+      write(env%stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
 
     #:if WITH_TRANSPORT
       if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
-        call checkDensityCutoff_(deltaR_max, transpar%contacts(:)%length)
+        call checkDensityCutoff_(env, deltaR_max, transpar%contacts(:)%length)
       end if
     #:endif
 
@@ -635,6 +662,7 @@ contains
       ! Gate settings
       DoGate=.false.
       DoCilGate=.false.
+      DoInsulator = .false.
       if (poissoninfo%gateType.eq.'C') then
         DoCilGate = .true.
       end if
@@ -645,33 +673,41 @@ contains
       Gate = poissoninfo%gatePot
       GateLength_l = poissoninfo%gateLength_l
       GateLength_t = poissoninfo%gateLength_t
+      DoInsulator = poissoninfo%insulatorIsPresent
 
       ! Planar gate must be along y
       GateDir = poissoninfo%gatedir
 
       OxLength = poissoninfo%insLength
+      OxLength_t = poissoninfo%insLength_t
+      OxLength_l = poissoninfo%insLength_l
+      insLength_t = poissoninfo%insLength_t
+      insLength_l = poissoninfo%insLength_l
       Rmin_Gate = poissoninfo%gateRad
+      insSharpBC = poissoninfo%insSharpBC
       Rmin_Ins = poissoninfo%insRad
       eps_r = poissoninfo%eps_r
       dr_eps = poissoninfo%dr_eps
+      cntr_gate = poissoninfo%gateCntr
+      cntr_gate_set = poissoninfo%gateCntrSet
 
       ! Use fixed analytical renormalization (approximate) or numerical
       fixed_renorm = .not.(poissoninfo%numericNorm)
 
       ! Performs parameters checks
-      call check_biasdir(iErr)
+      call check_biasdir(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
-      call check_poisson_box(iErr)
+      call check_poisson_box(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
       period = period .and. all(overrideBC == poissonBCsEnum%periodic)
-      call check_parameters()
-      call check_localbc()
-      call write_parameters()
-      call check_contacts(iErr)
+      call check_parameters(env%stdOut)
+      call check_localbc(env%stdOut)
+      call write_parameters(env%stdOut)
+      call check_contacts(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build contact potentials for Poisson solver")
       end if
@@ -683,14 +719,17 @@ contains
       ! DoTip,tip_atom,base_atom1,base_atom2
       !-----------------------------------------------------------------------------+
 
-      write(stdOut,'(79(">"))')
+      write(env%stdOut,'(79(">"))')
 
     endif
 
   end subroutine poiss_init_
 
 
-  subroutine create_directory_(dirName, iErr)
+  subroutine create_directory_(output, dirName, iErr)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     character(*), intent(in) :: dirName
 
@@ -706,33 +745,36 @@ contains
     call execute_command_line("mkdir "//trim(dirName), exitstat=iErr, cmdstat=cstat,&
         & cmdmsg=cmsg)
     if (iErr /= 0) then
-      write (stdOut,*) 'error status of mkdir: ', iErr
-      write (stdOut,*) 'command status: ', cstat
-      write (stdOut,*) "command msg:  ", trim(cmsg)
+      write (output,*) 'error status of mkdir: ', iErr
+      write (output,*) 'command status: ', cstat
+      write (output,*) "command msg:  ", trim(cmsg)
     end if
 
   end subroutine create_directory_
 
 
   !> Release gDFTB varibles in Poisson library
-  subroutine poiss_destroy_()
+  subroutine poiss_destroy_(output)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     if (active_id) then
-      write(stdOut,'(A)')
-      write(stdOut,'(A)') 'Release Poisson Memory:'
-      call poiss_freepoisson()
+      write(output,'(A)')
+      write(output,'(A)') 'Release Poisson Memory:'
+      call poiss_freepoisson(output)
     endif
 
   end subroutine poiss_destroy_
 
 
   !> Interface subroutine to call Poisson
-  subroutine poiss_getshift_(env, V_L_atm,grad_V)
+  subroutine poiss_getshift_(env, V_L_atm, grad_V)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> potential for each shell at atom sites
+    !> Potential for each shell at atom sites
     real(dp), intent(inout) :: V_L_atm(:,:)
 
     !> Gradient of potential
@@ -761,12 +803,12 @@ contains
       select case(PoissFlag)
       case(0)
         if (verbose.gt.30) then
-          write(stdOut,*)
-          write(stdOut,'(80("="))')
-          write(stdOut,*) '                       SOLVING POISSON EQUATION         '
-          write(stdOut,'(80("="))')
+          write(env%stdOut,*)
+          write(env%stdOut,'(80("="))')
+          write(env%stdOut,*) '                       SOLVING POISSON EQUATION         '
+          write(env%stdOut,'(80("="))')
         end if
-        call init_PoissBox(iErr)
+        call init_PoissBox(env, iErr)
         if (iErr /= 0) then
           call error("Failure during initialisation of the Poisson box")
         end if
@@ -776,7 +818,7 @@ contains
       end select
 
       if (verbose.gt.30) then
-        write(stdOut,'(80("*"))')
+        write(env%stdOut,'(80("*"))')
       end if
     end if
 
@@ -888,7 +930,10 @@ contains
 #:if WITH_TRANSPORT
 
   !> Checks whether density cutoff fits into the PLs and stop if not.
-  subroutine checkDensityCutoff_(rr, pllens)
+  subroutine checkDensityCutoff_(env, rr, pllens)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Density cutoff.
     real(dp), intent(in) :: rr
@@ -902,9 +947,9 @@ contains
     ! have a factor 2 in front of pllens
     do ii = 1, size(pllens)
       if (rr > 2.0_dp * pllens(ii) + 1e-12_dp) then
-        write(stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the principle&
-            & layer width in contact ", ii, "."
-        write(stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
+        write(env%stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the&
+            & principle layer width in contact ", ii, "."
+        write(env%stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
         call error("Either enlarge PL width in the contact or increase AtomDensityCutoff or&
             & AtomDensityTolerance.")
       end if

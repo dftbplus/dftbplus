@@ -10,7 +10,7 @@
 module dftbp_geoopt_lbfgs2
   use dftbp_common_accuracy, only : dp
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TLbfgsInput, TLbfgs, TLbfgs_init

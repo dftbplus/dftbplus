@@ -57,7 +57,7 @@ Hamiltonian = DFTB {
 	FixedFermiLevel = -0.1690716531
     }
     SlaterKosterFiles = {
-        C-C = "./C-C.skf"
+        C-C = "slakos/origin/pbc-0-3/C-C.skf"
     }
     KPointsAndWeights = SupercellFolding {
         1 0 0

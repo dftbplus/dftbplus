@@ -7,7 +7,7 @@
 
 !> Provides functions to check relations between versions.
 module dftbp_common_version
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TVersion

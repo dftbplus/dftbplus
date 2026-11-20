@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 module dftbp_common_hamiltoniantypes
-  implicit none
+  implicit none (type, external)
 
   private
   public :: hamiltonianTypes
@@ -16,7 +16,7 @@ module dftbp_common_hamiltoniantypes
 
     ! Hamiltonian models
 
-    !> Dummy none
+    !> None chosen
     integer :: none = 0
 
     !> DFTB

@@ -12,7 +12,7 @@ module dftbp_dftb_emfields
   use dftbp_common_accuracy, only : dp
   use dftbp_math_angmomentum, only : Loperators
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: shiftB

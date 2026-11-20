@@ -11,7 +11,7 @@
 !! Not all routines use the string length specifications to set their character string lengths.
 module dftbp_common_accuracy
   use iso_fortran_env, only : real32, real64
-  implicit none
+  implicit none (type, external)
 
   public
 
@@ -65,7 +65,7 @@ module dftbp_common_accuracy
 
 
   !> Tolerance for atomic distances. Atoms closer than that are regarded to sit on the same
-  !! positions. (Dummy atoms)
+  !! positions. (e.g. fake atoms for extra basis functions)
   real(dp), parameter :: tolSameDist = 1.0e-5_dp
 
 

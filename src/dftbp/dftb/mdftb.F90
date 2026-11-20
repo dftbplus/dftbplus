@@ -12,7 +12,6 @@
 module dftbp_dftb_mdftb
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
@@ -22,7 +21,7 @@ module dftbp_dftb_mdftb
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
-  implicit none
+  implicit none (type, external)
   private
 
   public :: TMdftbAtomicIntegrals, TMdftbInp, TMdftb, TMdftb_init

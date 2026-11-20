@@ -11,7 +11,6 @@
 module dftbp_elecsolvers_elsisolver
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : globalTimers, TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_version, only : TVersion
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_etemp, only : fillingTypes
@@ -20,6 +19,7 @@ module dftbp_elecsolvers_elsisolver
   use dftbp_dftb_spin, only : ud2qm
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elecsolvers_elpa, only : TElpaInp
   use dftbp_elecsolvers_elsicsc, only : TElsiCsc
   use dftbp_extlibs_elsiiface, only : elsi_handle, elsi_rw_handle
   use dftbp_io_message, only : cleanshutdown, error, warning
@@ -49,11 +49,30 @@ module dftbp_elecsolvers_elsisolver
       & elsi_write_mat_complex_sparse, elsi_write_mat_real, elsi_write_mat_real_sparse
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TElsiSolverInp
   public :: TElsiSolver, TElsiSolver_init, TElsiSolver_final
+
+
+  !> List of ELSI solvers from elsi_interface/src/elsi_constant.f90
+  type :: TElsiEnum
+    integer :: AUTO_SOLVER = 0
+    integer :: ELPA_SOLVER = 1
+    integer :: OMM_SOLVER = 2
+    integer :: PEXSI_SOLVER = 3
+    integer :: EIGENEXA_SOLVER = 4
+    integer :: SIPS_SOLVER = 5
+    integer :: NTPOLY_SOLVER = 6
+    integer :: MAGMA_SOLVER = 7
+    integer :: BSEPACK_SOLVER = 8
+    integer :: CHASE_SOLVER = 9
+    integer :: DLAF_SOLVER = 10
+  end type TElsiEnum
+
+  !> Actual values for ELSI solvers
+  type(TElsiEnum), parameter :: elsiEnum = TElsiEnum()
 
 
   !> Input data for the ELSI solvers
@@ -61,15 +80,6 @@ module dftbp_elecsolvers_elsisolver
 
     !> Choice of the solver
     integer :: iSolver
-
-    !> Choice of ELPA solver
-    integer :: elpaSolver = 2
-
-    !> Enable ELPA autotuning
-    logical :: elpaAutotune = .false.
-
-    !> Enable GPU usage in ELPA
-    logical :: elpaGpu = .false.
 
     !> Iterations of ELPA solver before OMM minimization
     integer :: ommIterationsElpa = 5
@@ -202,6 +212,9 @@ module dftbp_elecsolvers_elsisolver
     !> If Meth-Paxton, order of scheme
     integer :: muMpOrder
 
+    !> Electronic temperature last passed to the library, negative before the first one
+    real(dp) :: muBroadenWidth = -1.0_dp
+
     !> Whether solver had been already initialised
     logical :: tSolverInitialised = .false.
 
@@ -286,6 +299,7 @@ module dftbp_elecsolvers_elsisolver
   contains
 
     procedure :: reset => TElsiSolver_reset
+    procedure :: setNState => TElsiSolver_setNState
     procedure :: updateGeometry => TElsiSolver_updateGeometry
     procedure :: updateElectronicTemp => TElsiSolver_updateElectronicTemp
     procedure :: getDensity => TElsiSolver_getDensity
@@ -301,8 +315,8 @@ contains
 
 
   !> Initialise ELSI solver
-  subroutine TElsiSolver_init(this, inp, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin, nKPoint,&
-      & iKPoint, kWeight, tWriteHS, providesElectronEntropy)
+  subroutine TElsiSolver_init(this, inp, inpElpa, env, nBasisFn, nState, nEl, iDistribFn, nSpin,&
+      & iSpin, nKPoint, iKPoint, kWeight, tWriteHS, providesElectronEntropy)
 
     !> control structure for solvers, including ELSI data
     class(TElsiSolver), intent(out) :: this
@@ -310,11 +324,18 @@ contains
     !> input structure for ELSI
     type(TElsiSolverInp), intent(in) :: inp
 
+    !> input structure for ELPA
+    type(TElpaInp), intent(in), allocatable :: inpElpa
+
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
     !> number of orbitals in the system
     integer, intent(in) :: nBasisFn
+
+    !> number of states the eigensolver should return, which is smaller than the number of orbitals
+    !! for a partial diagonalisation
+    integer, intent(in) :: nState
 
     !> number of electrons
     real(dp), intent(in) :: nEl(:)
@@ -349,19 +370,19 @@ contains
     integer :: version(3)
 
     call elsi_get_version(version(1), version(2), version(3))
-    call supportedVersionNumber(TVersion(version(1), version(2), version(3)))
+    call supportedVersionNumber(env%stdOut, TVersion(version(1), version(2), version(3)))
 
     this%iSolver = inp%iSolver
 
     select case(this%iSolver)
 
     case (electronicSolverTypes%elpa)
-      this%solver = 1
-      ! ELPA is asked for all states
-      this%nState = nBasisFn
+      this%solver = elsiEnum%ELPA_SOLVER
+      ! ELPA is asked for all states, unless a partial diagonalisation was requested
+      this%nState = min(nState, nBasisFn)
 
     case (electronicSolverTypes%omm)
-      this%solver = 2
+      this%solver = elsiEnum%OMM_SOLVER
       ! OMM solves only over occupied space
       ! spin degeneracies for closed shell
       if (nSpin == 1) then
@@ -371,21 +392,29 @@ contains
       end if
 
     case (electronicSolverTypes%pexsi)
-      this%solver = 3
+      this%solver = elsiEnum%PEXSI_SOLVER
       ! ignored by PEXSI:
       this%nState = nBasisFn
 
     case (electronicSolverTypes%ntpoly)
-      this%solver = 6
+      this%solver = elsiEnum%NTPOLY_SOLVER
       ! ignored by NTPoly, but set anyway:
       this%nState = nBasisFn
 
     case (electronicSolverTypes%elpadm)
-      this%solver = 1
+      this%solver = elsiEnum%ELPA_SOLVER
       ! ignored by density matrix from ELPA, but set anyway:
       this%nState = nBasisFn
 
     end select
+
+  #:block DEBUG_CODE
+    if (this%solver == elsiEnum%ELPA_SOLVER) then
+      @:ASSERT(allocated(inpElpa))
+    else
+      @:ASSERT(.not.allocated(inpElpa))
+    end if
+  #:endblock DEBUG_CODE
 
     ! parallelism with multiple processes
     this%parallel = 1
@@ -451,16 +480,18 @@ contains
     end if
 
     ! ELPA settings
-    this%elpaSolverOption = inp%elpaSolver
-    if (inp%elpaAutotune) then
-      this%elpaAutotune = 1
-    else
-      this%elpaAutotune = 0
-    end if
-    if (inp%elpaGpu) then
-      this%elpaGpu = 1
-    else
-      this%elpaGpu = 0
+    if (allocated(inpElpa)) then
+      this%elpaSolverOption = inpElpa%solver
+      if (inpElpa%autotune) then
+        this%elpaAutotune = 1
+      else
+        this%elpaAutotune = 0
+      end if
+      if (inpElpa%gpu) then
+        this%elpaGpu = 1
+      else
+        this%elpaGpu = 0
+      end if
     end if
 
     ! OMM settings
@@ -539,7 +570,10 @@ contains
 
 
   !> Checks for supported ELSI api version, ideally 2.6.2, but 2.5.0 can also be used with warnings.
-  subroutine supportedVersionNumber(version)
+  subroutine supportedVersionNumber(output, version)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Version value components inside the structure
     type(TVersion), intent(in) :: version
@@ -552,11 +586,11 @@ contains
     if (.not. isPartSupported) then
       call error("Unsuported ELSI version for DFTB+ (requires release >= 2.5.0)")
     else if (.not. isSupported) then
-      call warning("ELSI version 2.5 is only partially supported due to changes in default solver&
-          & behaviour for PEXSI at 2.6.0")
+      call warning(output, "ELSI version 2.5 is only partially supported due to changes in default&
+          & solver behaviour for PEXSI at 2.6.0")
     end if
 
-    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers
+    write(output,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers
 
   end subroutine supportedVersionNumber
 
@@ -581,6 +615,41 @@ contains
   end subroutine TELsiSolver_final
 
 
+  !> Changes the number of states the solver returns.
+  !!
+  !! The number of states is fixed when the ELSI handle is created, so the handle has to be
+  !! discarded and built again. This is only expected to happen a few times during a calculation,
+  !! as the number of empty states is doubled whenever it is found to be insufficient.
+  subroutine TElsiSolver_setNState(this, nState)
+
+    !> Instance
+    class(TElsiSolver), intent(inout) :: this
+
+    !> Number of states to calculate from now on
+    integer, intent(in) :: nState
+
+  #:if WITH_ELSI
+
+    if (nState == this%nState) then
+      return
+    end if
+
+    if (this%tSolverInitialised) then
+      call elsi_finalize(this%handle)
+      this%tSolverInitialised = .false.
+    end if
+    this%nState = nState
+    call this%reset()
+
+  #:else
+
+    call error("Internal error: TElsiSolver_setNState() called despite missing ELSI support")
+
+  #:endif
+
+  end subroutine TElsiSolver_setNState
+
+
   !> reset the ELSI solver - safer to do this on geometry change, due to the lack of a Choleskii
   !> refactorization option
   subroutine TElsiSolver_reset(this)
@@ -588,8 +657,9 @@ contains
     !> Instance
     class(TElsiSolver), intent(inout) :: this
 
-
   #:if WITH_ELSI
+
+    real(dp) :: muBroadenWidth
 
     if (this%tSolverInitialised) then
 
@@ -606,7 +676,7 @@ contains
 
     else
 
-      ! initialise solver
+      ! initialise ELSI library solver
 
       call elsi_init(this%handle, this%solver, this%parallel, this%denseBlacs, this%nBasis,&
           & this%nElectron, this%nState)
@@ -728,6 +798,12 @@ contains
       if (this%OutputLevel == 3) then
         call elsi_set_output_log(this%handle, 1)
       end if
+      if (this%muBroadenWidth >= 0.0_dp) then
+        ! a new handle starts from the library defaults, so the broadening of an earlier one has to
+        ! be applied again. This happens when the number of states changes during a calculation.
+        muBroadenWidth = this%muBroadenWidth
+        call this%updateElectronicTemp(muBroadenWidth)
+      end if
       this%tSolverInitialised = .true.
     end if
 
@@ -794,6 +870,7 @@ contains
 
   #:if WITH_ELSI
 
+    this%muBroadenWidth = tempElec
     call elsi_set_mu_broaden_scheme(this%handle, this%muBroadenScheme)
     if (this%muBroadenScheme == 2) then
       call elsi_set_mu_mp_order(this%handle, this%muMpOrder)
@@ -956,7 +1033,7 @@ contains
     if (nSpin /= 4) then
       if (tRealHS) then
         if (this%isSparse) then
-          call getDensityRealSparse(this, parallelKS, ham, over, neighbourList%iNeighbour,&
+          call getDensityRealSparse(this, env, parallelKS, ham, over, neighbourList%iNeighbour,&
               & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, tHelical, orb,&
               & species, coord, rhoPrim, Eband)
         else
@@ -966,7 +1043,7 @@ contains
         end if
       else
         if (this%isSparse) then
-          call getDensityCmplxSparse(this, parallelKS, kPoint(:,iK), kWeight(iK), iCellVec,&
+          call getDensityCmplxSparse(this, env, parallelKS, kPoint(:,iK), kWeight(iK), iCellVec,&
               & cellVec, ham, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
               & iSparseStart, img2CentCell, tHelical, orb, species, coord, rhoPrim, Eband)
         else
@@ -1354,7 +1431,7 @@ contains
       call elsi_write_mat_real(this%rwHandle, "ELSI_Hreal.bin", HSqrReal)
       call elsi_write_mat_real(this%rwHandle, "ELSI_Sreal.bin", SSqrReal)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished dense matrix write")
+      call cleanShutdown(env%stdOut, "Finished dense matrix write")
     end if
     call elsi_dm_real(this%handle, HSqrReal, SSqrReal, rhoSqrReal, Eband(iS))
 
@@ -1484,7 +1561,7 @@ contains
       call elsi_write_mat_complex(this%rwHandle, "ELSI_Scmplx.bin",&
           & SSqrCplx)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished dense matrix write")
+      call cleanShutdown(env%stdOut, "Finished dense matrix write")
     end if
     call elsi_dm_complex(this%handle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
         & Eband(iS))
@@ -1642,7 +1719,7 @@ contains
       call elsi_write_mat_complex(this%rwHandle, "ELSI_Scmplx.bin",&
           & SSqrCplx)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished dense matrix write")
+      call cleanShutdown(env%stdOut, "Finished dense matrix write")
     end if
     call elsi_dm_complex(this%handle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
         & Eband(iS))
@@ -1671,11 +1748,14 @@ contains
 
 
   !> Calculates density matrix using the elsi routine.
-  subroutine getDensityRealSparse(this, parallelKS, ham, over, iNeighbour, nNeighbourSK,&
+  subroutine getDensityRealSparse(this, env, parallelKS, ham, over, iNeighbour, nNeighbourSK,&
       & iAtomStart, iSparseStart, img2CentCell, tHelical, orb, species, coord, rho, Eband)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS), intent(in) :: parallelKS
@@ -1760,7 +1840,7 @@ contains
       call elsi_write_mat_real_sparse(this%rwHandle, "ELSI_SrealSparse.bin",&
           & this%elsiCsc%rowIndLocal, this%elsiCsc%colPtrLocal, SnzValLocal)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished matrix write")
+      call cleanShutdown(env%stdOut, "Finished matrix write")
     end if
 
     call elsi_dm_real_sparse(this%handle, HnzValLocal, SnzValLocal, DMnzValLocal,&
@@ -1780,12 +1860,15 @@ contains
 
 
   !> Calculates density matrix using the elsi routine.
-  subroutine getDensityCmplxSparse(this, parallelKS, kPoint, kWeight, iCellVec, cellVec, ham,&
+  subroutine getDensityCmplxSparse(this, env, parallelKS, kPoint, kWeight, iCellVec, cellVec, ham,&
       & over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, tHelical, orb,&
       & species, coord, rho, Eband)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS), intent(in) :: parallelKS
@@ -1881,7 +1964,7 @@ contains
       call elsi_write_mat_complex_sparse(this%rwHandle, "ELSI_ScmplxSparse.bin",&
           & this%elsiCsc%rowIndLocal, this%elsiCsc%colPtrLocal, SnzValLocal)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished matrix write")
+      call cleanShutdown(env%stdOut, "Finished matrix write")
     end if
 
     call elsi_dm_complex_sparse(this%handle, HnzValLocal, SnzValLocal, DMnzValLocal, Eband(iS))

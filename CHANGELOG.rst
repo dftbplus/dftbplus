@@ -5,6 +5,112 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+26.1 (2026-11-20)
+=================
+
+Added
+-----
+
+- Partial diagonalisation for the ELPA solver via ELSI, calculating
+  the occupied states together with an adaptively chosen number of
+  empty ones (EmptyStates)
+
+- Option (FromParameters) to automatically set spin-constants for xTB
+  models
+
+- VelocityVerlet: new PrintTrajectoryForces option to append fx fy fz to
+  OutputPrefix.xyz (units: eV/Angstrom).
+
+- MPI parallelism for real-time propagation
+
+- Evaluate bond currents for time propagation
+
+- Excited state forces for multiple excited states
+
+- Periodic geometry halogen corrections
+
+- DFTB3 model coupled-perturbed atom derivatives
+
+- Coupled-perturbed derivatives with respect to external (MM) charges
+
+- API bindings for coupled-perturbed derivatives
+
+- Pairwise bond populations, bond energies and Mayer bond orders
+
+- Direct integration of ELPA (requires version 2022.05.001 or later)
+  with optional MPI redistribution to a lower number of ranks for all
+  ELPA calls
+
+- Langevin thermostat added
+
+- Ehrenfest dynamics for hybrid functionals (molecules and gamma-point only)
+
+- Tamm-Dancoff approximation for TD-DFTB
+
+
+Changed
+-------
+
+- **Backward incompatible** changes to xTB calculations due to changes
+  in the TBLite library (version 0.8.0), with no fallback to the old
+  implementations:
+
+  * Periodic GFN1/GFN2-xTB: Klopman-Ohno electrostatics is evaluated
+    with an exact generalized Ewald summation.
+
+  * GFN1-xTB and IPEA1-xTB: the original (xtb 6.2) STO-6G expansion with
+    shared s/p exponents is used for 4sp and 5sp shells, slightly
+    changing results for systems containing elements of the 4th and 5th
+    rows.
+
+  Calculations using the DFTB Hamiltonian remain unaffected.
+
+- Binary X+Y data export from time dependent calculations
+
+- Improve control for single-shot transport calculations in cases
+  where charges are read from a file
+
+- Removed mm/ from API path in code, also renaming getDftbPlusApi to
+  getDftbPlusApiVersion and dftbp_api to dftbp_api_version for the
+  Fortran and C API bindings. The Fortran API module for imports is
+  now called dftbp_api. Bumped the API version to 0.6.0 as this
+  renaming is a breaking change.
+
+- Better scaling algorithm for k-point inversion folding
+
+- The cmake system replaces the functionality of the get_opt_externals
+  script, which has been removed.
+
+
+Fixed
+-----
+
+- Corrected variable order printed out during electronic constraint
+  enforcement
+
+- API include file now can also be used for C++ codes
+
+- Removed incorrect scaling factor applied to spin-vectors (only) in
+  XYZ files containing both atomic populations and noncolinear spin
+  vectors.
+
+- Kick calculations with Ehrenfest ion dynamics for pump-probe simulations
+  now work correctly.
+
+- Fix GeometryOptimization for FixAngles, FixLengths and Isotropic
+  cases.
+
+- Corrected f_xyz orbital label
+
+- Orbital ordering for d-orbitals in xTB calculations follows now the usual
+  (m=-l,...,l) convention (fix in the upstream tblite library).
+
+- Forces from the three-body term of the DFT-D3 dispersion were slightly
+  incorrect for periodic systems, as triples involving periodic images of the
+  same atom were weighted wrongly (energies and stress were not affected). Fixed
+  in the upstream simple-dftd3 library.
+
+
 25.1 (2025-12-18)
 =================
 
@@ -497,7 +603,7 @@ Added
 - Caching for transition charges in excited state.
 
 - DFTB+ can be compiled as a library and accessed via high level API (version
-  number is in the file api/mm/API_VERSION below the main directory).
+  number is in the file api/API_VERSION below the main directory).
 
 - Onsite corrected hamiltonian for ground state energies.
 

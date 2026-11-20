@@ -11,7 +11,7 @@
 module dftbp_type_typegeometry
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_math_simplealgebra, only : invert33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TGeometry, normalize
@@ -102,16 +102,16 @@ contains
       allocate(sf%species(size(oldSpecies)))
       allocate(sf%speciesNames(sf%nSpecies))
       ind = 1
-      do iSp = 1, size(oldSpeciesNames)
+      lpNewSpecies: do iSp = 1, size(oldSpeciesNames)
         if (.not. inUse(iSp)) then
-          continue
+          cycle lpNewSpecies
         end if
         sf%speciesNames(ind) = oldSpeciesNames(iSp)
         where (oldSpecies == iSp)
           sf%species = ind
         end where
         ind = ind + 1
-      end do
+      end do lpNewSpecies
     end if
 
   end subroutine Geometry_normalize

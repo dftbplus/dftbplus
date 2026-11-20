@@ -13,7 +13,7 @@ module test_mixer_anderson
   use dftbp_mixer_andersonmixer, only : TAndersonMixerInp, TAndersonMixerReal,&
       & TAndersonMixerReal_init
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

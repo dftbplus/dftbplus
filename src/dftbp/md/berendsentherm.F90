@@ -20,7 +20,7 @@ module dftbp_md_berendsentherm
   use dftbp_md_mdcommon, only : evalkT, MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   use dftbp_md_tempprofile, only : TTempProfile
   use dftbp_md_thermostat, only : TThermostat
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TBerendsenThermInput

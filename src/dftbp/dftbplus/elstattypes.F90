@@ -7,7 +7,7 @@
 
 !> Contains enumerated electrostatic solver types.
 module dftbp_dftbplus_elstattypes
-  implicit none
+  implicit none (type, external)
 
   private
   public :: elstatTypes

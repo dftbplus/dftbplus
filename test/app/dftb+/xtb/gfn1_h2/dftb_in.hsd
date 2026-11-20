@@ -1,4 +1,4 @@
-Geometry = genFormat {
+Geometry = GenFormat {
 2 C
  H
     1    1    0.00000000000000E+00    0.00000000000000E+00   -3.71762583041627E-01
@@ -7,8 +7,9 @@ Geometry = genFormat {
 
 Driver {}
 
-Hamiltonian = xtb {
-  method = "GFN1-xTB"
+Hamiltonian = Xtb {
+  Method = "GFN1-xTB"
+  SCCTolerance = 1.0E-8
 }
 
 Options { WriteAutotestTag = Yes }

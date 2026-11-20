@@ -67,7 +67,7 @@ class Gen:
         else:
             periodic = False
             relative = False
-        specienames = lines[1].split()
+        speciesnames = lines[1].split()
         indexes = np.empty((natom, ), dtype=int)
         coords = np.empty((natom, 3), dtype=float)
         for ii, line in enumerate(lines[2:2+natom]):
@@ -82,7 +82,7 @@ class Gen:
         else:
             origin = None
             latvecs = None
-        geometry = Geometry(specienames, indexes, coords, latvecs, origin,
+        geometry = Geometry(speciesnames, indexes, coords, latvecs, origin,
                             relative)
         return cls(geometry, relative)
 
@@ -109,7 +109,7 @@ class Gen:
 
         coords = _round_to_zero(coords, _TOLERANCE)
         lines.append(" ".join(line) + "\n")
-        lines.append(" ".join(geo.specienames) + "\n")
+        lines.append(" ".join(geo.speciesnames) + "\n")
         for ii in range(geo.natom):
             lines.append("{0:6d} {1:3d} {2:18.10E} {3:18.10E} {4:18.10E}\n"
                          .format(ii + 1, geo.indexes[ii] + 1, *coords[ii]))

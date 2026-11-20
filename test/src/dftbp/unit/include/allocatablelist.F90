@@ -11,7 +11,7 @@ module test_include_allocatablelist
   use alloclisthelper, only : TIntList
   use fortuno_serial, only : serial_case_base, suite => serial_suite_item, test_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

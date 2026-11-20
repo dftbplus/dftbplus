@@ -13,6 +13,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_derivs_perturb, only : TPerturbInp
   use dftbp_dftb_dftbplusu, only : TDftbUInp
+  use dftbp_dftb_dipolecorr, only : TDipoleCorrInput
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_dftb_elecconstraints, only : TElecConstraintInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
@@ -51,7 +52,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_transport_negfvars, only : TNEGFGreenDensInfo, TNEGFTunDos
 #:endif
   use dftbp_transport_negfvars, only : TTransPar
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TControl, TSlater, TInputData, TParallelOpts
@@ -149,12 +150,9 @@ module dftbp_dftbplus_inputdata
     !> Choice of electronic hamiltonian
     integer :: hamiltonian = hamiltonianTypes%none
 
-  #:if WITH_API
     !> Is this ASI callback interface for H,S,P enabled (Stishenko et al.,
     !! https://doi.org/10.21105/joss.05186)
     logical :: isAsiCallbackEnabled = .false.
-
-  #:endif
 
     !> Random number generator seed
     integer :: iSeed = 0
@@ -209,6 +207,9 @@ module dftbp_dftbplus_inputdata
     !> Maximum possible linesearch step
     real(dp) :: maxLatDisp = 0.2_dp
 
+    !> Is lattice information printed
+    logical :: isLatInfoPrinted = .false.
+
     !> Add new geometries at the end of files
     logical :: tAppendGeo = .false.
 
@@ -232,6 +233,15 @@ module dftbp_dftbplus_inputdata
 
     !> Printout of Mulliken
     logical :: tPrintMulliken = .false.
+
+    !> Print pairwise Mulliken bond populations
+    logical :: writeBondPopul = .false.
+
+    !> Print pairwise non-SCC bond energies
+    logical :: writeBondEnergy = .false.
+
+    !> Print pairwise Mayer bond orders
+    logical :: writeBondOrder = .false.
 
     !> Net atomic charges (i.e. on-site only part of Mulliken charges)
     logical :: tNetAtomCharges = .false.
@@ -287,6 +297,9 @@ module dftbp_dftbplus_inputdata
 
     !> Molecular dynamics
     logical :: tMD = .false.
+
+    !> Write per-atom forces in MD trajectory output
+    logical :: writeTrajectoryForces = .false.
 
     !> Molecular dynamics data to be recorded as it is accumulated
     type(TMDOutput), allocatable :: mdOutput
@@ -390,6 +403,9 @@ module dftbp_dftbplus_inputdata
     !! C_n symmetry
     real(dp) :: helicalSymTol = 1.0E-8_dp
 
+    !> k-points reduced by inversion?
+    logical :: tReduceByInversion = .true.
+
     !> Cell pressure if periodic
     real(dp) :: pressure = 0.0_dp
     logical :: tBarostat = .false.
@@ -402,9 +418,14 @@ module dftbp_dftbplus_inputdata
     !> Read atomic masses from the input not the SK data
     real(dp), allocatable :: masses(:)
 
-
     !> Spin constants
     real(dp), allocatable :: spinW(:,:,:)
+
+    !> Are spin constants shell resolved?
+    logical :: isSpinWShellResolved
+
+    !> Are spin constants obtained from parameterisation data?
+    logical :: isSpinWFromParameters = .false.
 
     !> Customised Hubbard U values
     real(dp), allocatable :: hubbU(:,:)
@@ -537,6 +558,8 @@ module dftbp_dftbplus_inputdata
     logical :: isMdftb = .false.
     type(TMdftbAtomicIntegrals), allocatable :: mdftbAtomicIntegrals
 
+    type(TDipoleCorrInput), allocatable :: dipoleCorrInput
+
   #:if WITH_SOCKETS
     !> Socket communication
     type(ipiSocketCommInp), allocatable :: socketInput
@@ -568,7 +591,9 @@ module dftbp_dftbplus_inputdata
     type(TReksInp) :: reksInp
 
     !> Whether Scc should be updated with the output charges (obtained after diagonalization)
-    !> Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
+    !! Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
+    !! It can also be set to .false. in case of fixed-charge calculations
+    !! (e.g. when setting MaxSCCIterations=1;   ReadInitialCharges=Yes)
     logical :: updateSccAfterDiag = .true.
 
     !> Write cavity information as COSMO file
@@ -609,7 +634,7 @@ module dftbp_dftbplus_inputdata
 
 #:else
 
-  !> Dummy type replacement
+  !> Fake type replacement, as compiled without libNEGF
   type TNegfInfo
   end type TNegfInfo
 

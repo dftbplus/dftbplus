@@ -14,8 +14,11 @@
 !> interface of all BLAS calls must be defined in the module blas.
 module dftbp_math_blasroutines
   use dftbp_common_accuracy, only : dp, rdp, rsp
-  use dftbp_extlibs_blas, only : cher, dspmv, sspmv, ssyr, zher
-  implicit none
+  use dftbp_extlibs_blas, only : cgemm, cgerc, chemm, chemv, cher, cher2k, cherk, cscal, cswap,&
+      & dgemm, dgemv, dger, dsbmv, dspmv, dsymm, dsymv, dsyr, dsyr2k, dsyrk, sgemm, sgemv, sger,&
+      & ssbmv, sspmv, ssymm, ssymv, ssyr, ssyr2k, ssyrk, zgemm, zgerc, zhemm, zhemv, zher, zher2k,&
+      & zherk, zscal, zswap
+  implicit none (type, external)
 
   private
   public ::  gemv, gemm, ger, hemm, hemv, her, herk, her2k, sbmv, scal, spmv, symm, swap

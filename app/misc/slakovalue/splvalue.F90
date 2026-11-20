@@ -10,17 +10,16 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program splvalue
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_globalenv, only : destructGlobalEnv, ensureSerialRun, initGlobalEnv
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_repulsive_splinerep, only : TSplineRep, TSplineRep_init, TSplineRepInp
   use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readsplinerep
-#:if WITH_MPI
-  use dftbp_common_mpienv, only : TMpiEnv
-#:endif
-  implicit none
+  implicit none (type, external)
 
+  type(TEnvironment) :: env
   character(*), parameter :: fname = "test.skf"
   character(lc) :: arg
   type(TSplineRepInp) :: splineRepInp
@@ -30,22 +29,16 @@ program splvalue
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr, energy, dEnergy, d2Energy
 
-#:if WITH_MPI
-  !> MPI environment, if compiled with mpifort
-  type(TMpiEnv) :: mpi
-
-  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
-  ! build
-  call TMpiEnv_init(mpi)
-  call mpi%mpiSerialEnv()
-#:endif
+  call initGlobalEnv()
+  call ensureSerialRun()
+  call TEnvironment_init(env)
 
   if (command_argument_count() /= 1) then
     call error("Wrong number of arguments. Use 'splvalue -h' to obtain help.")
   end if
   call get_command_argument(1, arg)
   if (arg == "-h" .or. arg == "--help") then
-    write(stdout, "(A)") &
+    write(env%stdOut, "(A)") &
         & "Usage: splvalue [ options ] skfile",&
         & "",&
         & "Reads an SK-file, extracts the spline repulsive from it and prints &
@@ -68,7 +61,10 @@ program splvalue
   do ii = 0, npoint
     rr = rstart + real(ii, dp) * dr
     call splineRep%getValue(rr, energy=energy, dEnergy=dEnergy, d2Energy=d2Energy)
-    write(stdout, "(4E23.15)") rr, energy, dEnergy, d2Energy
+    write(env%stdOut, "(4E23.15)") rr, energy, dEnergy, d2Energy
   end do
+
+  call env%destruct()
+  call destructGlobalEnv()
 
 end program splvalue

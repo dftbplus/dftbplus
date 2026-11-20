@@ -11,8 +11,8 @@
 module dftbp_dftb_repulsive_splinerep
   use dftbp_common_accuracy, only : dp, minNeighDist
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsive
-  use dftbp_math_bisect, only : bisection
-  implicit none
+  use dftbp_math_binarysearch, only : search_asc_real_geq
+  implicit none (type, external)
 
   private
   public :: TSplineRepInp, TSplineRep, TSplineRep_init
@@ -167,7 +167,7 @@ contains
       return
     end if
 
-    call bisection(iMatch, this%xStart, rr)
+    call search_asc_real_geq(iMatch, this%xStart, rr)
     dr = rr - this%xStart(iMatch)
     if (iMatch < this%nSpline) then
       call getSpline(this%spCoeffs(:, iMatch), dr, energy, dEnergy, d2Energy)

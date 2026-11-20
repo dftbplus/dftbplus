@@ -16,7 +16,7 @@
 module dftbp_common_atomicrad
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr, symbolToNumber
-  implicit none
+  implicit none (type, external)
 
   private
   public :: getAtomicRad

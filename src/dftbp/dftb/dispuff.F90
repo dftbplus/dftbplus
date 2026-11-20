@@ -27,7 +27,7 @@ module dftbp_dftb_dispuff
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only : getLatticePoints, getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_simplealgebra, only : determinant33, invert33
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDispUffInp, TDispUff, DispUff_init
@@ -234,13 +234,13 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neigh, this%rCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neigh, this%rCutoff)
     if (this%tPeriodic) then
       call getDispEnergyAndGrad_cluster(env, this%nAtom, coords, species0, nNeigh,&
           & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly,&
           & this%r0, this%energies, this%gradients, removeR6=.true., stress=this%stress,&
           & vol=this%vol)
-      call getNrOfNeighboursForAll(nNeigh, neigh, this%ewaldRCut)
+      call getNrOfNeighboursForAll(env%stdOut, nNeigh, neigh, this%ewaldRCut)
       call addDispEGr_per_species(env, this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
           & neigh%neighDist2, img2CentCell, this%c6, this%eta, this%vol, this%gLatPoints,&
           & this%energies, this%gradients, this%stress)

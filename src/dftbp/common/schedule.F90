@@ -25,7 +25,7 @@ module dftbp_common_schedule
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allgatherv, mpifx_allreduceip
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: distributeRangeInChunks, distributeRangeInChunks2, distributeRangeWithWorkload
@@ -151,12 +151,13 @@ contains
     !> Index array to be iterated over
     integer, allocatable, intent(out) :: indices(:)
 
-    integer :: ii
-
   #:if WITH_MPI
     call getIndicesWithWorkload(env%mpi%groupComm%size, env%mpi%groupComm%rank, globalFirst,&
         & globalLast, workload, indices)
   #:else
+
+    integer :: ii
+
     allocate(indices(globalLast - globalFirst + 1))
     indices(:) = [(ii, ii = globalFirst, globalLast)]
   #:endif

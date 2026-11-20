@@ -1,7 +1,7 @@
 program testapp
   use fortuno_serial, only : execute_serial_cmd_app
   use test_type_typegeometryhsd, only : typegeometryhsd_tests => tests
-  implicit none
+  implicit none (type, external)
 
   call execute_serial_cmd_app(typegeometryhsd_tests())
 

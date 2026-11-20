@@ -15,7 +15,7 @@ module dftbp_extlibs_mpifx
       & mpifx_allreduceip, mpifx_barrier, mpifx_bcast, mpifx_comm, mpifx_finalize, mpifx_gatherv,&
       & mpifx_init_thread, mpifx_recv, mpifx_reduceip, mpifx_send, MPIFX_SIZE_T, mpifx_win
 #:endif
-  implicit none
+  implicit none (type, external)
   public
 
 end module dftbp_extlibs_mpifx

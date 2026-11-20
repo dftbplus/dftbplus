@@ -13,7 +13,7 @@
 !> Implements various routines to append elements to an array by copying and reallocation.
 module dftbp_common_matrixappend
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
 #:for _, NAME, _ in FLAVOURS

@@ -49,7 +49,7 @@ Hamiltonian = DFTB {
       }
     }
     SlaterKosterFiles {
-        C-C = "C-C.skf"
+        C-C = "slakos/origin/mio-1-1/C-C.skf"
     }
     # Generally a bad idea, but used to reduce required atoms in
     # principle layers:

@@ -73,6 +73,7 @@ InputVersion = 20.1
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
   # Due to small size of problem, allow 2 MPI processors by shrinking blocks
+  # Do not use this setting in production runs
   Blacs = BlockSize {
     16
   }

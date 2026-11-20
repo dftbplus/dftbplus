@@ -17,7 +17,7 @@ Hamiltonian = dftb {
   #maxscciterations = 100
   
   slaterkosterfiles = {
-    C-C = "C-C.skf"
+    C-C = "slakos/origin/mio-1-1/C-C.skf"
   }
 
   maxangularmomentum = {

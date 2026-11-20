@@ -3,7 +3,6 @@ set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 set(sources-fpp
   ${curdir}/blockpothelper.F90
   ${curdir}/bondpopulations.F90
-  ${curdir}/boundarycond.F90
   ${curdir}/chargepenalty.F90
   ${curdir}/charges.F90
   ${curdir}/coordnumber.F90
@@ -14,6 +13,7 @@ set(sources-fpp
   ${curdir}/dftbplusu.F90
   ${curdir}/dftd3param.F90
   ${curdir}/dftd4param.F90
+  ${curdir}/dipolecorr.F90
   ${curdir}/dispcommon.F90
   ${curdir}/dispdftd4.F90
   ${curdir}/dispersions.F90

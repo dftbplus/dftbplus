@@ -11,7 +11,7 @@
 module dftbp_dftb_uniquehubbard
   use dftbp_common_accuracy, only : dp, minHubDiff
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TUniqueHubbard, TUniqueHubbard_init

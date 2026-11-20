@@ -8,7 +8,7 @@
 !> Data types to handle overlap related integrals
 module dftbp_type_integral
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TIntegral, TIntegral_init

@@ -12,14 +12,14 @@ module dftbp_extlibs_magma
   use, intrinsic :: iso_c_binding, only : c_int
 #:if WITH_MAGMA
   use magma, only : magmaf_cheevd_m, magmaf_chegvd_m, magmaf_dsyevd_m, magmaf_dsygvd_m,&
-      & magmaf_ssyevd_m, magmaf_ssygvd_m, magmaf_zheevd_m, magmaf_zhegvd_m
+      & magmaf_finalize, magmaf_ssyevd_m, magmaf_ssygvd_m, magmaf_zheevd_m, magmaf_zhegvd_m
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: withGpu
 #:if WITH_MAGMA
-  public :: getGpusAvailable, getGpusRequested, gpusInit
+  public :: getGpusAvailable, getGpusRequested, gpusInit, magmaf_finalize
   public :: magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
   public :: magmaf_ssyevd_m, magmaf_dsyevd_m, magmaf_cheevd_m, magmaf_zheevd_m
 #:endif

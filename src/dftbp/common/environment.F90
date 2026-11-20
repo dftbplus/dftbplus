@@ -10,7 +10,8 @@
 
 !> Contains computer environment settings
 module dftbp_common_environment
-  use dftbp_common_globalenv, only : shutdown, stdOut
+  use iso_fortran_env, only : globalStdErr => error_unit, globalStdOut => output_unit
+  use dftbp_common_globalenv, only : shutdown
   use dftbp_common_status, only : TStatus
   use dftbp_common_timerarray, only : TTimerArray, TTimerArray_init, TTimerItem
 #:if WITH_MAGMA
@@ -23,7 +24,7 @@ module dftbp_common_environment
 #:if WITH_SCALAPACK
   use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_final, TBlacsEnv_init
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TEnvironment, TEnvironment_init
@@ -73,6 +74,9 @@ module dftbp_common_environment
     !> Is this calculation called by the API?
     logical, public :: tAPICalculation = .false.
 
+    !> Standard output unit
+    integer, public :: stdOut = -1
+
   contains
     procedure :: destruct => TEnvironment_destruct
     procedure :: shutdown => TEnvironment_shutdown
@@ -93,7 +97,7 @@ module dftbp_common_environment
   end type TEnvironment
 
   !> Timers and their required verbosity levels. Order must match the helper index type
-  type(TTimerItem), parameter :: globalTimerItems(33) = [&
+  type(TTimerItem), parameter :: globalTimerItems(37) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -126,7 +130,11 @@ module dftbp_common_environment
       & TTimerItem("Linear response solver", 3),&
       & TTimerItem("Linear response Z vector", 3),&
       & TTimerItem("Linear response gradients", 3),&
-      & TTimerItem("Linear response NAC", 3)&
+      & TTimerItem("Linear response NAC", 3),&
+      & TTimerItem("Perturbation response", 2),&
+      & TTimerItem("w.r.t. atom coordinates", 3),&
+      & TTimerItem("w.r.t. external electric field", 3),&
+      & TTimerItem("w.r.t. coords of ext. charges", 3)&
       & ]
 
 
@@ -165,6 +173,10 @@ module dftbp_common_environment
     integer :: lrZVector = 31
     integer :: lrGradients = 32
     integer :: lrNAC = 33
+    integer :: perturb = 34
+    integer :: perturb_dx = 35
+    integer :: perturb_efield = 36
+    integer :: perturb_dxMM = 37
   end type TGlobalTimersHelper
 
 
@@ -175,12 +187,19 @@ module dftbp_common_environment
 contains
 
   !> Returns an initialized instance.
-  subroutine TEnvironment_init(this)
+  subroutine TEnvironment_init(this, stdOut)
 
     !> Instance
     type(TEnvironment), intent(out) :: this
 
-    continue
+    !> Standard output unit
+    integer, intent(in), optional :: stdOut
+
+    if (present(stdOut)) then
+      this%stdOut = stdOut
+    else
+      this%stdOut = globalStdOut
+    end if
 
   end subroutine TEnvironment_init
 
@@ -209,7 +228,9 @@ contains
       end if
     #:endif
 
-    flush(stdOut)
+    if (this%stdOut > 0) then
+      flush(this%stdOut)
+    end if
 
   end subroutine TEnvironment_destruct
 
@@ -245,8 +266,8 @@ contains
     integer, intent(in) :: unit
 
     allocate(this%globalTimer)
-    call TTimerArray_init(this%globalTimer, globalTimerItems, maxLevel=timingLevel, header=header,&
-        & unit=unit)
+    call TTimerArray_init(this%globalTimer, globalTimerItems, unit, maxLevel=timingLevel,&
+        & header=header)
 
   end subroutine TEnvironment_initGlobalTimer
 
@@ -310,12 +331,15 @@ contains
 #:if WITH_MAGMA
 
   !> Initialize GPU environment
-  subroutine TEnvironment_initGpu(this)
+  subroutine TEnvironment_initGpu(this, output)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    call TGpuEnv_init(this%gpu)
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
+
+    call TGpuEnv_init(this%gpu, output)
 
   end subroutine TEnvironment_initGpu
 

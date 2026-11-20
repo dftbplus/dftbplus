@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22...4.2)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "25.1")
+set(DFTBPLUS_VERSION "26.1")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -28,6 +28,9 @@ dftbp_get_release_name(RELEASE)
 
 if(WITH_API)
   dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
+  option(WITH_CXX "Whether C++ compiler is required" FALSE)
+else()
+  set(WITH_CXX FALSE)
 endif()
 
 if(WITH_MPI)
@@ -89,9 +92,7 @@ if(WITH_ELSI AND NOT TARGET elsi::elsi)
 
   if(TARGET elsi::pexsi)
     set(ELSI_WITH_PEXSI TRUE)
-    enable_language(CXX)
-    # Avoid to link everything associated with PEXSI with C++
-    set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
+    set(WITH_CXX TRUE)
   else()
     set(ELSI_WITH_PEXSI FALSE)
   endif()
@@ -109,6 +110,18 @@ if(WITH_ELSI AND NOT TARGET elsi::elsi)
 
 else()
   list(APPEND FYPP_FLAGS -DELSI_VERSION=0)
+endif()
+
+if(WITH_ELPA AND NOT TARGET elpa::elpa)
+  set(ELPA_MIN_VERSION "2022.05.001")
+  find_package(elpa ${ELPA_MIN_VERSION} REQUIRED)
+  if(elpa_VERSION VERSION_GREATER "2023.05.001")
+    list(APPEND FYPP_FLAGS -DELPA_HAS_SETUP_GPU)
+  endif()
+
+  if(WITH_GPU)
+    find_package(CUDAToolkit REQUIRED)
+  endif()
 endif()
 
 if(WITH_PLUMED)
@@ -134,6 +147,15 @@ if(WITH_MAGMA)
   list(APPEND PKG_CONFIG_REQUIRES magma)
 endif()
 
+if(WITH_CHIMES)
+  set(WITH_CXX TRUE)
+endif()
+
+if(WITH_CXX)
+ enable_language(CXX)
+ # Avoid linking everything associated with C++ with that compiler
+ set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
+endif()
 
 #
 # Preprocessor details
@@ -178,13 +200,8 @@ if(WITH_SOCKETS)
   add_subdirectory(external/fsockets EXCLUDE_FROM_ALL)
 endif()
 
-if(WITH_CHIMES)
-  enable_language(CXX)
-  set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
-endif()
-
 # If INCLUDE_INDIRECT_DEPS is non-empty, indirect dependencies must also be explicitely treated
-string(REGEX MATCH "(^|;)[Ss]ubmodule(^|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONFIG_METHODS}")
+string(REGEX MATCH "(^|;)[Ss]ubmodule($|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONFIG_METHODS}")
 
 
 #
@@ -203,7 +220,7 @@ if(WITH_MPI)
   find_package(CustomScalapack REQUIRED)
 
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "db5508cd58bdd29bb49eb065f7ce4c46fae6d17e")  # do not change manually!
+  set(SCALAPACKFX_GIT_TAG "0b5bbbfd42a9e553ec974741afa5c04a9c8b6b1b")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")
@@ -233,14 +250,14 @@ endif()
 
 if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
-  set(MCTC_LIB_GIT_TAG "87a46cdf5281ad75909083c4f72354d54abdf95d")  # do not change manually!
+  set(MCTC_LIB_GIT_TAG "aec7f40ccf1b0dceb9156ae6dc6667fd61206916")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
-    set(MSTORE_GIT_TAG "5964ec311e7ed92665e8bff48f3e804a657dc0de")  # do not change manually!
+    set(MSTORE_GIT_TAG "6a166125738dd2f0edd62afd22c3479d7b8efbeb")  # do not change manually!
     dftbp_config_hybrid_dependency(mstore mstore::mstore "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES mstore)
@@ -248,14 +265,14 @@ if(WITH_TBLITE OR WITH_SDFTD3)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
-    set(TOML_F_GIT_TAG "b121a9c3fd7314e887f696ca8488c9977d283788")  # do not change manually!
+    set(TOML_F_GIT_TAG "28f4601fe0992ed17a6b97e230a61289f56bcd8e")  # do not change manually!
     dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES toml-f)
   endif()
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/dftd3/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "5ee8c4d71414bf54db0b680ee3c532215847e0f9")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "84cb7cddd8d6669c4ecd59b06d53e0d373656239")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
@@ -264,7 +281,7 @@ endif()
 if(WITH_TBLITE)
   if(INCLUDE_INDIRECT_DEPS)
     set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
-    set(MULTICHARGE_GIT_TAG "42818911d5754604504ed553dcf0b5db33f3c867")  # do not change manually!
+    set(MULTICHARGE_GIT_TAG "576f499b49eb57f8c2dc1ba6f7017800f1e332d9")  # do not change manually!
     dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}"
       "QUIET" external/multicharge "${exclude}" "${MULTICHARGE_GIT_REPOSITORY}"
       "${MULTICHARGE_GIT_TAG}")
@@ -273,14 +290,14 @@ if(WITH_TBLITE)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-    set(DFTD4_GIT_TAG "3844dc141936e801ca059d1daea1773c3e6103ec")  # do not change manually!
+    set(DFTD4_GIT_TAG "1107ea7c7c2131719e306fd57a5f4a1579e2577e")  # do not change manually!
     dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES dftd4)
   endif()
 
   set(TBLITE_GIT_REPOSITORY "https://github.com/tblite/tblite.git")
-  set(TBLITE_GIT_TAG "fa115545f7a6ba8e3f0e62df5cdace8781f4d309")  # do not change manually!
+  set(TBLITE_GIT_TAG "e14351bfafb38a78715d5fb8f18654a149cfbecf")  # do not change manually!
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)

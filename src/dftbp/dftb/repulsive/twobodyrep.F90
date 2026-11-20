@@ -9,14 +9,15 @@
 
 !> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
 module dftbp_dftb_repulsive_twobodyrep
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
-  use dftbp_dftb_boundarycond, only : zAxis
+  use dftbp_geometry_boundarycond, only : zAxis
   use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_math_quaternions, only : rotate3
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TTwoBodyRepInp
@@ -116,10 +117,13 @@ contains
 
 
   !> Transmits the updated coordinates to enable for pre-calculations.
-  subroutine updateCoords(this, coords, species, img2CentCell, neighbourList)
+  subroutine updateCoords(this, env, coords, species, img2CentCell, neighbourList)
 
     !> Instance
     class(TTwoBodyRep), intent(inout) :: this
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> New coordinates (including those in repeated cells). Shape: [3, nAllAtom]
     real(dp), intent(in) :: coords(:,:)
@@ -133,7 +137,7 @@ contains
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neighbourList
 
-    call getNrOfNeighboursForAll(this%nNeighbours, neighbourList, this%getRCutoff())
+    call getNrOfNeighboursForAll(env%stdOut, this%nNeighbours, neighbourList, this%getRCutoff())
 
   end subroutine updateCoords
 

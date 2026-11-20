@@ -10,11 +10,11 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_solvation_solvparser
   use, intrinsic :: ieee_arithmetic, only : ieee_positive_inf, ieee_support_inf, ieee_value
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicrad, only : getAtomicRad
   use dftbp_common_constants, only : AA__Bohr, amu__au, Boltzmann, kg__au
   use dftbp_common_filesystem, only : findFile, getParamSearchPaths
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_unitconversion, only : energyUnits, inverseLengthUnits, lengthUnits,&
       & massDensityUnits, massUnits
   use dftbp_dftbplus_specieslist, only : readSpeciesList
@@ -22,8 +22,8 @@ module dftbp_solvation_solvparser
   use dftbp_extlibs_xmlf90, only : char, fnode, getNodeName, string
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue, setChild
-  use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
-  use dftbp_math_bisect, only : bisection
+  use dftbp_io_hsdutils2, only : convertUnitHsd, localiseName
+  use dftbp_math_binarysearch, only : search_int
   use dftbp_solvation_born, only : fgbKernel, TGBInput
   use dftbp_solvation_cm5, only : TCM5Input
   use dftbp_solvation_cosmo, only : TCosmoInput, TDomainDecompositionInput
@@ -34,7 +34,7 @@ module dftbp_solvation_solvparser
   use dftbp_solvation_solventdata, only : SolventFromName, TSolventData
   use dftbp_solvation_solvinput, only : TSolvationInp
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   public :: readSolvation
@@ -48,7 +48,10 @@ contains
 
 
   !> Reads in solvation related settings
-  subroutine readSolvation(node, geo, input)
+  subroutine readSolvation(env, node, geo, input)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -62,7 +65,7 @@ contains
     type(fnode), pointer :: solvModel
     type(string) :: buffer
 
-    call renameChildren(node, "GeneralizedBorn", "GeneralisedBorn")
+    call localiseName(node, "GeneralizedBorn", "GeneralisedBorn")
     call getChildValue(node, "", solvModel)
     call getNodeName(solvModel, buffer)
 
@@ -71,19 +74,22 @@ contains
       call detailedError(node, "Invalid solvation model name.")
     case ("generalisedborn")
       allocate(input%GBInp)
-      call readSolvGB(solvModel, geo, input%GBInp)
+      call readSolvGB(env, solvModel, geo, input%GBInp)
     case ("cosmo")
       allocate(input%cosmoInp)
-      call readSolvCosmo(solvModel, geo, input%cosmoInp)
+      call readSolvCosmo(env, solvModel, geo, input%cosmoInp)
     case ("sasa")
       allocate(input%SASAInp)
-      call readSolvSASA(solvModel, geo, input%SASAInp)
+      call readSolvSASA(env, solvModel, geo, input%SASAInp)
     end select
   end subroutine readSolvation
 
 
   !> Reads in generalized Born related settings
-  subroutine readSolvGB(node, geo, input)
+  subroutine readSolvGB(env, node, geo, input)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnode), pointer :: node
@@ -117,8 +123,8 @@ contains
       call getParamSearchPaths(searchPath)
       call findFile(searchPath, paramFile, paramTmp)
       if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
-      write(stdOut, '(a)') "Reading GBSA parameter file '" // paramFile // "'"
-      call readParamGBSA(paramFile, defaults, solvent, geo%speciesNames, node=child)
+      write(env%stdOut, '(a)') "Reading GBSA parameter file '" // paramFile // "'"
+      call readParamGBSA(env%stdOut, paramFile, defaults, solvent, geo%speciesNames, node=child)
     else
       call readSolvent(node, solvent)
     end if
@@ -213,10 +219,10 @@ contains
         call setChild(node, "SASA", value1)
       end if
       if (allocated(defaults)) then
-        call readSolvSASA(value1, geo, input%sasaInput, defaults%sasaInput%probeRad,&
+        call readSolvSASA(env, value1, geo, input%sasaInput, defaults%sasaInput%probeRad,&
             & defaults%sasaInput%surfaceTension)
       else
-        call readSolvSASA(value1, geo, input%sasaInput)
+        call readSolvSASA(env, value1, geo, input%sasaInput)
       end if
 
       if (allocated(defaults)) then
@@ -256,7 +262,10 @@ contains
 
 
   !> Reads in conductor like screening model settings
-  subroutine readSolvCosmo(node, geo, input)
+  subroutine readSolvCosmo(env, node, geo, input)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnode), pointer :: node
@@ -305,7 +314,7 @@ contains
       deallocate(radScaleSpecies)
     end if
 
-    call readAngularGrid(node, input%gridSize)
+    call readAngularGrid(env, node, input%gridSize)
 
     call getChildValue(node, "Solver", value1, "DomainDecomposition", child=child)
     call getNodeName(value1, buffer)
@@ -319,7 +328,7 @@ contains
     call getChild(node, "SASA", value1, requested=.false.)
     if (associated(value1)) then
       allocate(input%sasaInput)
-      call readSolvSASA(value1, geo, input%sasaInput)
+      call readSolvSASA(env, value1, geo, input%sasaInput)
     end if
 
   end subroutine readSolvCosmo
@@ -337,7 +346,7 @@ contains
     type(fnode), pointer :: child
 
     call getChildValue(node, "MaxMoment", input%lmax, child=child)
-    call renameChildren(node, "Regularization", "Regularisation")
+    call localiseName(node, "Regularization", "Regularisation")
     call getChildValue(node, "Regularisation", input%eta, 0.2_dp, child=child)
     call getChildValue(node, "Accuracy", input%conv, child=child)
 
@@ -345,7 +354,10 @@ contains
 
 
   !> Read input data for non-polar surface area solvation model.
-  subroutine readSolvSASA(node, geo, input, probeRadDefault, surfaceTensionDefault)
+  subroutine readSolvSASA(env, node, geo, input, probeRadDefault, surfaceTensionDefault)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnode), pointer :: node
@@ -380,7 +392,7 @@ contains
 
     call getChildValue(node, "Tolerance", input%tolerance, 1.0e-6_dp, child=child)
 
-    call readAngularGrid(node, input%gridSize, 230)
+    call readAngularGrid(env, node, input%gridSize, 230)
 
     call readVanDerWaalsRad(node, geo, input%vdwRad)
 
@@ -423,7 +435,7 @@ contains
     !> Contains the input for the CM5 module on exit
     type(TCM5Input), intent(out) :: input
 
-    type(fnode), pointer :: value1, dummy, child, field
+    type(fnode), pointer :: value1, child, field
     type(string) :: buffer, modifier
     real(dp), allocatable :: atomicRadDefault(:)
 
@@ -557,7 +569,7 @@ contains
     real(dp), allocatable, intent(out) :: vdwRad(:)
 
     type(string) :: buffer
-    type(fnode), pointer :: child, value1, dummy
+    type(fnode), pointer :: child, value1
     real(dp), allocatable :: vdwRadDefault(:)
 
     allocate(vdwRad(geo%nSpecies))
@@ -592,7 +604,10 @@ contains
 
 
   !> Reads settings for angular integration grid
-  subroutine readAngularGrid(node, angGrid, default)
+  subroutine readAngularGrid(env, node, angGrid, default)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnode), pointer :: node
@@ -609,7 +624,7 @@ contains
 
     call getChildValue(node, "AngularGrid", gridPoints, default, child=child)
     angGrid = 0
-    call bisection(angGrid, gridSize, gridPoints)
+    call search_int(angGrid, gridSize, gridPoints)
     if (angGrid == 0) then
       call detailedError(child, "Illegal number of grid points for numerical integration")
     end if
@@ -617,7 +632,7 @@ contains
       write(errorStr, '(a, *(1x, i0, 1x, a))')&
           & "No angular integration grid with", gridPoints, "points available, using",&
           &  gridSize(angGrid), "points instead"
-      call detailedWarning(child, trim(errorStr))
+      call detailedWarning(env%stdOut, child, trim(errorStr))
     end if
 
   end subroutine readAngularGrid

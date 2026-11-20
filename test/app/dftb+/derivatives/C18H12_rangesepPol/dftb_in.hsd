@@ -41,10 +41,10 @@ Hamiltonian = DFTB {
         C = "p"
     }
     SlaterKosterFiles = {
-        C-C = "C-C.skf"
-        C-H = "C-H.skf"
-        H-C = "H-C.skf"
-        H-H = "H-H.skf"
+        C-C = "slakos/origin/ob2-1-1/shift/C-C.skf"
+        C-H = "slakos/origin/ob2-1-1/shift/C-H.skf"
+        H-C = "slakos/origin/ob2-1-1/shift/H-C.skf"
+        H-H = "slakos/origin/ob2-1-1/shift/H-H.skf"
     }
     RangeSeparated = LC {
         Screening = Thresholded {

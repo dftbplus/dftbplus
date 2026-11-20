@@ -3,6 +3,7 @@ Geometry = GenFormat {
 }
 
 Driver = {}
+
 Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1e-10
@@ -17,6 +18,7 @@ Hamiltonian = DFTB {
         Suffix = ".skf"
     }
 }
+
 ExcitedState {
     Casida {
         NrOfExcitations = 10
@@ -26,7 +28,6 @@ ExcitedState {
     }
 }
 
-
 Options {
     WriteAutotestTag = Yes
 }
@@ -35,5 +36,9 @@ ParserOptions {
     ParserVersion = 13
 }            
 
-
-
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+  Blacs = BlockSize { 1 } # Very small
+}

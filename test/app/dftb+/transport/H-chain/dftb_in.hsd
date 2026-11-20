@@ -59,7 +59,7 @@ hamiltonian = dftb {
  
  
   slaterkosterfiles = {
-    H-H = "H-H-noS.skf"
+    H-H = "slakos/origin/transtest/H-H-noS.skf"
   }
   Eigensolver = GreensFunction{
      Verbosity = 51   

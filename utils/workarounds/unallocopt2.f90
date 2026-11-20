@@ -14,7 +14,7 @@
 !   Make dummy argument allocatable instead of optional.
 !
 module mymod
-  implicit none
+  implicit none (type, external)
 
   type :: BaseType
     integer :: ii = 0
@@ -48,7 +48,7 @@ end module mymod
 
 program myprog
   use mymod
-  implicit none
+  implicit none (type, external)
 
   class(BaseType), allocatable :: btClass
   type(BaseType), allocatable ::  btType

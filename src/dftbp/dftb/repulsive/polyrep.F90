@@ -11,7 +11,7 @@
 module dftbp_dftb_repulsive_polyrep
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsive
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TPolyRepInp, TPolyRep, TPolyRep_init

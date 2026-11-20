@@ -8,7 +8,7 @@
 !> Data type to handle multipole moments
 module dftbp_type_multipole
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TMultipole, TMultipole_init

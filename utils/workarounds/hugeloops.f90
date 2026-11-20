@@ -13,7 +13,7 @@
 ! Workaround: use huge(1) - 1
 !
 program test
-  implicit none
+  implicit none (type, external)
 
   integer :: ii
 

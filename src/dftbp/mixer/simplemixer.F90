@@ -12,7 +12,7 @@
 module dftbp_mixer_simplemixer
   use dftbp_common_accuracy, only : dp
   use dftbp_mixer_mixer, only : TMixerCmplx, TMixerReal
-  implicit none
+  implicit none (type, external)
 
 
   private

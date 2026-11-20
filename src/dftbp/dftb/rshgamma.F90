@@ -15,7 +15,7 @@ module dftbp_dftb_rshgamma
   use dftbp_common_status, only : TStatus
   use dftbp_math_simplealgebra, only : cross3
 
-  implicit none
+  implicit none (type, external)
   private
 
   public :: getCoulombTruncationCutoff
@@ -60,16 +60,14 @@ contains
     !! Distances of sphere origin to cell planes
     real(dp) :: distances(3)
 
-    !! Origin dummy
-    real(dp) :: origin(3)
+    !! Origin, unreferenced
+    real(dp), parameter :: origin(3) = 0.0_dp
 
     !! Auxiliary variable
     integer :: ii
 
     @:ASSERT(size(latVecs, dim=1) == 3)
     @:ASSERT(size(latVecs, dim=2) == 3)
-
-    origin(:) = 0.0_dp
 
     if (present(nK)) then
       @:ASSERT(size(nK) == 3)
@@ -259,7 +257,7 @@ contains
     !> Resulting gamma
     real(dp) :: gamma
 
-    real(dp) :: tauA, tauB, distTau, distTauA, invDist
+    real(dp) :: tauA, tauB, distTauA, invDist
     real(dp) :: prefac, tmp, tmp2, tau, omega2
 
     omega2 = omega**2

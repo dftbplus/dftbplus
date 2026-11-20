@@ -34,7 +34,7 @@ Hamiltonian = DFTB {
   }
   
   SlaterKosterFiles {
-    Fe-Fe = "./Fe-Fe.skf"
+    Fe-Fe = "slakos/origin/pbc-0-3/Fe-Fe.skf"
   }
   
 }

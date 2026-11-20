@@ -12,7 +12,7 @@ module test_io_indexselection
   use dftbp_common_status, only : TStatus
   use dftbp_io_indexselection, only : errors, getIndexSelection
   $:FORTUNO_SERIAL_IMPORTS()
-  implicit none
+  implicit none (type, external)
 
   private
   public :: tests

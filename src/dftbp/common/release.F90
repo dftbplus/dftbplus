@@ -9,7 +9,7 @@
 
 !> Release of code constants and types
 module dftbp_common_release
-  implicit none
+  implicit none (type, external)
 
   public
 

@@ -11,7 +11,7 @@ module dftbp_dftbplus_qdepextpotproxy
   use dftbp_dftb_shift, only : totalShift
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGenWrapper
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TQDepExtPotProxy, TQDepExtPotProxy_init

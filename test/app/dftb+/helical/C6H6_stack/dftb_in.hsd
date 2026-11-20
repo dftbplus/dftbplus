@@ -27,10 +27,10 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 0.0
   }
   SlaterKosterFiles = {
-    C-C = "./C-C.skf"
-    C-H = "./C-H.skf"
-    H-C = "./H-C.skf"
-    H-H = "./H-H.skf"
+    C-C = "slakos/origin/mio-1-1/C-C.skf"
+    C-H = "slakos/origin/mio-1-1/C-H.skf"
+    H-C = "slakos/origin/mio-1-1/H-C.skf"
+    H-H = "slakos/origin/mio-1-1/H-H.skf"
   }
   KPointsAndWeights = {0 0 1}
 }

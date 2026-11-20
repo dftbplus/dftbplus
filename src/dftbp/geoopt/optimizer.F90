@@ -8,7 +8,7 @@
 !> Module defining abstract base class for geometry optimizers
 module dftbp_geoopt_optimizer
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TOptimizer, TOptimizerInput

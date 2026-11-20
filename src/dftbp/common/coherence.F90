@@ -29,7 +29,7 @@ module dftbp_common_coherence
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : MPI_LAND, mpifx_allreduce, mpifx_bcast
 #:endif
-  implicit none
+  implicit none (type, external)
 
   private
   public :: exactCoherence, toleranceCoherence, checkExactCoherence, checkToleranceCoherence
@@ -121,7 +121,7 @@ contains
   end function coherence${NAME}$${DIM}$
 
 #:else
-  !> Dummy serial comparison of data
+  !> Serial fallback for comparison of data
   pure function coherence${NAME}$${DIM}$(env, data) result(res)
 
     !> Computational environment settings
@@ -163,7 +163,7 @@ contains
 
     if (env%tAPICalculation) then
        if (.not. coherence${NAME}$${DIM}$(env, data)) then
-         @:ERROR_HANDLING(err, -1, "Coherence failure in " //trim(adjustl(message))//&
+         @:ERROR_HANDLING(env%stdOut, err, -1, "Coherence failure in " //trim(adjustl(message))//&
              & " across nodes")
        end if
     end if
@@ -221,7 +221,7 @@ contains
   end function approxCoherence${NAME}$${DIM}$
 
 #:else
-  !> Dummy serial comparison of data
+  !> Serial fallback for approximate comparison of data
   pure function approxCoherence${NAME}$${DIM}$(env, data, tol) result(res)
 
     !> Computational environment settings
@@ -230,7 +230,7 @@ contains
     !> Data to check for coherence
     ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    !> Tolerance for comparison, if absent use eps
+    !> Tolerance for comparison, not referenced in serial
     real(dp), intent(in), optional :: tol
 
     !> Is the data the same?
@@ -272,8 +272,8 @@ contains
     if (env%tAPICalculation) then
       if (.not. approxCoherence${NAME}$${DIM}$(env, data, tol_)) then
         Write(tol_str, '(E12.5)') tol_
-        @:ERROR_HANDLING(err, -1, "Coherence failure in "//trim(adjustl(message))//" across nodes&
-            & for a tolerance of: "//trim(adjustl(tol_str)))
+        @:ERROR_HANDLING(env%stdOut, err, -1, "Coherence failure in " // trim(adjustl(message)) //&
+            & " across nodes for a tolerance of: "//trim(adjustl(tol_str)))
       end if
     end if
 

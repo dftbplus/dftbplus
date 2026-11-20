@@ -11,7 +11,7 @@
 module dftbp_dftb_potentials
   use dftbp_common_accuracy, only : dp
   use dftbp_type_commontypes, only : TOrbitals
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TPotentials, TPotentials_init, TAtomExtPotInput

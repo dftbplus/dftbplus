@@ -8,7 +8,7 @@
 !> Contains types with electronic/hamiltonian interaction cutoff information.
 module dftbp_type_eleccutoffs
   use dftbp_common_accuracy, only : dp
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TCutoffs
@@ -26,7 +26,7 @@ module dftbp_type_eleccutoffs
     !> Cutoff for real-space g-summation in CAM Hartree-Fock contributions
     real(dp), allocatable :: gSummationCutoff
 
-    !> Number of unit cells along each supercell folding direction to substract from MIC
+    !> Number of unit cells along each supercell folding direction to subtract from MIC
     !! Wigner-Seitz cell construction
     integer, allocatable :: wignerSeitzReduction
 

@@ -11,8 +11,12 @@
 module dftbp_elecsolvers_elecsolvers
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elecsolvers_elpa, only : TElpa, TElpaInp
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver, TElsiSolverInp
-  implicit none
+  use dftbp_elecsolvers_partialdiag, only : TPartialDiag
+  use dftbp_extlibs_elpa, only : withElpa
+  use dftbp_extlibs_elsiiface, only: withElsi
+  implicit none (type, external)
 
   private
   public :: TElectronicSolverInp, TElectronicSolver, TElectronicSolver_init, TElsiSolverInp
@@ -28,6 +32,9 @@ module dftbp_elecsolvers_elecsolvers
     !> Input for the ELSI solver
     type(TElsiSolverInp), allocatable :: elsi
 
+    !> Input for the ELPA solver
+    type(TElpaInp), allocatable :: elpa
+
   end type TElectronicSolverInp
 
 
@@ -36,29 +43,38 @@ module dftbp_elecsolvers_elecsolvers
     private
 
     !> Electronic solver number
-    integer, public :: iSolver
+    integer, public :: iSolver = electronicSolverTypes%none
 
     !> Whether it is an ELSI solver
-    logical, public :: isElsiSolver
+    logical, public :: isElsiSolver = .false.
+
+    !> Whether we use ELPA without ELSI
+    logical, public :: isElpaStandalone
 
     !> Whether the solver provides eigenvalues
-    logical, public :: providesEigenvals
+    logical, public :: providesEigenvals = .false.
 
     !> Whether the solver provides a band energy (sum of the eigenvalues)
-    logical, public :: providesBandEnergy
+    logical, public :: providesBandEnergy = .false.
 
     !> Whether the solver provides the TS term for electrons
-    logical, public :: providesElectronEntropy
+    logical, public :: providesElectronEntropy = .false.
 
     !> Whether the solver provides electronic free energy (or is consistent with its evaluation)
-    logical, public :: providesFreeEnergy
+    logical, public :: providesFreeEnergy = .false.
 
     !> Whether the solver provides the electron chemical potential (or is consistent with its
     !> evaluation or it being suplied externally)
-    logical, public :: elecChemPotAvailable
+    logical, public :: elecChemPotAvailable = .false.
 
     !> Data for ELSI solvers
     type(TElsiSolver), public, allocatable :: elsi
+
+    !> Data for ELPA solver
+    type(TElpa), public, allocatable :: elpa
+
+    !> State counting, if only a part of the spectrum is being calculated
+    type(TPartialDiag), public :: partialDiag
 
     !> Are Choleskii factors already available for the overlap matrix
     logical, public, allocatable :: hasCholesky(:)
@@ -70,11 +86,12 @@ module dftbp_elecsolvers_elecsolvers
     complex(dp), allocatable :: choleskyBufferCmplx(:,:,:)
 
     !> Number of buffered overlap matrices
-    integer :: nCholesky
+    integer :: nCholesky = 0
 
   contains
     procedure :: getSolverName => TElectronicSolver_getSolverName
     procedure :: reset => TElectronicSolver_reset
+    procedure :: setNState => TElectronicSolver_setNState
     procedure, private :: getCholeskyReal => TElectronicSolver_getCholeskyReal
     procedure, private :: getCholeskyCmplx => TElectronicSolver_getCholeskyCmplx
     procedure, private :: storeCholeskyReal => TElectronicSolver_storeCholeskyReal
@@ -89,22 +106,31 @@ module dftbp_elecsolvers_elecsolvers
 contains
 
   !> Initializes an electronic solver
-  subroutine TElectronicSolver_init(this, iSolver, nCholesky)
+  subroutine TElectronicSolver_init(this, solverInp, nCholesky)
 
     !> Instance.
     type(TElectronicSolver), intent(out) :: this
 
-    !> Solver type to be used.
-    integer, intent(in) :: iSolver
+    !> Input data for the solver.
+    type(TElectronicSolverInp), intent(in) :: solverInp
 
     !> Number of Cholesky-decompositions which will be buffered.
     integer, intent(in) :: nCholesky
 
-    this%iSolver = iSolver
+    this%iSolver = solverInp%iSolver
 
     this%isElsiSolver = any(this%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
+
+    if (this%iSolver == electronicSolverTypes%elpa .and. withElpa) then
+      ! If ELPA should be used and we have the ELPA library included directly (with or without
+      ! ELSI also present), and do not call ELPA via ELSI.
+      this%isElsiSolver = .false.
+      this%isElpaStandalone = .true.
+    else
+      this%isElpaStandalone = .false.
+    end if
 
     !> Eigenvalues for hamiltonian available
     this%providesEigenvals = providesEigenvalues(this%iSolver)
@@ -144,6 +170,10 @@ contains
       allocate(this%elsi)
     end if
 
+    if (this%isElpaStandalone) then
+      allocate(this%elpa)
+    end if
+
   end subroutine TElectronicSolver_init
 
 
@@ -162,6 +192,26 @@ contains
         & electronicSolverTypes%magmaGvd])
 
   end function providesEigenvalues
+
+
+  !> Changes the number of states the solver should return.
+  subroutine TElectronicSolver_setNState(this, nState)
+
+    !> Instance.
+    class(TElectronicSolver), intent(inout) :: this
+
+    !> Number of states to calculate from now on
+    integer, intent(in) :: nState
+
+    if (this%isElsiSolver) then
+      call this%elsi%setNState(nState)
+    end if
+
+    ! The solver instance is built again for the new number of states, so it will factorise the
+    ! overlap once more. That needs the original matrix, not the stored factorisation.
+    this%hasCholesky(:) = .false.
+
+  end subroutine TElectronicSolver_setNState
 
 
   !> Resets the electronic solver for the next geometry step.
@@ -217,6 +267,9 @@ contains
 
     case(electronicSolverTypes%magmaGvd)
       write(buffer, "(A)") "Divide and Conquer (MAGMA GPU version)"
+
+    case(electronicSolverTypes%elpa)
+      write(buffer, "(A)") "ELPA"
 
     case default
       write(buffer, "(A,I0,A)") "Invalid electronic solver! (iSolver = ", this%iSolver, ")"

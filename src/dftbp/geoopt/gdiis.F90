@@ -11,7 +11,7 @@
 module dftbp_geoopt_gdiis
   use dftbp_common_accuracy, only : dp
   use dftbp_mixer_diismixer, only : TDiisMixerInp, TDiisMixerReal, TDiisMixerReal_init
-  implicit none
+  implicit none (type, external)
 
   private
 

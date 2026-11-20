@@ -8,6 +8,7 @@
 !> Module to read input from HSD tree
 module dftbp_dftbplus_input_geoopt
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_unitconversion, only : energyUnits, forceUnits, lengthUnits, timeUnits
   use dftbp_extlibs_xmlf90, only : char, fnode, getNodeName, string
   use dftbp_geoopt_package, only : TFilterInput, TFireInput, TLbfgsInput, TOptimizerInput,&
@@ -15,9 +16,9 @@ module dftbp_dftbplus_input_geoopt
   use dftbp_io_charmanip, only : unquote
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildValue, getSelectedAtomIndices,&
       & setChild
-  use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
+  use dftbp_io_hsdutils2, only : convertUnitHsd, localiseName
   use dftbp_type_typegeometry, only : TGeometry
-  implicit none
+  implicit none (type, external)
 
   private
   public :: readGeoOptInput, readOptimizerInput, TGeoOptInput
@@ -47,7 +48,10 @@ module dftbp_dftbplus_input_geoopt
 contains
 
   !> General entry point to read geometry optimization
-  subroutine readGeoOptInput(node, geom, input, atomsRange)
+  subroutine readGeoOptInput(env, node, geom, input, atomsRange)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -62,14 +66,14 @@ contains
     !> calculations)
     character(len=*), intent(in) :: atomsRange
 
-    type(fnode), pointer :: child, value1
+    type(fnode), pointer :: child
     type(string) :: buffer
 
-    call renameChildren(node, "Optimizer", "Optimiser")
+    call localiseName(node, "Optimizer", "Optimiser")
     call getChildValue(node, "Optimiser", child, "Rational")
     call readOptimizerInput(child, input%optimiser)
 
-    call readFilterInput(node, geom, input%filter, atomsRange)
+    call readFilterInput(env, node, geom, input%filter, atomsRange)
 
     call getChild(node, "Convergence", child, requested=.false.)
     if (.not.associated(child)) then
@@ -126,7 +130,10 @@ contains
 
 
   !> Entry point for reading input for cartesian geometry transformation filter
-  subroutine readFilterInput(node, geom, input, atomsRange)
+  subroutine readFilterInput(env, node, geom, input, atomsRange)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -154,7 +161,7 @@ contains
       call getChildValue(node, "Isotropic", input%isotropic, .false.)
     end if
     call getChildValue(node, "MovedAtoms", buffer, trim(atomsRange), multiple=.true., child=child)
-    call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species, &
+    call getSelectedAtomIndices(env%stdOut, child, char(buffer), geom%speciesNames, geom%species, &
         & input%indMovedAtom)
 
   end subroutine readFilterInput

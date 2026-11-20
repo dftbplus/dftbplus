@@ -8,13 +8,15 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program polyvalue
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut
-  use dftbp_dftb_repulsive_polyrep, only : TPolyRep, TPolyRep_init, TPolyRepInp
+  use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep, TPolyRep_init
   use dftbp_io_message, only : error
-  implicit none
+  implicit none (type, external)
 
+  type(TEnvironment) :: env
   character(lc) :: arg, fname
   logical :: homo
   type(TPolyRepInp) :: polyRepInp
@@ -22,14 +24,17 @@ program polyvalue
   type(TFileDescr) :: fp
   integer :: iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
-  real(dp) :: rr, energy, dEnergy, d2Energy, rDummy
+  real(dp) :: rr, energy, dEnergy, d2Energy, rTemporary
+
+  call initGlobalEnv()
+  call TEnvironment_init(env)
 
   if (command_argument_count() == 0) then
     call error("Wrong number of arguments. Use 'polyvalue -h' to obtain help.")
   end if
   call get_command_argument(1, arg)
   if (arg == "-h" .or. arg == "--help") then
-    write(stdout, "(A)") &
+    write(env%stdOut, "(A)") &
         & "Usage: polyvalue  homo | hetero  skfile",&
         & "",&
         & "Reads an SK-file, extracts the polynomial repulsive from it and &
@@ -57,8 +62,7 @@ program polyvalue
   if (homo) then
     read(fp%unit, *)
   end if
-  read(fp%unit, *) rDummy, polyRepInp%polyCoeffs, polyRepInp%cutoff, &
-      & (rDummy, ii = 11, 20)
+  read(fp%unit, *) rTemporary, polyRepInp%polyCoeffs, polyRepInp%cutoff, (rTemporary, ii = 11, 20)
   call closeFile(fp)
 
   call TPolyRep_init(polyRep, polyRepInp)
@@ -66,7 +70,10 @@ program polyvalue
   do ii = 0, nPoint
     rr = rStart + real(ii, dp) * dr
     call polyRep%getValue(rr, energy=energy, dEnergy=dEnergy, d2Energy=d2Energy)
-    write(stdout, "(4E23.15)") rr, energy, dEnergy, d2Energy
+    write(env%stdOut, "(4E23.15)") rr, energy, dEnergy, d2Energy
   end do
+
+  call env%destruct()
+  call destructGlobalEnv()
 
 end program polyvalue

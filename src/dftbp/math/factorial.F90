@@ -11,7 +11,7 @@
 module dftbp_math_factorial
   use dftbp_common_accuracy, only : dp
 
-  implicit none
+  implicit none (type, external)
 
 
   !> Calculate factorals up to a given order

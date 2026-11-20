@@ -12,7 +12,7 @@
 module dftbp_geoopt_filter
   use dftbp_common_accuracy, only : dp
   use dftbp_math_simplealgebra, only : determinant33, invert33
-  implicit none
+  implicit none (type, external)
   private
   public :: TFilter, TFilterInput, TFilter_init
 
@@ -76,10 +76,13 @@ contains
 
 
   !> Create new transformation filter
-  subroutine TFilter_init(this, input, coord0, latVec, stat)
+  subroutine TFilter_init(this, output, input, coord0, latVec, stat)
 
     !> Instance of the transformation filter
     type(TFilter), intent(out) :: this
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
 
     !> Input to create transformation filter
     type(TFilterInput), intent(in) :: input
@@ -114,7 +117,7 @@ contains
     this%isotropic = input%isotropic
     if (this%lattice .and. present(latVec)) then
       if (size(coord0) > this%nvar) then
-        @:ERROR_HANDLING(stat, 1, &
+        @:ERROR_HANDLING(output, stat, 1, &
             & "Subset of optimising atoms not currently possible with lattice optimisation.")
       end if
       this%nvar = this%nvar + size(latVec)
@@ -151,6 +154,7 @@ contains
     real(dp), intent(in) :: displacement(:)
 
     real(dp), parameter :: zvec(3) = 0.0_dp
+    real(dp) :: lat_disp(3, 3)
 
     if (allocated(this%mask)) then
       coord0(:, :) = coord0 + unpack(displacement(:count(this%mask)), &
@@ -158,7 +162,10 @@ contains
     else
       coord0(:, :) = coord0 + reshape(displacement(:size(coord0)), shape(coord0))
       if (this%lattice) then
-        latVec(:, :) = latVec + reshape(displacement(size(coord0)+1:), shape(latVec))
+        lat_disp(:, :) = reshape(displacement(size(coord0)+1:), shape(latVec))
+        call project_lattice_mode(this%fixAngles, this%fixLength, this%isotropic,&
+            & latVec, lat_disp)
+        latVec(:, :) = latVec + lat_disp
       end if
     end if
   end subroutine transformStructure
@@ -214,10 +221,60 @@ contains
         call invert33(inv_lat, latVec)
         inv_lat(:, :) = transpose(inv_lat)
         lat_grad(:, :) = matmul(sigma, inv_lat)
+        call project_lattice_mode(this%fixAngles, this%fixLength, this%isotropic,&
+            & latVec, lat_grad)
         deriv(size(gradient)+1:) = reshape(lat_grad, [size(lat_grad)])
       end if
     end if
   end subroutine transformDerivative
+
+
+  !> Project a lattice increment onto FixAngles / FixLengths / Isotropic.
+  subroutine project_lattice_mode(fixAngles, fixLength, isotropic, latVec, mode)
+
+    !> Fix lattice angles
+    logical, intent(in) :: fixAngles
+
+    !> Fix lattice vector lengths
+    logical, intent(in) :: fixLength(3)
+
+    !> Allow only isotropic deformations
+    logical, intent(in) :: isotropic
+
+    !> Lattice vectors
+    real(dp), intent(in) :: latVec(:, :)
+
+    !> Lattice increment, projected in place onto active constraints
+    real(dp), intent(inout) :: mode(:, :)
+
+    integer :: ii
+    real(dp) :: nrm2, scale
+
+    do ii = 1, 3
+      nrm2 = sum(latVec(:, ii)**2)
+      if (nrm2 <= 0.0_dp) cycle
+      if (fixAngles) then
+        mode(:, ii) = dot_product(mode(:, ii), latVec(:, ii)) / nrm2 * latVec(:, ii)
+      end if
+      if (fixLength(ii)) then
+        mode(:, ii) = mode(:, ii) - dot_product(mode(:, ii), latVec(:, ii)) / nrm2&
+            & * latVec(:, ii)
+      end if
+    end do
+    if (isotropic) then
+      scale = 0.0_dp
+      do ii = 1, 3
+        nrm2 = sum(latVec(:, ii)**2)
+        if (nrm2 > 0.0_dp) then
+          scale = scale + dot_product(mode(:, ii), latVec(:, ii)) / nrm2
+        end if
+      end do
+      scale = scale / 3.0_dp
+      do ii = 1, 3
+        mode(:, ii) = scale * latVec(:, ii)
+      end do
+    end if
+  end subroutine project_lattice_mode
 
 
 end module dftbp_geoopt_filter

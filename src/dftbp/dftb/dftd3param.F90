@@ -12,7 +12,7 @@ module dftbp_dftb_dftd3param
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : symbolToNumber
   use dftbp_dftb_dftd4param, only : getSqrtZr4r2
-  implicit none
+  implicit none (type, external)
 
   private
   public :: TDftD3Ref, init
