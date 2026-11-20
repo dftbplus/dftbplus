@@ -161,7 +161,6 @@ contains
         @:ASSERT(.not.allocated(this%qCacheVirVir))
         allocate(this%qCacheVirVir(this%nAtom, sum(nXvvUD)))
       end if
-
     end if
 
     if (tStoreOccVir) then
@@ -174,6 +173,7 @@ contains
 
       allocate(this%qCacheOccVir(this%nAtom, nTrans))
       desc(:) = denseDesc%blacsOrbSqr
+
       ! Assemble the orbital coefficients once per spin from their block-cyclic distribution.
       ! Each global entry is supplied by exactly one rank.
       allocate(cGlobal(nOrb, nOrb, nSpin), scGlobal(nOrb, nOrb, nSpin))
@@ -195,7 +195,7 @@ contains
       end do
 
       ! Compute each charge column on one rank and leave it zero on the others.
-      ! Keep the assembled cache available to routines that request any global column.
+      ! The sum gives every rank the complete cache for lookups by global index.
       this%qCacheOccVir = 0.0_dp
       call distributeRangeInChunks(env, 1, nTrans, first, last)
       do ia = first, last
@@ -293,30 +293,33 @@ contains
   #:endif
 
   #:if WITH_SCALAPACK
-  contains
+    contains
 
-    !> Mulliken charges for one orbital pair, using the assembled coefficients.
-    subroutine directCharge(pair, q)
+      !> Mulliken charges for one orbital pair, using the assembled coefficients.
+      subroutine directCharge(pair, q)
 
-      integer, intent(in) :: pair(3)
-      real(dp), intent(out) :: q(:)
+        !> Two orbital indices followed by the spin channel
+        integer, intent(in) :: pair(3)
 
-      integer :: i, j, spin, atom, mu
+        !> Transition charge on each atom
+        real(dp), intent(out) :: q(:)
 
-      i = pair(1)
-      j = pair(2)
-      spin = pair(3)
+        integer :: i, j, spin, atom, mu
 
-      do atom = 1, size(q)
-        q(atom) = 0.0_dp
-        do mu = denseDesc%iAtomStart(atom), denseDesc%iAtomStart(atom + 1) - 1
-          q(atom) = q(atom) + cGlobal(mu,i,spin)*scGlobal(mu,j,spin) &
-              & + cGlobal(mu,j,spin)*scGlobal(mu,i,spin)
+        i = pair(1)
+        j = pair(2)
+        spin = pair(3)
+
+        do atom = 1, size(q)
+          q(atom) = 0.0_dp
+          do mu = denseDesc%iAtomStart(atom), denseDesc%iAtomStart(atom + 1) - 1
+            q(atom) = q(atom) + cGlobal(mu, i, spin) * scGlobal(mu, j, spin) &
+                & + cGlobal(mu, j, spin) * scGlobal(mu, i, spin)
+          end do
         end do
-      end do
-      q(:) = 0.5_dp * q
+        q(:) = 0.5_dp * q
 
-    end subroutine directCharge
+      end subroutine directCharge
   #:endif
 
   end subroutine TTransCharges_init
