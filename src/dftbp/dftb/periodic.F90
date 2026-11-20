@@ -200,6 +200,10 @@ contains
       if (associated(this%iNeighbourMem_)) deallocate(this%iNeighbourMem_)
       if (associated(this%neighDist2Mem_)) deallocate(this%neighDist2Mem_)
     end if
+    this%iNeighbour => null()
+    this%neighDist2 => null()
+    this%iNeighbourMem_ => null()
+    this%neighDist2Mem_ => null()
 
   end subroutine TNeighbourList_final
 
