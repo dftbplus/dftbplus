@@ -1,0 +1,22 @@
+#
+# Generic rules based on data type
+#
+[[rule]]
+pattern = ".*:real:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-8, rtol = 0.0}
+
+[[rule]]
+pattern = ".*:complex:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-8, rtol = 0.0}
+
+[[rule]]
+pattern = ".*:integer:"
+diffmethod = "all_close"
+diffargs = {atol = 0, rtol = 0}
+
+[[rule]]
+pattern = ".*:logical:"
+diffmethod = "all_close"
+diffargs = {atol = 0, rtol = 0}
