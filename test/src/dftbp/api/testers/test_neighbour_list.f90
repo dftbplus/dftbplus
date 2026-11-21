@@ -82,7 +82,15 @@ contains
     neighDist(:,:) = reshape([dist, dist, dist, dist, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp],&
         & shape(neighDist))
 
+    nNeighbour(:) = [3, 0]
     ! set the neighbour list
+    call dftbp%setNeighbourList(nNeighbour, iNeighbour, neighDist, cutoff, coord, img2CentCell)
+    ! evaluate energy and forces
+    call dftbp%getEnergy(merminEnergy)
+    call dftbp%getGradients(gradients)
+
+    nNeighbour(:) = [4, 0]
+    ! re-set the neighbour list
     call dftbp%setNeighbourList(nNeighbour, iNeighbour, neighDist, cutoff, coord, img2CentCell)
 
     ! evaluate energy and forces
