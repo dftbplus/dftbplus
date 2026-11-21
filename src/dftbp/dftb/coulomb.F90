@@ -2661,16 +2661,14 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> Derivative of inverse R matrix
-    real(dp), intent(inout) :: invRDeriv(:,:,:)
+    real(dp), intent(out) :: invRDeriv(:,:,:)
 
     real(dp) :: dist, vect(3)
-    integer :: nAtom, iAtFirst, iAtLast
-    integer :: ii, jj
+    integer :: nAtom, iAtFirst, iAtLast, ii, jj
 
     nAtom = size(invRDeriv,dim=1)
-
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
-
+    invRDeriv(:,:,:) = 0.0_dp
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) PRIVATE(jj, vect, dist) REDUCTION(+:invRDeriv) SCHEDULE(RUNTIME)
     do ii = iAtFirst, iAtLast
@@ -2731,7 +2729,7 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> Derivative of inverse R matrix
-    real(dp), intent(inout) :: invRDeriv(:,:,:)
+    real(dp), intent(out) :: invRDeriv(:,:,:)
 
     type(TDynNeighList), pointer :: pNeighList
     real(dp) :: r(3)
@@ -2741,7 +2739,7 @@ contains
     pNeighList => this%neighList_
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
-
+    invRDeriv(:,:,:) = 0.0_dp
     ! d(1/R)/dr real space
     !$OMP PARALLEL DO DEFAULT(SHARED) REDUCTION(+:invRDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
