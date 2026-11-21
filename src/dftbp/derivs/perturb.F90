@@ -17,6 +17,7 @@ module dftbp_derivs_perturb
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : deltamn
+  use dftbp_derivs_fillings, only : nIndependentHam, maximumFillings
   use dftbp_derivs_linearresponse, only : dRhoCmplx, dRhoFermiChangeCmplx, dRhoFermiChangePauli,&
       & dRhoFermiChangeReal, dRhoPauli, dRhoReal
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
@@ -3184,20 +3185,9 @@ contains
     nKpts = size(filling,dim=2)
     nSpin = size(ham,dim=2)
 
-    select case(nSpin)
-    case(1,4)
-      nIndepHam = 1
-    case(2)
-      nIndepHam = 2
-    end select
-    select case(nSpin)
-    case(1)
-      maxFill = 2.0_dp
-    case(2,4)
-      maxFill = 1.0_dp
-    end select
-
+    nIndepHam = nIndependentHam(nSpin)
     call filledStates(nFilled, filling)
+    maxFill = maximumFillings(nSpin)
     call emptyStates(nEmpty, filling, maxFill)
 
     allocate(dHam(size(ham,dim=1),nSpin))
