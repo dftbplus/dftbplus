@@ -5126,7 +5126,10 @@ Hybrid = CAM {
 
 This block enables corrections for on-site matrix elements which improve the
 description of multi-centre integrals~\cite{garcia14Thesis} leading to, for
-example, improved hydrogen-bond energies~\cite{dominguez15}.
+example, improved hydrogen-bond energies~\cite{dominguez15}. In the Hamiltonian
+block these constants apply only to the ground-state calculation. On-site
+corrections for linear-response TD-DFTB are controlled independently by the
+corresponding block in \is{ExcitedState \{ Casida \{\} \}}.
 
 For each chemical species, the spin-same-spin and spin-different-spin constants
 should be specified for all combinations of atomic shells. {\bf note:} the
@@ -5892,6 +5895,7 @@ available for range separated calculations.
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{Printforces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
+    \kw{OnSiteCorrection}       & p & & - & \pref{sec:dftbp.Onsites} \\
     \kw{StateCouplings}         & 2i & & - & \\
     \kw{OptimiserCI}            & m & \is{StateCouplings} non-zero & \{\} & \pref{sec:dftbp.ciopt}\\
   \end{ptable}
@@ -6001,6 +6005,16 @@ available for range separated calculations.
     on the fly during the excited states calculation, instead of being
     cached. This makes the calculation considerably slower, but can help to
     decrease memory use substantially, if you are short on memory.
+
+  \item[\is{OnSiteCorrection}] Enables on-site matrix elements in the
+    linear-response kernel. The block has the same format as the Hamiltonian
+    \kw{OnSiteCorrection} block (p.~\pref{sec:dftbp.Onsites}), but controls
+    response corrections independently of the ground state. If absent, no
+    on-site correction is applied to the response calculation. Although applying
+    on-site corrections to both the ground state and response is formally more
+    consistent, it generally leads to less accurate excitation energies. We
+    therefore recommend the response-only treatment of Dom\'inguez  {\itshape et
+      al.}~\cite{garcia13}.
 
   \item[\is{StateCouplings}] Evaluates non-adiabatic coupling vectors
     between specified many-body states of your system. This keyword

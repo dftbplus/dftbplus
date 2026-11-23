@@ -264,7 +264,7 @@ contains
 
     call getChildValue(root, "ExcitedState", placeholder, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dontMarkProcessed=.true.)
-    call readExcited(child, input%geom, input%ctrl)
+    call readExcited(child, input%geom, input%slako%orb, input%ctrl)
 
     ! Hamiltonian settings that need to know about settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom, env%stdOut)
@@ -1643,17 +1643,7 @@ contains
       end if
 
       ! On-site
-      call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
-          & dontMarkProcessed=.true.)
-      if (associated(value1)) then
-        allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geom%nSpecies))
-        do iSp1 = 1, geom%nSpecies
-          call getChildValue(child, trim(geom%speciesNames(iSp1))//"uu",&
-              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
-          call getChildValue(child, trim(geom%speciesNames(iSp1))//"ud",&
-              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
-        end do
-      end if
+      call readOnSiteCorrection(node, geom, slako%orb, ctrl%onSiteElements)
 
     end if
 
@@ -5120,14 +5110,50 @@ contains
   end subroutine readTemperatureProfile
 
 
+  !> Reads on-site correction matrices for each species
+  subroutine readOnSiteCorrection(node, geom, orb, onSiteElements)
+
+    !> Parent node containing the optional OnSiteCorrection block
+    type(fnode), pointer :: node
+
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
+
+    !> Orbital information for each species
+    type(TOrbitals), intent(in) :: orb
+
+    !> On-site correction matrices
+    real(dp), allocatable, intent(out) :: onSiteElements(:,:,:,:)
+
+    type(fnode), pointer :: child, value
+    integer :: iSp
+
+    call getChildValue(node, "OnSiteCorrection", value, "", child=child, allowEmptyValue=.true.,&
+        & dontMarkProcessed=.true.)
+    if (.not. associated(value)) return
+
+    allocate(onSiteElements(orb%mShell, orb%mShell, 2, geom%nSpecies))
+    do iSp = 1, geom%nSpecies
+      call getChildValue(child, trim(geom%speciesNames(iSp))//"uu",&
+          & onSiteElements(:orb%nShell(iSp), :orb%nShell(iSp), 1, iSp))
+      call getChildValue(child, trim(geom%speciesNames(iSp))//"ud",&
+          & onSiteElements(:orb%nShell(iSp), :orb%nShell(iSp), 2, iSp))
+    end do
+
+  end subroutine readOnSiteCorrection
+
+
   !> Reads the excited state data block
-  subroutine readExcited(node, geom, ctrl)
+  subroutine readExcited(node, geom, orb, ctrl)
 
     !> Node to parse
     type(fnode), pointer :: node
 
     !> Atomic geometry of the system, including atomic species information
     type(TGeometry), intent(in) :: geom
+
+    !> Orbital information for each species
+    type(TOrbitals), intent(in) :: orb
 
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
@@ -5198,6 +5224,8 @@ contains
       ctrl%lrespini%tOscillatorWindow = ctrl%lrespini%oscillatorWindow /= 0.0_dp
       call convertUnitHsd(char(modifier), dipoleUnits, child2, ctrl%lrespini%oscillatorWindow)
       call getChildValue(child, "CacheCharges", ctrl%lrespini%tCacheCharges, default=.true.)
+
+      call readOnSiteCorrection(child, geom, orb, ctrl%lrespini%onSiteMatrixElements)
     #:if WITH_MPI
       if (.not.ctrl%lrespini%tCacheCharges) then
         call detailedError(child, "Uncached charges currently not supported for MPI enabled builds")

@@ -52,6 +52,13 @@ Added
 Changed
 -------
 
+- On-site corrections for Casida TD-DFTB are now controlled independently by an
+  ``OnSiteCorrection`` block in ``ExcitedState = Casida``. The corresponding
+  block in ``Hamiltonian = DFTB`` now applies only to the ground state, and both
+  corrections are disabled by default. Inputs using parser versions before 16
+  retain the previous behaviour: a Hamiltonian on-site correction is also
+  applied to the Casida response.
+
 - **Backward incompatible** changes to xTB calculations due to changes
   in the TBLite library (version 0.8.0), with no fallback to the old
   implementations:
