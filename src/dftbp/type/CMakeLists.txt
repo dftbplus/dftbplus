@@ -22,6 +22,7 @@ set(sources-fpp
   ${curdir}/oldskdata.F90
   ${curdir}/orbitals.F90
   ${curdir}/parallelks.F90
+  ${curdir}/sharedmemory.F90
   ${curdir}/typegeometry.F90
   ${curdir}/typegeometryhsd.F90
   ${curdir}/wrappedintr.F90)
