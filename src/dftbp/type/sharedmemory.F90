@@ -20,16 +20,21 @@ module dftbp_type_sharedmemory
   private
   public :: TArray2D, TArray2D_init
 
+  !> Wrapped 2D array
   type :: TArray2D
 
+    !> Exposed data
     integer, pointer :: data(:,:) => null()
   #:if WITH_MPI
+    !> Internal data storage if MPI parallel
     integer, pointer, private :: dataMemory_(:) => null()
-    type(mpifx_win), private :: dataWindow_
+    !> MPI-3 data window
+    type(mpifx_win) :: dataWindow_
   #:endif
 
   contains
 
+    !> Structure finaliser
     final :: TArray2D_final
 
   end type TArray2D
@@ -37,12 +42,16 @@ module dftbp_type_sharedmemory
 
 contains
 
+  !> Initialise a 2D array
   subroutine TArray2D_init(this, env, memoryDim)
 
+    !> Instance
     type(TArray2D), intent(out) :: this
 
+    !> Computational environment
     type(TEnvironment), intent(in) :: env
 
+    !> Dimensioning of memory
     integer, intent(in) :: memoryDim(:)
 
     integer :: dataLength
@@ -67,8 +76,10 @@ contains
   end subroutine TArray2D_init
 
 
+  !> Clean up a structure and its memory
   subroutine TArray2D_final(this)
 
+    !> Instance
     type(TArray2D), intent(inout) :: this
 
   #:if WITH_MPI
