@@ -4,11 +4,14 @@ list(APPEND fypp_flags "-I${_fortuno_incdir}" "-I${CMAKE_SOURCE_DIR}/src/dftbp/i
 
 set(unit-test-prefix "unit")
 
-add_subdirectory(common)
 add_subdirectory(dftb)
 add_subdirectory(elecsolvers)
-add_subdirectory(include)
-add_subdirectory(io)
 add_subdirectory(math)
 add_subdirectory(mixer)
-add_subdirectory(type)
+
+if(NOT WITH_MPI)
+  add_subdirectory(common)
+  add_subdirectory(include)
+  add_subdirectory(io)
+  add_subdirectory(type)
+endif()

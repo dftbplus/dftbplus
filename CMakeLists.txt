@@ -317,8 +317,14 @@ endif()
 if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   set(FORTUNO_GIT_REPOSITORY "https://github.com/fortuno-repos/fortuno.git")
   set(FORTUNO_GIT_TAG "186c9159685413a1aeefe3524986750aeb31775c")  # do not change manually!
-  dftbp_config_hybrid_dependency(Fortuno Fortuno::fortuno_serial "Submodule" "QUIET"
-  external/fortuno "${exclude}" "${FORTUNO_GIT_REPOSITORY}" "${FORTUNO_GIT_TAG}")
+  if (NOT WITH_MPI)
+    dftbp_config_hybrid_dependency(Fortuno Fortuno::fortuno_serial "Submodule" "QUIET"
+    external/fortuno "${exclude}" "${FORTUNO_GIT_REPOSITORY}" "${FORTUNO_GIT_TAG}")
+  else()
+    set(FORTUNO_WITH_MPI TRUE)
+    dftbp_config_hybrid_dependency(Fortuno Fortuno::fortuno_mpi "Submodule" "QUIET"
+    external/fortuno "${exclude}" "${FORTUNO_GIT_REPOSITORY}" "${FORTUNO_GIT_TAG}")
+  endif()
 endif()
 
 #
