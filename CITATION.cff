@@ -1,9 +1,8 @@
 cff-version: 1.2.0
 type: software
 title: >-
-  DFTB+, a software package for efficient approximate
-  density functional theory based atomistic
-  simulations
+  DFTB+, a software package for efficient atomistic
+  quantum mechanical simulations
 message: >-
   When publishing results obtained with DFTB+, please
   cite it using the metadata from
@@ -21,10 +20,10 @@ authors:
     given-names: "Matías"
     orcid: "https://orcid.org/0000-0002-6517-2765"
   - family-names: "Bich"
-    given-names: "Justin"
+    given-names: "Justin A."
     orcid: "https://orcid.org/0009-0002-6042-4377"
   - family-names: "Bonafé"
-    given-names: "Franco"
+    given-names: "Franco P."
     orcid: "https://orcid.org/0000-0002-2069-6776"
   - family-names: "Camacho"
     given-names: "Cristopher"
@@ -102,7 +101,7 @@ authors:
     given-names: "Michael A."
     orcid: "https://orcid.org/0000-0002-7946-0282"
   - family-names: "Stishenko"
-    given-names: "Pavel"
+    given-names: "Pavel V."
     orcid: "https://orcid.org/0000-0003-4653-9899"
   - family-names: "Vuong"
     given-names: "Van-Quan"
@@ -120,10 +119,10 @@ preferred-citation:
       given-names: "Matías"
       orcid: "https://orcid.org/0000-0002-6517-2765"
     - family-names: "Bich"
-      given-names: "Justin"
+      given-names: "Justin A."
       orcid: "https://orcid.org/0009-0002-6042-4377"
     - family-names: "Bonafé"
-      given-names: "Franco"
+      given-names: "Franco P."
       orcid: "https://orcid.org/0000-0002-2069-6776"
     - family-names: "Camacho"
       given-names: "Cristopher"
@@ -201,7 +200,7 @@ preferred-citation:
       given-names: "Michael A."
       orcid: "https://orcid.org/0000-0002-7946-0282"
     - family-names: "Stishenko"
-      given-names: "Pavel"
+      given-names: "Pavel V."
       orcid: "https://orcid.org/0000-0003-4653-9899"
     - family-names: "Vuong"
       given-names: "Van-Quan"
@@ -211,9 +210,10 @@ preferred-citation:
       orcid: "https://orcid.org/0000-0001-7182-841X"
   doi: 10.1021/acs.jpca.5c01146
   url: "https://doi.org/10.1021/acs.jpca.5c01146"
-  journal: "J. Phys. Chem. A"
+  journal: "The Journal of Physical Chemistry A"
   title: "Recent Developments in DFTB+, a Software Package for Efficient Atomistic Quantum Mechanical Simulations"
   year: 2025
   volume: 129
+  issue: 24
   start: 5373
   end: 5390
