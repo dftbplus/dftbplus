@@ -28,6 +28,7 @@ module dftbp_dftb_periodic
   use dftbp_math_sorting, only : index_heap_sort, merge_multikey
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
   use dftbp_type_linkedlist, only : append, asArray, destruct, init, len, TListRealR1
+  use dftbp_type_sharedmemory, only : TArray2D, TArray2D_init
 
   implicit none (type, external)
   private
@@ -53,6 +54,9 @@ module dftbp_dftb_periodic
 
     !> Index of neighbour atoms
     integer, pointer :: iNeighbour(:,:) => null()
+
+    !> Shared array for neighbour atoms
+    type(TArray2D), allocatable :: iNeigh
 
     !> Neighbour distances
     real(dp), pointer :: neighDist2(:,:) => null()
