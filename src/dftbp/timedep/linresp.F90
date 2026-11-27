@@ -15,7 +15,6 @@
 !! * Orbital potentials or spin-orbit does not work yet.
 !! * Only for closed shell or colinear spin polarization (excitation energies only in that
 !!   case).
-!! * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
@@ -77,6 +76,9 @@ module dftbp_timedep_linresp
 
     !> Atom resolved spinconstants
     real(dp), allocatable :: spinW(:)
+
+    !> On-site matrix elements used in the response kernel
+    real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
     !> Print excited state mulliken populations
     logical :: tMulliken

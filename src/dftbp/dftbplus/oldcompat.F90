@@ -12,8 +12,8 @@
 module dftbp_dftbplus_oldcompat
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_release, only : TVersionMap
-  use dftbp_extlibs_xmlf90, only : char, destroyNode, destroyNodeList, fnode, fnodeList, getItem1,&
-      & getLength, getNodeName, removeChild, string
+  use dftbp_extlibs_xmlf90, only : appendChild, char, cloneNode, destroyNode, destroyNodeList, fnode,&
+      & fnodeList, getItem1, getLength, getNodeName, removeChild, string
   use dftbp_io_charmanip, only : i2c, newline, tolower
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
       & getChildValue, setChild, setChildValue
@@ -28,7 +28,7 @@ module dftbp_dftbplus_oldcompat
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("26.1", 15), TVersionMap("25.1", 14),&
+      & TVersionMap("27.1", 16), TVersionMap("26.1", 15), TVersionMap("25.1", 14),&
       & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
@@ -107,6 +107,9 @@ contains
       case (14)
         call convert_14_15(output, root)
         version = 15
+      case (15)
+        call convert_15_16(output, root)
+        version = 16
       end select
     end do
 
@@ -1046,6 +1049,33 @@ contains
     end if
 
   end subroutine convert_14_15
+
+
+  !> Converts input from version 15 to 16. (Version 16 introduced in November 2026)
+  subroutine convert_15_16(output, root)
+
+    !> Output unit for human readable messages
+    integer, intent(in) :: output
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: casida, onsite, responseOnsite, tmpNodeRef
+
+    call getDescendant(root, "ExcitedState/Casida", casida)
+    call getDescendant(root, "Hamiltonian/DFTB/OnSiteCorrection", onsite)
+    if (.not. associated(casida) .or. .not. associated(onsite)) return
+
+    call getDescendant(root, "ExcitedState/Casida/OnSiteCorrection", responseOnsite)
+    if (associated(responseOnsite)) return
+
+    responseOnsite => cloneNode(onsite, deep=.true.)
+    tmpNodeRef => appendChild(casida, responseOnsite)
+    call setUnprocessed(responseOnsite)
+    call detailedWarning(output, onsite, "On-site corrections copied to the Casida response to&
+        & preserve the behaviour of parser versions before 16.")
+
+  end subroutine convert_15_16
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

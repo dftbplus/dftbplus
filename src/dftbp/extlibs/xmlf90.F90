@@ -8,7 +8,7 @@
 !> Exporting the functionality we use from the library XMLF90.
 module dftbp_extlibs_xmlf90
   use xmlf90_flib_dom, only : append, append_to_string, appendChild, assignment(=), char,&
-      & createDocumentNode, createElement, createTextNode, destroyNode, destroyNodeList,&
+      & cloneNode, createDocumentNode, createElement, createTextNode, destroyNode, destroyNodeList,&
       & ELEMENT_NODE, fnode, fnodeList, getAttribute, getAttributeNode, getFirstChild, getItem1,&
       & getLastChild, getLength, getNextSibling, getNodeName, getNodeType, getNodeValue,&
       & getParentNode, getPreviousSibling, item, len, normalize, operator(==), parsefile,&
